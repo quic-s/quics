@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+
 	if err := Execute(); err != nil {
 		log.Println(err)
 		os.Exit(1)
