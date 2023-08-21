@@ -24,8 +24,7 @@ var startServerCmd = &cobra.Command{
 	Short: "Start server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("Start server")
-		server.StartServer()
-		return nil
+		return server.StartServer()
 	},
 }
 

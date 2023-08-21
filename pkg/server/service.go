@@ -8,7 +8,7 @@ import (
 )
 
 // StartServer Start quics server
-func StartServer() {
+func StartServer() error {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Start server...")
@@ -16,7 +16,7 @@ func StartServer() {
 	})
 
 	go func() {
-		err := http.ListenAndServe(config.GetServerPort(), nil)
+		err := http.ListenAndServe(string(rune(config.RuntimeConf.Server.Port)), nil)
 		if err != nil {
 			log.Println(err)
 		}
