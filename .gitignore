@@ -25,3 +25,4 @@ go.work
 
 # Hide values
 .env
+*.yaml

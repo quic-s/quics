@@ -1,14 +1,18 @@
 package config
 
 import (
-	"os"
+	"github.com/spf13/viper"
+	"log"
 )
 
-func GetServerAddress() string {
-	// FIXME: 서버의 주소는 Option으로 입력받도록 하는 게 좋다.
-	return os.Getenv("BASE_URL")
-}
+func main() {
+	// Initialize viper configuration
+	viper.SetConfigName("local")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
 
-func GetServerPort() string {
-	return os.Getenv("PORT")
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Fatalf("Error reading config file: %s", err)
+	}
 }
