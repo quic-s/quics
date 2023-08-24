@@ -23,6 +23,5 @@ go.work
 # Mac OS X specific files
 .DS_Store
 
-# Hide values
-.env
-# *.yaml
+# .idea
+.idea
