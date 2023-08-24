@@ -1,8 +1,8 @@
 package metadata
 
-// File file metadata
-// TODO: Must to add packet information of each file for transportation
-type File struct {
+// FileMetadata
+// Metadata format of each file (not saved to database)
+type FileMetadata struct {
 	Id         string
 	Version    string
 	Name       string

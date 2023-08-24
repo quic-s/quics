@@ -1,7 +1,6 @@
 package client
 
 import (
-	"github.com/quic-s/quics/pkg/metadata"
 	"github.com/quic-s/quics/pkg/sync"
 )
 
@@ -11,5 +10,5 @@ type Client struct {
 	Id    string
 	Ip    string
 	Root  sync.RootDirectory // root directory path information
-	Files []metadata.File    // list of synchronized files
+	Files []sync.File        // list of synchronized files
 }
