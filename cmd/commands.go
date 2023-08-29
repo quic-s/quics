@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"fmt"
@@ -23,7 +23,8 @@ var startServerCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Start server")
+		//fmt.Println("Start cobra server")
+		// rest start
 		return server.StartServer()
 	},
 }

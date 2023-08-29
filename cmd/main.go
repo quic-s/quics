@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"crypto/tls"
@@ -56,7 +56,7 @@ func startHttp3Server(r *mux.Router) {
 	quicConfig := quic.Config{}
 
 	server := &http3.Server{
-		Addr:       ":8080",
+		Addr:       ":6121",
 		QuicConfig: &quicConfig,
 		Handler:    r,
 	}

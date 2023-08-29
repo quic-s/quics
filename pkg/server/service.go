@@ -2,24 +2,37 @@ package server
 
 import (
 	"fmt"
-	"github.com/quic-s/quics/config"
+	"github.com/quic-go/quic-go"
+	qp "github.com/quic-s/quics-protocol"
+	pb "github.com/quic-s/quics-protocol/proto/v1" // defines message contents
 	"log"
-	"net/http"
 )
 
 // StartServer Start quics server
 func StartServer() error {
+	proto, err := qp.New()
+	if err != nil {
+		return err
+	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Start server...")
-		fmt.Println(w)
+	proto.RecvMessage(func(conn quic.Connection, message *pb.Message) {
+		// TODO
+		log.Println(message.Message)
 	})
 
 	go func() {
-		err := http.ListenAndServe(string(rune(config.RuntimeConf.Server.Port)), nil)
+
+		log.Println("Start to listening protocol...")
+
+		err := proto.Listen("0.0.0.0", 6122)
 		if err != nil {
-			log.Println(err)
+			log.Fatalf("error with: %s", err)
 		}
+
+		//err := http.ListenAndServe(string(rune(config.RuntimeConf.Server.Port)), nil)
+		//if err != nil {
+		//	log.Println(err)
+		//}
 	}()
 
 	fmt.Println("Server started successfully.")
