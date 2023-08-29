@@ -1,4 +1,4 @@
-package sync
+package history
 
 import "github.com/dgraph-io/badger/v3"
 
@@ -9,6 +9,6 @@ type Repository struct {
 type RepositoryInterface interface {
 }
 
-func NewSyncRepository(db *badger.DB) *Repository {
+func NewHistoryRepository(db *badger.DB) *Repository {
 	return &Repository{DB: db}
 }
