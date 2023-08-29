@@ -24,6 +24,8 @@ func (clientService *Service) CreateNewClient(ip *string) (string, error) {
 	}
 	defer seq.Release()
 	newId, err := seq.Next()
+
+	// FIXME: if not necessary, remove 2 line code below
 	newIdBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(newIdBytes, newId)
 
@@ -36,7 +38,7 @@ func (clientService *Service) CreateNewClient(ip *string) (string, error) {
 	}
 
 	// Save client to badger database
-	clientService.clientRepository.SaveClient(newIdBytes, client)
+	clientService.clientRepository.SaveClient(newUuid, client)
 
 	return newUuid, nil
 }

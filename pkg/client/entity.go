@@ -5,8 +5,8 @@ import (
 )
 
 type Client struct {
-	Id    uint64             `json:"id"`
 	Uuid  string             `json:"uuid"`
+	Id    uint64             `json:"id"`
 	Ip    string             `json:"ip"`
 	Root  sync.RootDirectory `json:"root_directory"` // root directory path information
 	Files []sync.File        `json:"files"`          // list of synchronized files

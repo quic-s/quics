@@ -22,6 +22,7 @@ func NewClientHandler(db *badger.DB) *Handler {
 
 func (clientHandler *Handler) SetupRoutes(r *mux.Router) {
 	// 2.1 create (connect) new client
+	// TODO: how to implement response to client
 	r.HandleFunc("/", clientHandler.createClientHandler).Methods(http.MethodPost)
 
 	// 2.2 get the status of a client
