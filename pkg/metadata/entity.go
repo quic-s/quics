@@ -1,9 +1,9 @@
 package metadata
 
-// FileMetadata
-// Metadata format of each file (not saved to database)
+// FileMetadata retains file contents at last sync timestamp
 type FileMetadata struct {
 	Id         string
+	Hash       string // TODO: does it need?
 	Version    string
 	Name       string
 	Format     string

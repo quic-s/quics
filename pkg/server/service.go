@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-// StartServer Start quics server
+// StartServer executes when server starts
 func StartServer() error {
 	proto, err := qp.New()
 	if err != nil {
@@ -26,7 +26,7 @@ func StartServer() error {
 
 		err := proto.Listen("0.0.0.0", 6122)
 		if err != nil {
-			log.Fatalf("error with: %s", err)
+			log.Fatalf("Error while listening protocol: %s", err)
 		}
 
 		//err := http.ListenAndServe(string(rune(config.RuntimeConf.Server.Port)), nil)

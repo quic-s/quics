@@ -2,17 +2,17 @@ package test
 
 import (
 	"github.com/dgraph-io/badger/v3"
-	"github.com/quic-s/quics/pkg/common"
+	"github.com/quic-s/quics/pkg"
 	"reflect"
 	"testing"
 )
 
 func TestGetAll(t *testing.T) {
 	tests := []struct {
-		want []common.Command
+		want []pkg.Command
 	}{
 		{
-			want: []common.Command{
+			want: []pkg.Command{
 				{[]byte("hello"), []byte("world")},
 				{[]byte("milk"), []byte("cereal")},
 			},
@@ -25,7 +25,7 @@ func TestGetAll(t *testing.T) {
 			t.Fatalf("unable to init in-memory DB: %v", err)
 		}
 		defer db.Close()
-		c := common.CommandsRepository{db}
+		c := pkg.CommandsRepository{db}
 
 		for _, cmd := range tc.want {
 			if err := c.SetValue(cmd.Key, cmd.Value); err != nil {
@@ -45,12 +45,12 @@ func TestGetAll(t *testing.T) {
 
 func TestGetValue(t *testing.T) {
 	tests := []struct {
-		input []common.Command
+		input []pkg.Command
 		key   []byte
 		want  []byte
 	}{
 		{
-			input: []common.Command{
+			input: []pkg.Command{
 				{[]byte("hello"), []byte("world")},
 				{[]byte("milk"), []byte("cereal")},
 			},
@@ -58,7 +58,7 @@ func TestGetValue(t *testing.T) {
 			want: []byte("world"),
 		},
 		{
-			input: []common.Command{
+			input: []pkg.Command{
 				{[]byte("hello"), []byte("world")},
 				{[]byte("milk"), []byte("cereal")},
 			},
@@ -73,7 +73,7 @@ func TestGetValue(t *testing.T) {
 			t.Fatalf("unable to init in-memory DB: %v", err)
 		}
 		defer db.Close()
-		c := common.CommandsRepository{db}
+		c := pkg.CommandsRepository{db}
 
 		for _, cmd := range tc.input {
 			if err := c.SetValue(cmd.Key, cmd.Value); err != nil {
@@ -93,12 +93,12 @@ func TestGetValue(t *testing.T) {
 
 func TestSetValue(t *testing.T) {
 	tests := []struct {
-		input    []common.Command
+		input    []pkg.Command
 		key      []byte
 		newValue []byte
 	}{
 		{
-			input: []common.Command{
+			input: []pkg.Command{
 				{[]byte("hello"), []byte("world")},
 				{[]byte("milk"), []byte("cereal")},
 			},
@@ -106,7 +106,7 @@ func TestSetValue(t *testing.T) {
 			newValue: []byte("chat"),
 		},
 		{
-			input: []common.Command{
+			input: []pkg.Command{
 				{[]byte("hello"), []byte("world")},
 				{[]byte("milk"), []byte("cereal")},
 			},
@@ -121,7 +121,7 @@ func TestSetValue(t *testing.T) {
 			t.Fatalf("unable to init in-memory DB: %v", err)
 		}
 		defer db.Close()
-		c := common.CommandsRepository{db}
+		c := pkg.CommandsRepository{db}
 
 		for _, cmd := range tc.input {
 			if err := c.SetValue(cmd.Key, cmd.Value); err != nil {
@@ -143,18 +143,18 @@ func TestSetValue(t *testing.T) {
 
 func TestDeleteValue(t *testing.T) {
 	tests := []struct {
-		input []common.Command
+		input []pkg.Command
 		key   []byte
 	}{
 		{
-			input: []common.Command{
+			input: []pkg.Command{
 				{[]byte("hello"), []byte("world")},
 				{[]byte("milk"), []byte("cereal")},
 			},
 			key: []byte("hello"),
 		},
 		{
-			input: []common.Command{
+			input: []pkg.Command{
 				{[]byte("hello"), []byte("world")},
 				{[]byte("milk"), []byte("cereal")},
 			},
@@ -168,7 +168,7 @@ func TestDeleteValue(t *testing.T) {
 			t.Fatalf("unable to init in-memory DB: %v", err)
 		}
 		defer db.Close()
-		c := common.CommandsRepository{db}
+		c := pkg.CommandsRepository{db}
 
 		for _, cmd := range tc.input {
 			if err := c.SetValue(cmd.Key, cmd.Value); err != nil {
