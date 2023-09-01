@@ -2,7 +2,6 @@ package registration
 
 import (
 	"github.com/quic-s/quics/pkg/client"
-	"github.com/quic-s/quics/pkg/sync"
 	"log"
 )
 
@@ -15,7 +14,7 @@ func NewRegistrationService(clientRepository *client.Repository) *Service {
 }
 
 // RegisterRootDir registers initial root directory to client database
-func (registrationService *Service) RegisterRootDir(request sync.RegisterRootDirRequest) (string, error) {
+func (registrationService *Service) RegisterRootDir(request RegisterRootDirRequest) (string, error) {
 	// get client entity by uuid in request data
 	client, err := registrationService.clientRepository.GetClientByUuid(request.Uuid)
 	if err != nil {
@@ -24,11 +23,12 @@ func (registrationService *Service) RegisterRootDir(request sync.RegisterRootDir
 
 	// create root directory entity
 	// TODO: need to check the time zone
-	var rootDir = sync.RootDirectory{
-		Path: request.Path,
-		Date: request.Date,
+	var rootDir = RootDirectory{
+		Owner: client.Uuid,
+		Path:  request.BeforePath + request.AfterPath,
 	}
-	client.Root = rootDir
+	rootDirs := append(client.Root, rootDir)
+	client.Root = rootDirs
 
 	// save updated client entity
 	registrationService.clientRepository.SaveClient(client.Uuid, *client)

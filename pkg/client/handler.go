@@ -37,7 +37,7 @@ func (clientHandler *Handler) SetupRoutes(r *mux.Router) {
 
 // createClientHandler implements the API of 2.1 create (connect new client)
 func (clientHandler *Handler) createClientHandler(w http.ResponseWriter, r *http.Request) {
-	var request CreateClientRequest
+	var request RegisterClientRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Faield to create client because of wrong request data", http.StatusBadRequest)
 		log.Fatalf("Error while decoding request data: %s", err)

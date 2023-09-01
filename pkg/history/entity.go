@@ -5,8 +5,9 @@ import (
 )
 
 type FileHistory struct {
-	Id   uint64                `json:"id"`
-	Date string                `json:"date"`
-	Uuid string                `json:"uuid"`
-	File metadata.FileMetadata `json:"file"` // must have file metadata at the point that client wanted in time
+	Id   uint64
+	Date string
+	Uuid string
+	Path string                // path of stored the file with history
+	File metadata.FileMetadata // must have file metadata at the point that client wanted in time
 }

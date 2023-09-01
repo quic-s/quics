@@ -25,21 +25,28 @@ func main() {
 	// FIXME: this is for test. Delete after.
 	fmt.Println("database: ", config.RuntimeConf.Database.Path)
 
-	// ready to Cobra command
-	if err := Execute(); err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
-
 	// initialize badger database
+	// TODO: application badger, client badger(last sync)
 	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
 	if err != nil {
 		log.Fatalf("Error while connecting to the database: %s", err)
 	}
 	defer db.Close()
 
+	// ready to Cobra command
+	if err := Execute(); err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+
+	setDefaultPassword(db)
 	r := connectHandler(db)
 	startHttp3Server(r)
+}
+
+// setDefaultPassword sets default password of server from env for accessing client
+func setDefaultPassword(db *badger.DB) {
+
 }
 
 // connectHandler creates mux router and connect handler to router
@@ -54,6 +61,8 @@ func connectHandler(db *badger.DB) *mux.Router {
 
 func startHttp3Server(r *mux.Router) {
 	quicConfig := quic.Config{}
+
+	log.Println("Starting http3 server...")
 
 	server := &http3.Server{
 		Addr:       ":6121",

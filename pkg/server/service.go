@@ -16,7 +16,6 @@ func StartServer() error {
 	}
 
 	proto.RecvMessage(func(conn quic.Connection, message *pb.Message) {
-		// TODO
 		log.Println(message.Message)
 	})
 
