@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/dgraph-io/badger/v3"
-	"github.com/quic-s/quics/pkg/register"
+	"github.com/quic-s/quics/pkg/registeration"
 )
 
 type Repository struct {
@@ -10,6 +10,6 @@ type Repository struct {
 }
 
 type RepositoryInterface interface {
-	SetDefaultPassword(newId []byte, client register.Client)
-	UpdateDefaultPassword(id string) (*register.Client, error)
+	SetDefaultPassword(newId []byte, client registeration.Client)
+	UpdateDefaultPassword(id string) (*registeration.Client, error)
 }

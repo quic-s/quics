@@ -1,4 +1,4 @@
-package register
+package registeration
 
 import (
 	"encoding/json"
@@ -34,7 +34,7 @@ func (registrationHandler *Handler) SetupRoutes(r *mux.Router) {
 	// 2.4 disconnect client
 	//r.HandleFunc("/{clientId}", clientHandler.disconnectClient).Methods(http.MethodPost)
 
-	// 3.1 register root directory
+	// 3.1 registeration root directory
 	r.HandleFunc("/{clientId}/roots", registrationHandler.registerRootDir).Methods(http.MethodPost)
 
 	// 3.2 get registered root directory
@@ -77,7 +77,7 @@ func (registrationHandler *Handler) registerRootDir(w http.ResponseWriter, r *ht
 
 	message, err := registrationHandler.registrationService.RegisterRootDir(request)
 	if err != nil {
-		http.Error(w, "Faield to register root directory", http.StatusInternalServerError)
+		http.Error(w, "Faield to registeration root directory", http.StatusInternalServerError)
 		log.Fatalf("Error while returning response data: %s", err)
 		return
 	}

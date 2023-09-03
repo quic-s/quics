@@ -1,4 +1,4 @@
-package register
+package registeration
 
 import (
 	"encoding/json"

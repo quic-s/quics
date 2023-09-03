@@ -12,7 +12,6 @@ type Response struct {
 	Message   string
 }
 
-// Encode encodes struct for sending to client through protocol
 func (response *Response) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)

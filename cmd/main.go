@@ -10,7 +10,7 @@ import (
 	qp "github.com/quic-s/quics-protocol"
 	pb "github.com/quic-s/quics-protocol/proto/v1"
 	"github.com/quic-s/quics/config"
-	"github.com/quic-s/quics/pkg/register"
+	"github.com/quic-s/quics/pkg/registeration"
 	"github.com/quic-s/quics/pkg/utils"
 	"log"
 	"os"
@@ -60,7 +60,7 @@ func setDefaultPassword(db *badger.DB) {
 func connectHandler(db *badger.DB) *mux.Router {
 	r := mux.NewRouter()
 
-	clientHandler := register.NewRegistrationHandler(db)
+	clientHandler := registeration.NewRegistrationHandler(db)
 	clientHandler.SetupRoutes(r.PathPrefix(restUri + "/clients").Subrouter())
 
 	return r

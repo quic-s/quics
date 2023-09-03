@@ -1,4 +1,4 @@
-package register
+package registeration
 
 import (
 	"encoding/binary"
@@ -62,5 +62,5 @@ func (registrationService *Service) RegisterRootDir(request RegisterRootDirReque
 	// save updated client entity
 	registrationService.clientRepository.SaveClient(client.Uuid, *client)
 
-	return "Success to register root directroy", nil
+	return "Success to registeration root directroy", nil
 }
