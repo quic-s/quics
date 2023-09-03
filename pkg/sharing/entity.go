@@ -1,6 +1,11 @@
 package sharing
 
-import "github.com/quic-s/quics/pkg/history"
+import (
+	"bytes"
+	"encoding/gob"
+	"github.com/quic-s/quics/pkg/history"
+	"log"
+)
 
 type Sharing struct {
 	Id       uint
@@ -19,9 +24,26 @@ type FileDownloadRequest struct {
 	MaxCount   uint
 }
 
+func (fileDownloadRequest *FileDownloadRequest) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(fileDownloadRequest)
+}
+
 // FileDownloadResponse is used when returning created file download link
 type FileDownloadResponse struct {
 	Link     string
 	Count    uint
 	MaxCount uint
+}
+
+func (fileDownloadResponse *FileDownloadResponse) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(fileDownloadResponse); err != nil {
+		log.Panicf("Error while encoding request data: %s", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }

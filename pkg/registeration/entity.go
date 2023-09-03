@@ -1,4 +1,4 @@
-package register
+package registeration
 
 import (
 	"bytes"
@@ -16,12 +16,19 @@ type Client struct {
 	Files []sync.File     // list of synchronized files
 }
 
+// RootDirectory is used when registering root directory to client
+type RootDirectory struct {
+	Id       uint64
+	Owner    string // the client that registers this root directory
+	Password string // if not exist password, then the value is ""
+	Path     string
+}
+
 // RegisterClientRequest is used when registering client
 type RegisterClientRequest struct {
 	Ip string
 }
 
-// Decode decodes message data from client through protocol to struct
 func (registerClientRequest *RegisterClientRequest) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
@@ -30,11 +37,9 @@ func (registerClientRequest *RegisterClientRequest) Decode(data []byte) error {
 
 // RegisterClientResponse is used when registering client
 type RegisterClientResponse struct {
-	RequestId uint64
-	Uuid      string
+	Uuid string
 }
 
-// Encode encodes struct for sending to client through protocol
 func (registerClientResponse *RegisterClientResponse) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
@@ -48,9 +53,7 @@ func (registerClientResponse *RegisterClientResponse) Encode() ([]byte, error) {
 
 // DisconnectClientRequest is used when disconnecting client with server
 type DisconnectClientRequest struct {
-	RequestId uint64
-	Uuid      string
-	Password  string // password of server
+	Password string // password of server
 }
 
 func (disconnectClientRequest *DisconnectClientRequest) Decode(data []byte) error {
@@ -59,23 +62,12 @@ func (disconnectClientRequest *DisconnectClientRequest) Decode(data []byte) erro
 	return decoder.Decode(disconnectClientRequest)
 }
 
-// RootDirectory is used when registering root directory to client
-type RootDirectory struct {
-	Id       uint64
-	Owner    string // the client that registers this root directory
-	Password string // if not exist password, then the value is ""
-	Path     string
-}
-
 // RegisterRootDirRequest is used when registering root directory of a client
 type RegisterRootDirRequest struct {
-	RequestId uint64
-	Uuid      string
-	Password  string // password of the root directory
-
-	// e.g., /home/ubuntu/rootDir/*
-	BeforePath string // /home/ubuntu
-	AfterPath  string // /rootDir/*
+	Uuid       string
+	Password   string // password of the root directory
+	BeforePath string
+	AfterPath  string
 }
 
 func (registerRootDirRequest *RegisterRootDirRequest) Decode(data []byte) error {
