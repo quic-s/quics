@@ -1,4 +1,4 @@
-package env
+package config
 
 import (
 	"log"
@@ -8,12 +8,31 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GetViperEnvVariables get env variables in env file using viper
 func GetViperEnvVariables(key string) string {
 	envPath := filepath.Join(GetDirPath(), ".qis.env")
+
 	_, err := os.Stat(envPath)
 	if err != nil {
-		viper.SetConfigFile(".env")
-		viper.SetConfigType("env")
+		sourceEnvPath := ".env"
+		sourceViper := viper.New()
+		sourceViper.SetConfigFile(sourceEnvPath)
+		sourceViper.SetConfigType("env")
+
+		if err := sourceViper.ReadInConfig(); err != nil {
+			log.Fatalf("Error while reading source config file: %s", err)
+			return ""
+		}
+
+		for _, key := range sourceViper.AllKeys() {
+			value := sourceViper.Get(key)
+			viper.Set(key, value)
+		}
+
+		if err := viper.WriteConfigAs(envPath); err != nil {
+			log.Fatalf("Error while writing config file: %s", err)
+		}
+
 	} else {
 		viper.SetConfigFile(envPath)
 		viper.SetConfigType("env")
@@ -25,8 +44,7 @@ func GetViperEnvVariables(key string) string {
 		return ""
 	}
 
-	value := viper.Get(key).(string)
-
+	value := viper.GetString(key)
 	return value
 }
 

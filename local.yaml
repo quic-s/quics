@@ -1,7 +1,0 @@
-# Local configuration
-
-database:
-  path: ./data
-
-server:
-  port: 8080

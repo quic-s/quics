@@ -1,4 +1,4 @@
-package security
+package utils
 
 import (
 	"crypto/rand"
@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"github.com/quic-s/quics/pkg/utils/env"
+	"github.com/quic-s/quics/config"
 	"path/filepath"
 
 	"log"
@@ -50,8 +50,8 @@ func SecurityFiles() {
 	keyOut := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 
 	// write the certificate and key to disk
-	quicsDir := env.GetDirPath()
-	certFile, err := os.Create(filepath.Join(quicsDir, env.GetViperEnvVariables("QUICS_CLI_CERT_NAME")))
+	quicsDir := config.GetDirPath()
+	certFile, err := os.Create(filepath.Join(quicsDir, config.GetViperEnvVariables("QUICS_CERT_NAME")))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func SecurityFiles() {
 		}
 	}(certFile)
 
-	keyFile, err := os.Create(filepath.Join(quicsDir, env.GetViperEnvVariables("QUICS_CLI_KEY_NAME")))
+	keyFile, err := os.Create(filepath.Join(quicsDir, config.GetViperEnvVariables("QUICS_KEY_NAME")))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,9 +1,8 @@
-package client
+package register
 
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/quic-s/quics/pkg/registration"
 	"github.com/quic-s/quics/pkg/sync"
 	"log"
 )
@@ -13,14 +12,13 @@ type Client struct {
 	Uuid  string
 	Id    uint64
 	Ip    string
-	Root  []registration.RootDirectory // root directory path information
-	Files []sync.File                  // list of synchronized files
+	Root  []RootDirectory // root directory path information
+	Files []sync.File     // list of synchronized files
 }
 
 // RegisterClientRequest is used when registering client
 type RegisterClientRequest struct {
-	RequestId uint64
-	Ip        string
+	Ip string
 }
 
 // Decode decodes message data from client through protocol to struct
@@ -59,4 +57,29 @@ func (disconnectClientRequest *DisconnectClientRequest) Decode(data []byte) erro
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(disconnectClientRequest)
+}
+
+// RootDirectory is used when registering root directory to client
+type RootDirectory struct {
+	Id       uint64
+	Owner    string // the client that registers this root directory
+	Password string // if not exist password, then the value is ""
+	Path     string
+}
+
+// RegisterRootDirRequest is used when registering root directory of a client
+type RegisterRootDirRequest struct {
+	RequestId uint64
+	Uuid      string
+	Password  string // password of the root directory
+
+	// e.g., /home/ubuntu/rootDir/*
+	BeforePath string // /home/ubuntu
+	AfterPath  string // /rootDir/*
+}
+
+func (registerRootDirRequest *RegisterRootDirRequest) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(registerRootDirRequest)
 }

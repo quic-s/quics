@@ -25,7 +25,7 @@ var startServerCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		//fmt.Println("Start cobra server")
 		// rest start
-		return server.StartServer()
+		return nil
 	},
 }
 

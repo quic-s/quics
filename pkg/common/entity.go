@@ -9,6 +9,7 @@ import (
 // Response is used when sending only response success/error message from server to client
 type Response struct {
 	RequestId uint64
+	Message   string
 }
 
 // Encode encodes struct for sending to client through protocol
