@@ -1,23 +1,22 @@
-package registeration
+package registration
 
 import (
 	"encoding/binary"
-	"github.com/quic-s/quics/pkg/utils"
 	"log"
 )
 
 type Service struct {
-	clientRepository *Repository
+	registrationRepository *Repository
 }
 
-func NewRegistrationService(clientRepository *Repository) *Service {
-	return &Service{clientRepository: clientRepository}
+func NewRegistrationService(registrationRepository *Repository) *Service {
+	return &Service{registrationRepository: registrationRepository}
 }
 
 // CreateNewClient creates new client entity
-func (registrationService *Service) CreateNewClient(ip *string) (string, error) {
+func (registrationService *Service) CreateNewClient(uuid string, password string, ip string) (string, error) {
 	// create new id using badger sequence
-	seq, err := registrationService.clientRepository.DB.GetSequence([]byte("client"), 1)
+	seq, err := registrationService.registrationRepository.DB.GetSequence([]byte("client"), 1)
 	if err != nil {
 		log.Panicf("Error while creating new id: %s", err)
 	}
@@ -29,23 +28,23 @@ func (registrationService *Service) CreateNewClient(ip *string) (string, error) 
 	binary.BigEndian.PutUint64(newIdBytes, newId)
 
 	// initialize client information
-	var newUuid = utils.CreateUuid()
+	//var newUuid = utils.CreateUuid()
 	var client = Client{
 		Id:   newId,
-		Ip:   *ip,
-		Uuid: newUuid,
+		Ip:   ip,
+		Uuid: uuid,
 	}
 
 	// Save client to badger database
-	registrationService.clientRepository.SaveClient(newUuid, client)
+	registrationService.registrationRepository.SaveClient(uuid, client)
 
-	return newUuid, nil
+	return uuid, nil
 }
 
 // RegisterRootDir registers initial root directory to client database
 func (registrationService *Service) RegisterRootDir(request RegisterRootDirRequest) (string, error) {
 	// get client entity by uuid in request data
-	client, err := registrationService.clientRepository.GetClientByUuid(request.Uuid)
+	client, err := registrationService.registrationRepository.GetClientByUuid(request.Uuid)
 	if err != nil {
 		log.Fatalf("Error while registering root directory: %s", err)
 	}
@@ -60,7 +59,7 @@ func (registrationService *Service) RegisterRootDir(request RegisterRootDirReque
 	client.Root = rootDirs
 
 	// save updated client entity
-	registrationService.clientRepository.SaveClient(client.Uuid, *client)
+	registrationService.registrationRepository.SaveClient(client.Uuid, *client)
 
-	return "Success to registeration root directroy", nil
+	return "Success to registration root directroy", nil
 }

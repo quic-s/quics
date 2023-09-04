@@ -9,6 +9,15 @@ import (
 var id string
 var all bool
 
+//baseUrl := config.GetViperEnvVariables("REST_SERVER_ADDR")
+//
+//resp, err := getHttp3Client().Get(baseUrl + RestServerApiUri + "/clients")
+//if err != nil {
+//fmt.Println("Error while receiving response: ", err)
+//return
+//}
+//defer resp.Body.Close()
+
 // Root command
 var rootCmd = &cobra.Command{
 	Use:   "qis",

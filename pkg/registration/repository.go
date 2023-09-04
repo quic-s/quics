@@ -1,4 +1,4 @@
-package registeration
+package registration
 
 import (
 	"encoding/json"
@@ -21,14 +21,14 @@ func NewClientRepository(db *badger.DB) *Repository {
 }
 
 // SaveClient saves new client to badger and this system
-func (clientRepository *Repository) SaveClient(newUuid string, client Client) {
+func (clientRepository *Repository) SaveClient(uuid string, client Client) {
 	clientJson, err := json.Marshal(client)
 	if err != nil {
 		log.Panicf("Error while marshaling request data: %s", err)
 	}
 
 	err = clientRepository.DB.Update(func(txn *badger.Txn) error {
-		err := txn.Set([]byte(newUuid), clientJson)
+		err := txn.Set([]byte(uuid), clientJson)
 		return err
 	})
 	if err != nil {

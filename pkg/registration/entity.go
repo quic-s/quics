@@ -1,4 +1,4 @@
-package registeration
+package registration
 
 import (
 	"bytes"
@@ -26,7 +26,8 @@ type RootDirectory struct {
 
 // RegisterClientRequest is used when registering client
 type RegisterClientRequest struct {
-	Ip string
+	Uuid           string
+	ClientPassword string
 }
 
 func (registerClientRequest *RegisterClientRequest) Decode(data []byte) error {

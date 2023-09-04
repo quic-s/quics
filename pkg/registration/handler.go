@@ -1,4 +1,4 @@
-package registeration
+package registration
 
 import (
 	"encoding/json"
@@ -10,19 +10,18 @@ import (
 )
 
 type Handler struct {
-	db                  *badger.DB
-	registrationService *Service
+	DB                  *badger.DB
+	RegistrationService *Service
 }
 
 func NewRegistrationHandler(db *badger.DB) *Handler {
-	clientRepository := NewClientRepository(db)
-	registrationService := NewRegistrationService(clientRepository)
-	return &Handler{db: db, registrationService: registrationService}
+	registrationRepository := NewClientRepository(db)
+	registrationService := NewRegistrationService(registrationRepository)
+	return &Handler{DB: db, RegistrationService: registrationService}
 }
 
 func (registrationHandler *Handler) SetupRoutes(r *mux.Router) {
 	// 2.1 create (connect) new client
-	// TODO: how to implement response to client
 	r.HandleFunc("/", registrationHandler.createClientHandler).Methods(http.MethodPost)
 
 	// 2.2 get the status of a client
@@ -34,7 +33,7 @@ func (registrationHandler *Handler) SetupRoutes(r *mux.Router) {
 	// 2.4 disconnect client
 	//r.HandleFunc("/{clientId}", clientHandler.disconnectClient).Methods(http.MethodPost)
 
-	// 3.1 registeration root directory
+	// 3.1 registration root directory
 	r.HandleFunc("/{clientId}/roots", registrationHandler.registerRootDir).Methods(http.MethodPost)
 
 	// 3.2 get registered root directory
@@ -56,7 +55,7 @@ func (registrationHandler *Handler) createClientHandler(w http.ResponseWriter, r
 		return
 	}
 
-	uuid, err := registrationHandler.registrationService.CreateNewClient(&request.Ip)
+	uuid, err := registrationHandler.RegistrationService.CreateNewClient(&request.Ip)
 	if err != nil {
 		http.Error(w, "Faield to create client", http.StatusInternalServerError)
 		log.Fatalf("Error while returning response data: %s", err)
@@ -75,9 +74,9 @@ func (registrationHandler *Handler) registerRootDir(w http.ResponseWriter, r *ht
 		return
 	}
 
-	message, err := registrationHandler.registrationService.RegisterRootDir(request)
+	message, err := registrationHandler.RegistrationService.RegisterRootDir(request)
 	if err != nil {
-		http.Error(w, "Faield to registeration root directory", http.StatusInternalServerError)
+		http.Error(w, "Faield to registration root directory", http.StatusInternalServerError)
 		log.Fatalf("Error while returning response data: %s", err)
 		return
 	}
