@@ -62,6 +62,7 @@ func main() {
 	fmt.Println("                           Start                            ")
 	fmt.Println("************************************************************")
 
+	// if pressed ctrl + c, then stop server with closing database
 	StopServer()
 }
 
