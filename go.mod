@@ -37,7 +37,7 @@ require (
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-20 v0.3.3 // indirect
 	github.com/quic-go/quic-go v0.38.1 // indirect
-	github.com/quic-s/quics-protocol v0.0.0-20230903082438-8ab582771be0 // indirect
+	github.com/quic-s/quics-protocol v0.0.0-20230904042937-05b9e5cb9c70 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect

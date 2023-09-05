@@ -16,12 +16,27 @@ type Client struct {
 	Files []sync.File     // list of synchronized files
 }
 
+func (client *Client) Encode() []byte {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(client); err != nil {
+		log.Panicf("Error while encoding request data: %s", err)
+	}
+
+	return buffer.Bytes()
+}
+
+func (client *Client) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(client)
+}
+
 // RootDirectory is used when registering root directory to client
 type RootDirectory struct {
-	Id       uint64
+	Path     string // saved path at server
 	Owner    string // the client that registers this root directory
 	Password string // if not exist password, then the value is ""
-	Path     string
 }
 
 // RegisterClientRequest is used when registering client
@@ -34,22 +49,6 @@ func (registerClientRequest *RegisterClientRequest) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(registerClientRequest)
-}
-
-// RegisterClientResponse is used when registering client
-type RegisterClientResponse struct {
-	Uuid string
-}
-
-func (registerClientResponse *RegisterClientResponse) Encode() ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(registerClientResponse); err != nil {
-		log.Panicf("Error while encoding request data: %s", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
 }
 
 // DisconnectClientRequest is used when disconnecting client with server
@@ -65,14 +64,27 @@ func (disconnectClientRequest *DisconnectClientRequest) Decode(data []byte) erro
 
 // RegisterRootDirRequest is used when registering root directory of a client
 type RegisterRootDirRequest struct {
-	Uuid       string
-	Password   string // password of the root directory
-	BeforePath string
-	AfterPath  string
+	Uuid            string
+	RootDirPassword string // password of the root directory
+	BeforePath      string
+	AfterPath       string
 }
 
 func (registerRootDirRequest *RegisterRootDirRequest) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(registerRootDirRequest)
+}
+
+type SyncRootDirRequest struct {
+	Uuid            string
+	RootDirPassword string // password of the root directory
+	BeforePath      string
+	AfterPath       string
+}
+
+func (syncRootDirRequest *SyncRootDirRequest) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(syncRootDirRequest)
 }

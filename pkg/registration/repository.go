@@ -1,7 +1,6 @@
 package registration
 
 import (
-	"encoding/json"
 	"log"
 
 	"github.com/dgraph-io/badger/v3"
@@ -22,13 +21,8 @@ func NewClientRepository(db *badger.DB) *Repository {
 
 // SaveClient saves new client to badger and this system
 func (clientRepository *Repository) SaveClient(uuid string, client Client) {
-	clientJson, err := json.Marshal(client)
-	if err != nil {
-		log.Panicf("Error while marshaling request data: %s", err)
-	}
-
-	err = clientRepository.DB.Update(func(txn *badger.Txn) error {
-		err := txn.Set([]byte(uuid), clientJson)
+	err := clientRepository.DB.Update(func(txn *badger.Txn) error {
+		err := txn.Set([]byte(uuid), client.Encode())
 		return err
 	})
 	if err != nil {
@@ -37,26 +31,24 @@ func (clientRepository *Repository) SaveClient(uuid string, client Client) {
 }
 
 // GetClientByUuid gets client by client uuid
-func (clientRepository *Repository) GetClientByUuid(uuid string) (*Client, error) {
-	var client *Client
-
-	err := clientRepository.DB.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(uuid))
-		if err != nil {
-			return err
-		}
-
-		err = item.Value(func(val []byte) error {
-			return json.Unmarshal(val, &client)
-		})
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
-}
+//func (clientRepository *Repository) GetClientByUuid(uuid string) *Client {
+//	err := clientRepository.DB.View(func(txn *badger.Txn) error {
+//		item, err := txn.Get([]byte(uuid))
+//		if err != nil {
+//			return err
+//		}
+//
+//		err = item.Value(func(val []byte) error {
+//			return Client.Decode(val)
+//		})
+//		if err != nil {
+//			return err
+//		}
+//		return nil
+//	})
+//	if err != nil {
+//		return nil
+//	}
+//
+//	return Client.Decode(item)
+//}

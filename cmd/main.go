@@ -7,41 +7,49 @@ import (
 	"github.com/quic-s/quics/pkg/registration"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
-	RestApiVersion   = "v1"
-	RestServerApiUri = "/api/" + RestApiVersion
+	RestApiVersion   string = "v1"
+	RestServerApiUri string = "/api/" + RestApiVersion
 )
 
+var SigCh chan os.Signal
+var Password string
 var DB *badger.DB
 var RegistrationHandler *registration.Handler
 
 func init() {
+	// initialize server password
+	Password = config.GetViperEnvVariables("PASSWORD")
+
 	// initialize badger database in .quics/badger directory
 	opts := badger.DefaultOptions(config.GetDirPath() + "/badger")
 	opts.Logger = nil
 
-	DB, err := badger.Open(opts)
+	var err error
+	DB, err = badger.Open(opts)
 	if err != nil {
-		log.Fatalf("Error while connecting to the database: %s", err)
+		log.Println("Error while connecting to the database: ", err)
 	}
 
+	// initialize hanlder
 	RegistrationHandler = registration.NewRegistrationHandler(DB)
+
+	//define system call actions
+	SigCh = make(chan os.Signal, 1)
+	signal.Notify(SigCh, syscall.SIGINT, syscall.SIGTERM)
 }
 
 func main() {
-
-	// TODO: when server stopped, call these command below
-	//defer db.Close()
 
 	// ready to Cobra command
 	if err := Execute(); err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}
-
-	setDefaultPassword()
 
 	// HTTP/3
 	r := connectRestHandler()
@@ -54,11 +62,14 @@ func main() {
 	fmt.Println("                           Start                            ")
 	fmt.Println("************************************************************")
 
-	// If press Ctrl + C, then stop server
-	select {}
+	StopServer()
 }
 
-// setDefaultPassword sets default password of server from env for accessing client
-func setDefaultPassword() {
-
+func StopServer() {
+	<-SigCh
+	err := DB.Close()
+	if err != nil {
+		log.Println("quis: Error while closing database when server is stopped.")
+	}
+	fmt.Println("quis: Database is closed successfully.")
 }

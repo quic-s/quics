@@ -4,87 +4,71 @@ import (
 	"crypto/tls"
 	"fmt"
 	qp "github.com/quic-s/quics-protocol"
-	"github.com/quic-s/quics-protocol/pkg/utils/fileinfo"
 	"github.com/quic-s/quics/config"
 	"github.com/quic-s/quics/pkg/registration"
-	"io"
 	"log"
 	"net"
 	"strconv"
 )
 
 const (
-	REGISTER_CLIENT  = "CLIENT"
-	REGISTER_ROOTDIR = "ROOTDIR"
+	REGISTER_CLIENT            = "CLIENT"
+	REGISTER_DISCONNECT_CLIENT = "NOTCLIENTANYMORE"
 
-	FILES             = "FILE"
-	FILIES_DOWNLOAD   = "DOWNLOAD"
-	FILES_CREATE      = "CREATE"
-	FILES_DELETE      = "DELETE"
-	FILES_RENAME      = "RENAME"
-	FILES_SYNC_RESCAN = "RESCAN"
-	FILES_HISTORY     = "HISTORY"
-	FILES_SHARING     = "SHARING"
+	REGISTER_ROOTDIR            = "LOCALROOT"
+	REGISTER_SYNC_ROOTDIR       = "REMOTEROOT"
+	REGISTER_DISCONNECT_ROOTDIR = "NOTROOTDIRANYMORE"
+
+	FILES_SYNC_RESCAN     = "RESCAN"
+	FILES_SYNC_PLEASESYNC = "PLEASESYNC"
+	FILES_SYNC_PLEASEFILE = "PLEASEFILE"
+
+	FILES_SHARING = "SHARING"
 )
 
 func connectProtocolHandler(proto *qp.QP) {
-	// [REGISTER] CLIENT: register client from client
-	err := proto.RecvMessageHandleFunc(REGISTER_CLIENT, func(conn *qp.Connection, msgType string, data []byte) {
+
+	// [REGISTER] CLIENT: register root directory (local to remote)
+	err := proto.RecvMessageWithResponseHandleFunc(REGISTER_ROOTDIR, func(conn *qp.Connection, msgType string, data []byte) []byte {
 		// decode request data
-		var request registration.RegisterClientRequest
+		var request registration.RegisterRootDirRequest
 		if err := request.Decode(data); err != nil {
-			fmt.Println("[QUICS] (RegisterClientRequest) Error while decoding request data")
-			return
+			log.Println("[QUICS] (RegisterRootDirRequest) Error while decoding request data")
+			return []byte("FAIL")
 		}
 
-		clientUuid, err := RegistrationHandler.RegistrationService.CreateNewClient(request.Uuid, request.ClientPassword, conn.Conn.RemoteAddr().String())
-		if err != nil {
-			fmt.Println("[QUICS] (RegisterClientRequest) Error while creating new client: ", err)
+		//err := RegistrationHandler.RegistrationService.RegisterRootDir(request)
+		//if err != nil {
+		//	log.Println("[QUICS] (RegisterRootDirRequest) Error while creating root directory: ", err)
+		//	return []byte("FAIL")
+		//}
+
+		return []byte("OK")
+	})
+	if err != nil {
+		log.Fatalf("[QUICS-PROTOCOL] Error while receiving message from client: %s\n", err)
+	}
+
+	// [REGISTER] CLIENT: sync root directory (remote to local)
+	err = proto.RecvMessageWithResponseHandleFunc(REGISTER_SYNC_ROOTDIR, func(conn *qp.Connection, msgType string, data []byte) []byte {
+		// decode request data
+		var request registration.SyncRootDirRequest
+		if err := request.Decode(data); err != nil {
+			log.Println("quics: (SyncRootDirRequest) Error while decoding request data")
+			return []byte("FAIL")
 		}
 
-		response := registration.RegisterClientResponse{
-			Uuid: clientUuid,
-		}
+		//err := RegistrationHandler.RegistrationService.SyncRootDir(request)
+		//if err != nil {
+		//	log.Println("[QUICS] (SyncRootDirRequest) Error while creating root directory: ", err)
+		//	return []byte("FAIL")
+		//}
 
-		// encode response data of request
-		encodedResponse, err := registration.RegisterClientResponse.Encode(response)
-		if err != nil {
-			fmt.Println("[QUICS] (RegisterClientResponse) Error while encoding response data")
-		}
-
-		err = conn.SendMessage(REGISTER_CLIENT, encodedResponse)
-		if err != nil {
-			fmt.Println("[QUICS-PROTOCOL] (ReigsterClientResponse) Error while sending message to client")
-		}
+		return []byte("OK")
 	})
 	if err != nil {
 		log.Printf("[QUICS-PROTOCOL] Error while receiving message from client: %s\n", err)
 	}
-
-	// register root directory from client (RegisterRootDirRequest)
-	err = proto.RecvMessageHandleFunc(REGISTER_ROOTDIR, func(conn *qp.Connection, msgType string, data []byte) {
-
-	})
-	if err != nil {
-		log.Printf("[QUICS-PROTOCOL] Error while receiving message from client: %s\n", err)
-	}
-
-	// please file message from client
-	err = proto.RecvMessageHandleFunc(FILES, func(conn *qp.Connection, msgType string, data []byte) {
-
-	})
-	if err != nil {
-		log.Printf("[QUICS-PROTOCOL] Error while receiving message from client: %s\n", err)
-	}
-
-	// please sync (file) from client
-	err = proto.RecvFileMessageHandleFunc(FILES, func(conn *qp.Connection, fileMsgType string, msgData []byte, fileInfo *fileinfo.FileInfo, fileReader io.Reader) {
-
-	})
-	if err != nil {
-		log.Printf("[QUICS-PROTOCOL] Error while receiving file and message from client: %s\n", err)
-	}
-
 }
 
 func startQuicsProtocol() {
@@ -104,14 +88,39 @@ func startQuicsProtocol() {
 		Port: port,
 	}
 
+	cert, err := qp.GetCertificate("", "")
+	if err != nil {
+		log.Println("quics-protocol: ", err)
+		return
+	}
+
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		NextProtos:         []string{"quics-protocol"},
+		Certificates: cert,
+		NextProtos:   []string{"quic-s"},
 	}
 
 	// TODO: conn instance를 리스트화 시켜서 이후 브로드 캐스트 시 사용할 수 있도록 해야 한다.
-	conn := func(conn *qp.Connection) {
-		log.Println("[QUICS-PROTOCOL] Created new connection: ", conn.Conn.RemoteAddr().String())
+	conn := func(conn *qp.Connection, msgType string, data []byte) {
+		// decode request data
+		var request registration.RegisterClientRequest
+		if err := request.Decode(data); err != nil {
+			log.Println("[QUICS] (RegisterClientRequest) Error while decoding request data: ", err)
+			err := conn.Close()
+			if err != nil {
+				log.Println("[QUICS-PROTOCOL] Error while closing the connection with client: ", err)
+			}
+			return
+		}
+
+		err := RegistrationHandler.RegistrationService.CreateNewClient(request.Uuid, request.ClientPassword, conn.Conn.RemoteAddr().String())
+		if err != nil {
+			log.Println("[QUICS] (RegisterClientRequest) Error while creating new client: ", err)
+			err := conn.Close()
+			if err != nil {
+				log.Println("[QUICS-PROTOCOL] Error while closing the connection with client: ", err)
+			}
+			return
+		}
 	}
 
 	// connect handler
@@ -119,7 +128,7 @@ func startQuicsProtocol() {
 
 	go func() {
 		// protocol
-		err = proto.Listen(UDPAddr, tlsConfig, conn)
+		err = proto.ListenWithMessage(UDPAddr, tlsConfig, conn)
 		if err != nil {
 			log.Fatalf("Error while listening protocol: %s", err)
 		}
