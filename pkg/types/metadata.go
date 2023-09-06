@@ -1,4 +1,4 @@
-package metadata
+package types
 
 // FileMetadata retains file contents at last sync timestamp
 type FileMetadata struct {

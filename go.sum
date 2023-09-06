@@ -184,6 +184,8 @@ github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2/go.mod h1:kpwsk12EmLe
 github.com/google/pprof v0.0.0-20201218002935-b9804c9f04c2/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
 github.com/google/pprof v0.0.0-20230821062121-407c9e7a662f h1:pDhu5sgp8yJlEF/g6osliIIpF9K4F5jvkULXa4daRDQ=
 github.com/google/pprof v0.0.0-20230821062121-407c9e7a662f/go.mod h1:czg5+yv1E0ZGTi6S6vVK1mke0fV+FaUhNGcd6VRS9Ik=
+github.com/google/pprof v0.0.0-20230901174712-0191c66da455 h1:YhRUmI1ttDC4sxKY2V62BTI8hCXnyZBV9h38eAanInE=
+github.com/google/pprof v0.0.0-20230901174712-0191c66da455/go.mod h1:czg5+yv1E0ZGTi6S6vVK1mke0fV+FaUhNGcd6VRS9Ik=
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
 github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/uuid v1.3.1 h1:KjJaJ9iWZ3jOFZIf1Lqf4laDRCasjl0BCmnEGxkdLb4=
@@ -264,6 +266,10 @@ github.com/quic-go/quic-go v0.38.1 h1:M36YWA5dEhEeT+slOu/SwMEucbYd0YFidxG3KlGPZa
 github.com/quic-go/quic-go v0.38.1/go.mod h1:ijnZM7JsFIkp4cRyjxJNIzdSfCLmUMg9wdyhGmg+SN4=
 github.com/quic-s/quics-protocol v0.0.0-20230826194912-0e2607fa0ea4 h1:ynN7uWeppaEx5WkeCG/Z0A8/Yu59/FYMQwgqoYlNU4U=
 github.com/quic-s/quics-protocol v0.0.0-20230826194912-0e2607fa0ea4/go.mod h1:HnI1lg9ujOd5vxWdvM1jyFtq9nfPasQayJsaG7E5lVc=
+github.com/quic-s/quics-protocol v0.0.0-20230903082438-8ab582771be0 h1:CD98T9rPp4hKIm3WZie33Jn/xEuYL12jYaYlgKpcApg=
+github.com/quic-s/quics-protocol v0.0.0-20230903082438-8ab582771be0/go.mod h1:HnI1lg9ujOd5vxWdvM1jyFtq9nfPasQayJsaG7E5lVc=
+github.com/quic-s/quics-protocol v0.0.0-20230904042937-05b9e5cb9c70 h1:FYERrpvH0V7bOajooX0iqbdiodA0wBxlzDlQ5R5NKgQ=
+github.com/quic-s/quics-protocol v0.0.0-20230904042937-05b9e5cb9c70/go.mod h1:z/fUratN8AdEWvHzX5Vpv/EGrkNWP9gVfYPdgVTtHWc=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.9.0 h1:73kH8U+JUqXU8lRuOHeVHaa/SZPifC7BkcraZVejAe8=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=

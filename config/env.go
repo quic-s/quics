@@ -10,7 +10,7 @@ import (
 
 // GetViperEnvVariables get env variables in env file using viper
 func GetViperEnvVariables(key string) string {
-	envPath := filepath.Join(GetDirPath(), ".qis.env")
+	envPath := filepath.Join(GetDirPath(), "qis.env")
 
 	_, err := os.Stat(envPath)
 	if err != nil {
