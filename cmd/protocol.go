@@ -5,7 +5,7 @@ import (
 	"fmt"
 	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/config"
-	"github.com/quic-s/quics/pkg/registration"
+	"github.com/quic-s/quics/pkg/types"
 	"log"
 	"net"
 	"strconv"
@@ -31,7 +31,7 @@ func connectProtocolHandler(proto *qp.QP) {
 	// [REGISTER] CLIENT: register root directory (local to remote)
 	err := proto.RecvMessageWithResponseHandleFunc(REGISTER_ROOTDIR, func(conn *qp.Connection, msgType string, data []byte) []byte {
 		// decode request data
-		var request registration.RegisterRootDirRequest
+		var request types.RegisterRootDirRequest
 		if err := request.Decode(data); err != nil {
 			log.Println("quics: Error while decoding request data")
 			return []byte("FAIL")
@@ -52,7 +52,7 @@ func connectProtocolHandler(proto *qp.QP) {
 	// [REGISTER] CLIENT: sync root directory (remote to local)
 	err = proto.RecvMessageWithResponseHandleFunc(REGISTER_SYNC_ROOTDIR, func(conn *qp.Connection, msgType string, data []byte) []byte {
 		// decode request data
-		var request registration.SyncRootDirRequest
+		var request types.SyncRootDirRequest
 		if err := request.Decode(data); err != nil {
 			log.Println("quics: (SyncRootDirRequest) Error while decoding request data")
 			return []byte("FAIL")
@@ -102,7 +102,7 @@ func startQuicsProtocol() {
 	// TODO: conn instance를 리스트화 시켜서 이후 브로드 캐스트 시 사용할 수 있도록 해야 한다.
 	conn := func(conn *qp.Connection, msgType string, data []byte) {
 		// decode request data
-		var request registration.RegisterClientRequest
+		var request types.RegisterClientRequest
 		if err := request.Decode(data); err != nil {
 			log.Println("[QUICS] (RegisterClientRequest) Error while decoding request data: ", err)
 			err := conn.Close()

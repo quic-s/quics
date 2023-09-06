@@ -1,9 +1,8 @@
-package registration
+package types
 
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/quic-s/quics/pkg/sync"
 	"log"
 )
 
@@ -13,7 +12,7 @@ type Client struct {
 	Id    uint64
 	Ip    string
 	Root  []RootDirectory // root directory path information
-	Files []sync.File     // list of synchronized files
+	Files []File          // list of synchronized files
 }
 
 func (client *Client) Encode() []byte {

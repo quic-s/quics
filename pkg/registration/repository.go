@@ -1,6 +1,7 @@
 package registration
 
 import (
+	"github.com/quic-s/quics/pkg/types"
 	"log"
 
 	"github.com/dgraph-io/badger/v3"
@@ -11,8 +12,8 @@ type Repository struct {
 }
 
 type RepositoryInterface interface {
-	SaveClient(newId []byte, client Client)
-	GetClientById(id string) (*Client, error)
+	SaveClient(newId []byte, client types.Client)
+	GetClientById(id string) (*types.Client, error)
 }
 
 func NewClientRepository(db *badger.DB) *Repository {
@@ -20,7 +21,7 @@ func NewClientRepository(db *badger.DB) *Repository {
 }
 
 // SaveClient saves new client to badger and this system
-func (registrationRepository *Repository) SaveClient(uuid string, client Client) {
+func (registrationRepository *Repository) SaveClient(uuid string, client types.Client) {
 	err := registrationRepository.DB.Update(func(txn *badger.Txn) error {
 		err := txn.Set([]byte(uuid), client.Encode())
 		return err
@@ -31,8 +32,8 @@ func (registrationRepository *Repository) SaveClient(uuid string, client Client)
 }
 
 // GetClientByUuid gets client by client uuid
-func (registrationRepository *Repository) GetClientByUuid(uuid string) *Client {
-	var client *Client
+func (registrationRepository *Repository) GetClientByUuid(uuid string) *types.Client {
+	var client *types.Client
 
 	err := registrationRepository.DB.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(uuid))
@@ -45,7 +46,7 @@ func (registrationRepository *Repository) GetClientByUuid(uuid string) *Client {
 			return err
 		}
 
-		client = &Client{}
+		client = &types.Client{}
 		if err := client.Decode(val); err != nil {
 			return err
 		}
@@ -59,7 +60,7 @@ func (registrationRepository *Repository) GetClientByUuid(uuid string) *Client {
 	return client
 }
 
-func (registrationRepository *Repository) SaveRootDir(path string, rootDir RootDirectory) {
+func (registrationRepository *Repository) SaveRootDir(path string, rootDir types.RootDirectory) {
 	err := registrationRepository.DB.Update(func(txn *badger.Txn) error {
 		err := txn.Set([]byte(path), rootDir.Encode())
 		return err

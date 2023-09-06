@@ -1,4 +1,4 @@
-package conflict
+package types
 
 import (
 	"bytes"

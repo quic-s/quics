@@ -1,9 +1,8 @@
-package sharing
+package types
 
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/quic-s/quics/pkg/history"
 	"log"
 )
 
@@ -12,8 +11,8 @@ type Sharing struct {
 	Count    uint
 	MaxCount uint
 	Link     string
-	Owner    string              // client uuid
-	File     history.FileHistory // to share file at point that client wanted in time
+	Owner    string      // client uuid
+	File     FileHistory // to share file at point that client wanted in time
 }
 
 // FileDownloadRequest is used when creating file download link

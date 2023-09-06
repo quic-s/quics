@@ -1,6 +1,7 @@
 package registration
 
 import (
+	"github.com/quic-s/quics/pkg/types"
 	"log"
 )
 
@@ -28,7 +29,7 @@ func (registrationService *Service) CreateNewClient(uuid string, password string
 
 	// initialize client information
 	//var newUuid = utils.CreateUuid()
-	var client = Client{
+	var client = types.Client{
 		Id:   newId,
 		Ip:   ip,
 		Uuid: uuid,
@@ -41,13 +42,13 @@ func (registrationService *Service) CreateNewClient(uuid string, password string
 }
 
 // RegisterRootDir registers initial root directory to client database
-func (registrationService *Service) RegisterRootDir(request RegisterRootDirRequest) error {
+func (registrationService *Service) RegisterRootDir(request types.RegisterRootDirRequest) error {
 	// get client entity by uuid in request data
 	client := registrationService.registrationRepository.GetClientByUuid(request.Uuid)
 
 	// create root directory entity
 	path := request.BeforePath + request.AfterPath
-	var rootDir = RootDirectory{
+	var rootDir = types.RootDirectory{
 		Path:     path,
 		Owner:    client.Uuid,
 		Password: request.RootDirPassword,

@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/dgraph-io/badger/v3"
-	"github.com/quic-s/quics/pkg/registration"
+	"github.com/quic-s/quics/pkg/types"
 	"log"
 )
 
@@ -15,8 +15,8 @@ type Repository struct {
 }
 
 type RepositoryInterface interface {
-	SetPassword(password string, client registration.Client)
-	UpdateDefaultPassword(id string) (*registration.Client, error)
+	SetPassword(password string, client types.Client)
+	UpdateDefaultPassword(id string) (*types.Client, error)
 }
 
 func NewServerRepository(db *badger.DB) *Repository {
@@ -43,7 +43,7 @@ func (serverRepository *Repository) GetPassword() string {
 		}
 
 		err = item.Value(func(val []byte) error {
-			server := &Server{}
+			server := &types.Server{}
 			if err := server.Decode(val); err != nil {
 				return err
 			}
