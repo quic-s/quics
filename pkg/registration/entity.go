@@ -39,6 +39,22 @@ type RootDirectory struct {
 	Password string // if not exist password, then the value is ""
 }
 
+func (rootDirectory *RootDirectory) Encode() []byte {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(rootDirectory); err != nil {
+		log.Panicf("Error while encoding request data: %s", err)
+	}
+
+	return buffer.Bytes()
+}
+
+func (rootDirectory *RootDirectory) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(rootDirectory)
+}
+
 // RegisterClientRequest is used when registering client
 type RegisterClientRequest struct {
 	Uuid           string

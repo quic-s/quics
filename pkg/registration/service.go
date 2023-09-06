@@ -41,28 +41,28 @@ func (registrationService *Service) CreateNewClient(uuid string, password string
 }
 
 // RegisterRootDir registers initial root directory to client database
-//func (registrationService *Service) RegisterRootDir(request RegisterRootDirRequest) error {
-//	// get client entity by uuid in request data
-//	client, err := registrationService.registrationRepository.GetClientByUuid(request.Uuid)
-//	if err != nil {
-//		log.Printf("Error while registering root directory: %s\n", err)
-//		return err
-//	}
-//
-//	// create root directory entity
-//	// TODO: need to check the time zone
-//	var rootDir = RootDirectory{
-//		Owner: client.Uuid,
-//		Path:  request.BeforePath + request.AfterPath,
-//	}
-//	rootDirs := append(client.Root, rootDir)
-//	client.Root = rootDirs
-//
-//	// save updated client entity
-//	registrationService.registrationRepository.SaveClient(client.Uuid, *client)
-//
-//	return nil
-//}
+func (registrationService *Service) RegisterRootDir(request RegisterRootDirRequest) error {
+	// get client entity by uuid in request data
+	client := registrationService.registrationRepository.GetClientByUuid(request.Uuid)
+
+	// create root directory entity
+	path := request.BeforePath + request.AfterPath
+	var rootDir = RootDirectory{
+		Path:     path,
+		Owner:    client.Uuid,
+		Password: request.RootDirPassword,
+	}
+	rootDirs := append(client.Root, rootDir)
+	client.Root = rootDirs
+
+	// save updated client entity
+	registrationService.registrationRepository.SaveClient(client.Uuid, *client)
+
+	// save requested root directory
+	registrationService.registrationRepository.SaveRootDir(path, rootDir)
+
+	return nil
+}
 
 //func (registrationService *Service) SyncRootDir(request SyncRootDirRequest) error {
 //	// get client entity by uuid in request data

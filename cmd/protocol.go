@@ -33,20 +33,20 @@ func connectProtocolHandler(proto *qp.QP) {
 		// decode request data
 		var request registration.RegisterRootDirRequest
 		if err := request.Decode(data); err != nil {
-			log.Println("[QUICS] (RegisterRootDirRequest) Error while decoding request data")
+			log.Println("quics: Error while decoding request data")
 			return []byte("FAIL")
 		}
 
-		//err := RegistrationHandler.RegistrationService.RegisterRootDir(request)
-		//if err != nil {
-		//	log.Println("[QUICS] (RegisterRootDirRequest) Error while creating root directory: ", err)
-		//	return []byte("FAIL")
-		//}
+		err := RegistrationHandler.RegistrationService.RegisterRootDir(request)
+		if err != nil {
+			log.Println("quics: (RegisterRootDirRequest) Error while creating root directory: ", err)
+			return []byte("FAIL")
+		}
 
 		return []byte("OK")
 	})
 	if err != nil {
-		log.Fatalf("[QUICS-PROTOCOL] Error while receiving message from client: %s\n", err)
+		log.Fatalln("quics: Error while receiving message from client. ", err)
 	}
 
 	// [REGISTER] CLIENT: sync root directory (remote to local)

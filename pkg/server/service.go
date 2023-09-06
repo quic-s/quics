@@ -4,6 +4,24 @@ import (
 	"fmt"
 )
 
+type Service struct {
+	serverRepository *Repository
+}
+
+func NewServerService(serverRepository *Repository) *Service {
+	return &Service{serverRepository: serverRepository}
+}
+
+func (serverService *Service) UpdatePassword(password string) error {
+	serverService.serverRepository.SetPassword(password)
+	return nil
+}
+
+func (serverService *Service) GetPassword() string {
+	password := serverService.serverRepository.GetPassword()
+	return password
+}
+
 // StartServer executes when server starts
 func StartServer() {
 	fmt.Println("Start server...")
