@@ -2,7 +2,6 @@ package registration
 
 import (
 	"github.com/dgraph-io/badger/v3"
-	"github.com/gorilla/mux"
 )
 
 type Handler struct {
@@ -11,11 +10,7 @@ type Handler struct {
 }
 
 func NewRegistrationHandler(db *badger.DB) *Handler {
-	registrationRepository := NewClientRepository(db)
+	registrationRepository := NewRegistrationRepository(db)
 	registrationService := NewRegistrationService(registrationRepository)
 	return &Handler{DB: db, RegistrationService: registrationService}
-}
-
-func (registrationHandler *Handler) SetupRoutes(r *mux.Router) {
-
 }

@@ -22,9 +22,27 @@ func GetDirPath() string {
 	return filepath.Join(tempDir, ".quics")
 }
 
+func GetSyncDirPath() string {
+	tempDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return filepath.Join(tempDir, ".quics", "sync")
+}
+
+func GetSyncRootDirPath(rootDir string) string {
+	tempDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:])
+}
+
 // ReadEnvFile read .qis.env file if it is existed
 func ReadEnvFile() []map[string]string {
-	envPath := filepath.Join(GetDirPath(), ".qis.env")
+	envPath := filepath.Join(GetDirPath(), "qis.env")
 	file, err := os.Open(envPath)
 	if err != nil {
 		log.Fatal(err)

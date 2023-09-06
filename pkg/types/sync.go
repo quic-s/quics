@@ -9,8 +9,25 @@ import (
 // File defines file sync information
 type File struct {
 	Path                string // key
+	RootDir             RootDirectory
 	LatestHash          string
 	LatestSyncTimestamp uint64
+}
+
+func (file *File) Encode() []byte {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(file); err != nil {
+		log.Panicf("Error while encoding request data: %s", err)
+	}
+
+	return buffer.Bytes()
+}
+
+func (file *File) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(file)
 }
 
 // PleaseSync is used when updating file's changes from client to server
@@ -19,7 +36,7 @@ type PleaseSync struct {
 	BeforePath           string
 	AfterPath            string
 	LastUpdatedTimestamp uint64
-	LastUpdateHash       uint64
+	LastUpdateHash       string
 }
 
 func (pleaseSync *PleaseSync) Decode(data []byte) error {

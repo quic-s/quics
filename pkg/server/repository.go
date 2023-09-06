@@ -48,6 +48,8 @@ func (serverRepository *Repository) GetPassword() string {
 				return err
 			}
 
+			log.Println("quis: password: ", err)
+
 			password = server.Password
 			return nil
 		})

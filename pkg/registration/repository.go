@@ -7,6 +7,11 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
+const (
+	PrefixClient  string = "client_"
+	PrefixRootdir string = "root_dir_"
+)
+
 type Repository struct {
 	DB *badger.DB
 }
@@ -16,14 +21,16 @@ type RepositoryInterface interface {
 	GetClientById(id string) (*types.Client, error)
 }
 
-func NewClientRepository(db *badger.DB) *Repository {
+func NewRegistrationRepository(db *badger.DB) *Repository {
 	return &Repository{DB: db}
 }
 
 // SaveClient saves new client to badger and this system
 func (registrationRepository *Repository) SaveClient(uuid string, client types.Client) {
+	key := []byte(PrefixClient + uuid)
+
 	err := registrationRepository.DB.Update(func(txn *badger.Txn) error {
-		err := txn.Set([]byte(uuid), client.Encode())
+		err := txn.Set(key, client.Encode())
 		return err
 	})
 	if err != nil {
@@ -33,10 +40,11 @@ func (registrationRepository *Repository) SaveClient(uuid string, client types.C
 
 // GetClientByUuid gets client by client uuid
 func (registrationRepository *Repository) GetClientByUuid(uuid string) *types.Client {
+	key := []byte(PrefixClient + uuid)
 	var client *types.Client
 
 	err := registrationRepository.DB.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(uuid))
+		item, err := txn.Get(key)
 		if err != nil {
 			return err
 		}
@@ -61,11 +69,76 @@ func (registrationRepository *Repository) GetClientByUuid(uuid string) *types.Cl
 }
 
 func (registrationRepository *Repository) SaveRootDir(path string, rootDir types.RootDirectory) {
+	key := []byte(PrefixRootdir + path)
+
 	err := registrationRepository.DB.Update(func(txn *badger.Txn) error {
-		err := txn.Set([]byte(path), rootDir.Encode())
+		err := txn.Set(key, rootDir.Encode())
 		return err
 	})
 	if err != nil {
 		log.Panicf("Error while creating client: %s", err)
 	}
+}
+
+func (registrationRepository *Repository) GetRootDirByPath(path string) *types.RootDirectory {
+	key := []byte(PrefixRootdir + path)
+
+	var rootDir *types.RootDirectory
+
+	err := registrationRepository.DB.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return err
+		}
+
+		rootDir = &types.RootDirectory{}
+		if err := rootDir.Decode(val); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+
+	return rootDir
+}
+
+func (registrationRepository *Repository) GetAllRootDir() []*types.RootDirectory {
+	var rootDirs []*types.RootDirectory
+
+	err := registrationRepository.DB.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchSize = 10
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek([]byte(PrefixRootdir)); it.ValidForPrefix([]byte(PrefixRootdir)); it.Next() {
+			item := it.Item()
+			val, err := item.ValueCopy(nil)
+			if err != nil {
+				return err
+			}
+
+			rootDir := &types.RootDirectory{}
+			if err := rootDir.Decode(val); err != nil {
+				return err
+			}
+
+			rootDirs = append(rootDirs, rootDir)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+
+	return rootDirs
 }

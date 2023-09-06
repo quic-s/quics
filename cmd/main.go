@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/dgraph-io/badger/v3"
+	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/config"
 	"github.com/quic-s/quics/pkg/registration"
+	"github.com/quic-s/quics/pkg/server"
+	"github.com/quic-s/quics/pkg/sync"
 	"log"
 	"os"
 	"os/signal"
@@ -19,11 +22,12 @@ const (
 var SigCh chan os.Signal
 var Password string
 var DB *badger.DB
+var Conns []*qp.Connection
 var RegistrationHandler *registration.Handler
+var SyncHandler *sync.Handler
+var ServerHandler *server.Handler
 
 func init() {
-	// initialize server password
-	Password = config.GetViperEnvVariables("PASSWORD")
 
 	// initialize badger database in .quics/badger directory
 	opts := badger.DefaultOptions(config.GetDirPath() + "/badger")
@@ -37,19 +41,25 @@ func init() {
 
 	// initialize hanlder
 	RegistrationHandler = registration.NewRegistrationHandler(DB)
+	SyncHandler = sync.NewSyncHandler(DB)
+	ServerHandler = server.NewServerHandler(DB)
+
+	// initialize server password
+	Password = config.GetViperEnvVariables("PASSWORD")
+	err = ServerHandler.ServerService.UpdatePassword(Password)
+	if err != nil {
+		log.Fatalln("quis: Error while saving default password: ", err)
+	}
 
 	//define system call actions
 	SigCh = make(chan os.Signal, 1)
 	signal.Notify(SigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// reset connections
+	Conns = make([]*qp.Connection, 0)
 }
 
 func main() {
-
-	// ready to Cobra command
-	if err := Execute(); err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
 
 	// HTTP/3
 	r := connectRestHandler()
@@ -68,9 +78,19 @@ func main() {
 
 func StopServer() {
 	<-SigCh
+
+	// close database
 	err := DB.Close()
 	if err != nil {
 		log.Println("quis: Error while closing database when server is stopped.")
 	}
 	fmt.Println("quis: Database is closed successfully.")
+
+	// close all conenctions
+	for _, conn := range Conns {
+		err := conn.Close()
+		if err != nil {
+			fmt.Println("quis: Closing connection failed with error: ", err)
+		}
+	}
 }

@@ -8,11 +8,10 @@ import (
 
 // Client is used to save connected client information
 type Client struct {
-	Uuid  string
-	Id    uint64
-	Ip    string
-	Root  []RootDirectory // root directory path information
-	Files []File          // list of synchronized files
+	Uuid string
+	Id   uint64
+	Ip   string
+	Root []RootDirectory // root directory path information
 }
 
 func (client *Client) Encode() []byte {
@@ -33,7 +32,7 @@ func (client *Client) Decode(data []byte) error {
 
 // RootDirectory is used when registering root directory to client
 type RootDirectory struct {
-	Path     string // saved path at server
+	Path     string // key, saved path at server (absolute path)
 	Owner    string // the client that registers this root directory
 	Password string // if not exist password, then the value is ""
 }

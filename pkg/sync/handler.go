@@ -7,13 +7,13 @@ import (
 
 type Handler struct {
 	db          *badger.DB
-	syncService *Service
+	SyncService *Service
 }
 
 func NewSyncHandler(db *badger.DB) *Handler {
 	syncRepository := NewSyncRepository(db)
 	syncService := NewSyncService(syncRepository)
-	return &Handler{db: db, syncService: syncService}
+	return &Handler{db: db, SyncService: syncService}
 }
 
 func (syncHandler *Handler) SetupRoutes(r *mux.Router) {

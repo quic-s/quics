@@ -17,7 +17,7 @@ import (
 func connectRestHandler() *mux.Router {
 	r := mux.NewRouter()
 
-	RegistrationHandler.SetupRoutes(r.PathPrefix(RestServerApiUri + "/clients").Subrouter())
+	// add handler to router
 
 	return r
 }
