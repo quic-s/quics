@@ -3,6 +3,8 @@ quics is a server for the QUIC-S. It is continuous file synchronization tool bas
 
 #quic #server #go #golang #http3 #cobra
 
+ **NOTICE**  If you want to use this tool, you should use the client of QUIC-S. You can find the client in [here](https://github.com/quic-s/quics-client.git) 
+
 ## Features
 ### 1. Manage client
 Server can receive the registration request from the client. server saves the registered/connected client information to database badger. The saved client information is client uuid(created by client), IP address, etc.
