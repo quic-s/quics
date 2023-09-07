@@ -19,13 +19,9 @@ func NewRegistrationService(registrationRepository *Repository) *Service {
 // CreateNewClient creates new client entity
 func (registrationService *Service) CreateNewClient(request types.RegisterClientRequest, password string, ip string) error {
 
-	log.Println("request password: ", request.ClientPassword)
-	log.Println("server password: ", password)
-
-	// TODO: check if the password is correct
-	//if request.ClientPassword != password {
-	//	return errors.New("password is not correct")
-	//}
+	if request.ClientPassword != password {
+		return errors.New("password is not correct")
+	}
 
 	// create new id using badger sequence
 	seq, err := registrationService.registrationRepository.DB.GetSequence([]byte("client"), 1)

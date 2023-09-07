@@ -21,6 +21,7 @@ const (
 
 var SigCh chan os.Signal
 var Password string
+var Timer int
 var DB *badger.DB
 var Conns []*qp.Connection
 var RegistrationHandler *registration.Handler
@@ -28,6 +29,8 @@ var SyncHandler *sync.Handler
 var ServerHandler *server.Handler
 
 func init() {
+
+	Timer = 180
 
 	// initialize badger database in .quics/badger directory
 	opts := badger.DefaultOptions(config.GetDirPath() + "/badger")
@@ -86,7 +89,7 @@ func StopServer() {
 	}
 	fmt.Println("quis: Database is closed successfully.")
 
-	// close all conenctions
+	// close all connections
 	for _, conn := range Conns {
 		err := conn.Close()
 		if err != nil {

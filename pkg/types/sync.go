@@ -32,11 +32,12 @@ func (file *File) Decode(data []byte) error {
 
 // PleaseSync is used when updating file's changes from client to server
 type PleaseSync struct {
-	Uuid                 string
-	BeforePath           string
-	AfterPath            string
-	LastUpdatedTimestamp uint64
-	LastUpdateHash       string
+	Uuid                string
+	Event               string
+	BeforePath          string
+	AfterPath           string
+	LastUpdateTimestamp uint64
+	LastUpdateHash      string
 }
 
 func (pleaseSync *PleaseSync) Decode(data []byte) error {
@@ -47,7 +48,10 @@ func (pleaseSync *PleaseSync) Decode(data []byte) error {
 
 // PleaseFile is used when client request file to server
 type PleaseFile struct {
+	Uuid          string
 	SyncTimestamp uint64
+	BeforePath    string
+	AfterPath     string
 }
 
 func (pleaseFile *PleaseFile) Decode(data []byte) error {
@@ -58,6 +62,7 @@ func (pleaseFile *PleaseFile) Decode(data []byte) error {
 
 // MustSyncMessage is used to inform whether file is updated or not
 type MustSyncMessage struct {
+	LatestHash          string
 	LatestSyncTimestamp uint64
 	BeforePath          string
 	AfterPath           string
@@ -87,6 +92,24 @@ func (mustSyncFileWithMessage *MustSyncFileWithMessage) Encode() ([]byte, error)
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
 	if err := encoder.Encode(mustSyncFileWithMessage); err != nil {
+		log.Panicf("Error while encoding request data: %s", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+type GiveYouFile struct {
+	LatestHash          string
+	LatestSyncTimestamp uint64
+	BeforePath          string
+	AfterPath           string
+}
+
+func (giveYouFile *GiveYouFile) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(giveYouFile); err != nil {
 		log.Panicf("Error while encoding request data: %s", err)
 		return nil, err
 	}

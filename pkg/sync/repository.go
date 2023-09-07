@@ -49,3 +49,51 @@ func (syncRepository *Repository) GetFileByPath(path string) *types.File {
 
 	return file
 }
+
+func (syncRepository *Repository) SaveFileByPath(path string, file types.File) error {
+	key := []byte(PrefixFile + path)
+
+	err := syncRepository.DB.Update(func(txn *badger.Txn) error {
+		err := txn.Set(key, file.Encode())
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (syncRepository *Repository) GetAllFiles() []types.File {
+	var files []types.File
+
+	err := syncRepository.DB.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchSize = 10
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		prefix := []byte(PrefixFile)
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+
+			val, err := item.ValueCopy(nil)
+			if err != nil {
+				return err
+			}
+
+			file := &types.File{}
+			if err := file.Decode(val); err != nil {
+				return err
+			}
+
+			files = append(files, *file)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+
+	return files
+}

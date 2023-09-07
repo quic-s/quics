@@ -23,6 +23,7 @@ func NewServerRepository(db *badger.DB) *Repository {
 	return &Repository{DB: db}
 }
 
+// SetPassword set server password to database from env file
 func (serverRepository *Repository) SetPassword(password string) {
 	err := serverRepository.DB.Update(func(txn *badger.Txn) error {
 		err := txn.Set([]byte(PASSWORD), []byte(password))
@@ -33,32 +34,21 @@ func (serverRepository *Repository) SetPassword(password string) {
 	}
 }
 
+// GetPassword get server password from database
 func (serverRepository *Repository) GetPassword() string {
-	var password string
+	var password []byte
 
 	err := serverRepository.DB.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(PASSWORD))
 		if err != nil {
 			log.Println("quis: Error while getting password: ", err)
 		}
-
-		err = item.Value(func(val []byte) error {
-			server := &types.Server{}
-			if err := server.Decode(val); err != nil {
-				return err
-			}
-
-			log.Println("quis: password: ", err)
-
-			password = server.Password
-			return nil
-		})
-
-		return nil
+		password, err = item.ValueCopy(password)
+		return err
 	})
 	if err != nil {
 		log.Fatalln("quics: Error while executing GetPassword() with database.")
 	}
 
-	return password
+	return string(password)
 }
