@@ -8,7 +8,7 @@ import (
 
 // Client is used to save connected client information
 type Client struct {
-	Uuid string
+	UUID string
 	Id   uint64
 	Ip   string
 	Root []RootDirectory // root directory path information
@@ -53,52 +53,53 @@ func (rootDirectory *RootDirectory) Decode(data []byte) error {
 	return decoder.Decode(rootDirectory)
 }
 
-// RegisterClientRequest is used when registering client
-type RegisterClientRequest struct {
-	Uuid           string
+// ClientRegisterReq is used when registering client
+type ClientRegisterReq struct {
+	UUID           string
 	ClientPassword string
 }
 
-func (registerClientRequest *RegisterClientRequest) Decode(data []byte) error {
+func (clientRegisterReq *ClientRegisterReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(registerClientRequest)
+	return decoder.Decode(clientRegisterReq)
 }
 
-// DisconnectClientRequest is used when disconnecting client with server
-type DisconnectClientRequest struct {
+// ClientDisconnectorReq is used when disconnecting client with server
+type ClientDisconnectorReq struct {
+	UUID     string // uuid of client
 	Password string // password of server
 }
 
-func (disconnectClientRequest *DisconnectClientRequest) Decode(data []byte) error {
+func (clientDisconnectorReq *ClientDisconnectorReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(disconnectClientRequest)
+	return decoder.Decode(clientDisconnectorReq)
 }
 
-// RegisterRootDirRequest is used when registering root directory of a client
-type RegisterRootDirRequest struct {
-	Uuid            string
+// RootDirRegisterReq is used when registering root directory of a client
+type RootDirRegisterReq struct {
+	UUID            string
 	RootDirPassword string // password of the root directory
 	BeforePath      string
 	AfterPath       string
 }
 
-func (registerRootDirRequest *RegisterRootDirRequest) Decode(data []byte) error {
+func (rootDirRegisterReq *RootDirRegisterReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(registerRootDirRequest)
+	return decoder.Decode(rootDirRegisterReq)
 }
 
-type SyncRootDirRequest struct {
-	Uuid            string
+type SyncRootDirReq struct {
+	UUID            string
 	RootDirPassword string // password of the root directory
 	BeforePath      string
 	AfterPath       string
 }
 
-func (syncRootDirRequest *SyncRootDirRequest) Decode(data []byte) error {
+func (syncRootDirReq *SyncRootDirReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(syncRootDirRequest)
+	return decoder.Decode(syncRootDirReq)
 }

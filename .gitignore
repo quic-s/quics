@@ -28,3 +28,6 @@ go.work
 
 # compiled file
 qis
+
+# devcontainer
+.devcontainer

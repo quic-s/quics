@@ -3,11 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	qp "github.com/quic-s/quics-protocol"
-	"github.com/quic-s/quics-protocol/pkg/utils/fileinfo"
-	"github.com/quic-s/quics/config"
-	"github.com/quic-s/quics/pkg/registration"
-	"github.com/quic-s/quics/pkg/types"
 	"io"
 	"log"
 	"net"
@@ -16,6 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	qp "github.com/quic-s/quics-protocol"
+	"github.com/quic-s/quics-protocol/pkg/utils/fileinfo"
+	"github.com/quic-s/quics/config"
+	"github.com/quic-s/quics/pkg/registration"
+	"github.com/quic-s/quics/pkg/types"
 )
 
 const (
@@ -40,7 +41,7 @@ func connectProtocolHandler(proto *qp.QP) {
 	err := proto.RecvMessageWithResponseHandleFunc(RegisterRootdir, func(conn *qp.Connection, msgType string, data []byte) []byte {
 		// decode request data
 
-		var request types.RegisterRootDirRequest
+		var request types.RootDirRegisterReq
 		if err := request.Decode(data); err != nil {
 			log.Println("quics: Error while decoding request data")
 			return []byte("FAIL")
@@ -48,7 +49,7 @@ func connectProtocolHandler(proto *qp.QP) {
 
 		err := RegistrationHandler.RegistrationService.RegisterRootDir(request)
 		if err != nil {
-			log.Println("quics: (RegisterRootDirRequest) Error while creating root directory: ", err)
+			log.Println("quics: (RootDirRegisterReq) Error while creating root directory: ", err)
 			return []byte("FAIL")
 		}
 
@@ -60,23 +61,23 @@ func connectProtocolHandler(proto *qp.QP) {
 
 	// [REGISTER] CLIENT: sync root directory (remote to local)
 	err = proto.RecvMessageWithResponseHandleFunc(RegisterSyncRootdir, func(conn *qp.Connection, msgType string, data []byte) []byte {
-		var request types.SyncRootDirRequest
+		var request types.SyncRootDirReq
 		if err := request.Decode(data); err != nil {
-			log.Println("quics: (SyncRootDirRequest) Error while decoding request data")
+			log.Println("quics: (SyncRootDirReq) Error while decoding request data")
 			return []byte("FAIL")
 		}
 
 		// get root directory path of requested data
 		err := RegistrationHandler.RegistrationService.SyncRootDir(request)
 		if err != nil {
-			log.Println("quics: (SyncRootDirRequest) Error while creating root directory: ", err)
+			log.Println("quics: (SyncRootDirReq) Error while creating root directory: ", err)
 			return []byte("FAIL")
 		}
 
 		return []byte("OK")
 	})
 	if err != nil {
-		log.Printf("quics: (SyncRootDirRequest) Error while receiving message from client: %s\n", err)
+		log.Printf("quics: (SyncRootDirReq) Error while receiving message from client: %s\n", err)
 	}
 
 	// [REGISTER] get root directory list
@@ -102,7 +103,7 @@ func connectProtocolHandler(proto *qp.QP) {
 	// [SYNC] listen PleaseSync message
 	err = proto.RecvFileMessageHandleFunc(FilesSyncPleasesync, func(conn *qp.Connection, fileMsgType string, msgData []byte, fileInfo *fileinfo.FileInfo, fileReader io.Reader) {
 		// parse request data
-		var request types.PleaseSync
+		var request types.PleaseSyncReq
 		if err := request.Decode(msgData); err != nil {
 			log.Println("quics: (PleaseSync) Error while decoding request data")
 			return
@@ -241,16 +242,16 @@ func connectProtocolHandler(proto *qp.QP) {
 				}
 
 				// broadcast
-				mustSyncMessage := types.MustSyncMessage{
+				mustSyncReq := types.MustSyncReq{
 					LatestHash:          updatedFile.LatestHash,
 					LatestSyncTimestamp: updatedFile.LatestSyncTimestamp,
 					BeforePath:          config.GetSyncDirPath(),
 					AfterPath:           request.AfterPath,
 				}
 
-				encodedMustSyncMessage, err := mustSyncMessage.Encode()
+				encodedMustSyncReq, err := mustSyncReq.Encode()
 
-				err = conn.SendMessage(FilesSyncMustsync, encodedMustSyncMessage)
+				err = conn.SendMessage(FilesSyncMustsync, encodedMustSyncReq)
 				if err != nil {
 					log.Println("quics: Error while sending message for MustSync: ", err)
 				}
@@ -322,16 +323,16 @@ func connectProtocolHandler(proto *qp.QP) {
 			}
 
 			// broadcast
-			mustSyncMessage := types.MustSyncMessage{
+			mustSyncReq := types.MustSyncReq{
 				LatestHash:          updatedFile.LatestHash,
 				LatestSyncTimestamp: updatedFile.LatestSyncTimestamp,
 				BeforePath:          config.GetSyncDirPath(),
 				AfterPath:           request.AfterPath,
 			}
 
-			encodedMustSyncMessage, err := mustSyncMessage.Encode()
+			encodedMustSyncReq, err := mustSyncReq.Encode()
 
-			err = conn.SendMessage(FilesSyncMustsync, encodedMustSyncMessage)
+			err = conn.SendMessage(FilesSyncMustsync, encodedMustSyncReq)
 			if err != nil {
 				log.Println("quics: Error while sending message for MustSync: ", err)
 			}
@@ -352,7 +353,7 @@ func connectProtocolHandler(proto *qp.QP) {
 	// [SYNC] PleaseFile
 	err = proto.RecvMessageHandleFunc(FilesSyncPleasefile, func(conn *qp.Connection, msgType string, data []byte) {
 		// decode request data
-		var request types.PleaseFile
+		var request types.PleaseFileReq
 		if err := request.Decode(data); err != nil {
 			log.Println("quics: Error while decoding request data")
 			return
@@ -421,9 +422,9 @@ func startQuicsProtocol() {
 		// connect
 		Conns = append(Conns, conn)
 
-		var request types.RegisterClientRequest
+		var request types.ClientRegisterReq
 		if err := request.Decode(data); err != nil {
-			log.Println("quics: (RegisterClientRequest) Error while decoding request data: ", err)
+			log.Println("quics: (ClientRegisterReq while decoding request data: ", err)
 			err := conn.Close()
 			if err != nil {
 				log.Println("quics: Error while closing the connection with client: ", err)
@@ -435,7 +436,7 @@ func startQuicsProtocol() {
 
 		err := RegistrationHandler.RegistrationService.CreateNewClient(request, password, conn.Conn.RemoteAddr().String())
 		if err != nil {
-			log.Println("quics: (RegisterClientRequest) Error while creating new client: ", err)
+			log.Println("quics: (ClientRegisterReq while creating new client: ", err)
 			err := conn.Close()
 			if err != nil {
 				log.Println("quics: Error while closing the connection with client: ", err)
@@ -489,19 +490,19 @@ func CallMustSync() {
 		target := "/latest/"
 		afterPath := strings.Replace(result, target, "/", -1)
 
-		mustSyncMessage := types.MustSyncMessage{
+		mustSyncReq := types.MustSyncReq{
 			LatestHash:          file.LatestHash,
 			LatestSyncTimestamp: file.LatestSyncTimestamp,
 			BeforePath:          config.GetSyncDirPath(),
 			AfterPath:           afterPath,
 		}
-		encodedMustSyncMessage, err := mustSyncMessage.Encode()
+		encodedMustSyncReq, err := mustSyncReq.Encode()
 		if err != nil {
-			log.Println("quics: Error while encoding MustSyncMessage: ", err)
+			log.Println("quics: Error while encoding MustSyncReq: ", err)
 		}
 
 		for _, conn := range Conns {
-			err := conn.SendMessage(FilesSyncMustsync, encodedMustSyncMessage)
+			err := conn.SendMessage(FilesSyncMustsync, encodedMustSyncReq)
 			if err != nil {
 				log.Println("quics: Error while sending message for MustSync: ", err)
 			}

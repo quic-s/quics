@@ -1,8 +1,9 @@
 package registration
 
 import (
-	"github.com/quic-s/quics/pkg/types"
 	"log"
+
+	"github.com/quic-s/quics/pkg/types"
 
 	"github.com/dgraph-io/badger/v3"
 )
@@ -38,8 +39,8 @@ func (registrationRepository *Repository) SaveClient(uuid string, client types.C
 	}
 }
 
-// GetClientByUuid gets client by client uuid
-func (registrationRepository *Repository) GetClientByUuid(uuid string) *types.Client {
+// GetClientByUUID gets client by client uuid
+func (registrationRepository *Repository) GetClientByUUID(uuid string) *types.Client {
 	key := []byte(PrefixClient + uuid)
 	var client *types.Client
 
