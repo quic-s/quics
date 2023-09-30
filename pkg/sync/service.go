@@ -19,7 +19,7 @@ func (syncService *Service) IsExistFile(path string) int {
 	}
 }
 
-func (syncService *Service) CheckIsOccurredConflict(path string, request types.PleaseSync) (*types.File, int) {
+func (syncService *Service) CheckIsOccurredConflict(path string, request types.PleaseSyncReq) (*types.File, int) {
 	file := syncService.syncRepository.GetFileByPath(path)
 
 	if file.LatestSyncTimestamp >= request.LastUpdateTimestamp {

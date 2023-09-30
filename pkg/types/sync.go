@@ -30,9 +30,22 @@ func (file *File) Decode(data []byte) error {
 	return decoder.Decode(file)
 }
 
-// PleaseSync is used when updating file's changes from client to server
-type PleaseSync struct {
-	Uuid                string
+type PleaseFileMetaReq struct {
+	UUID      string
+	AfterPath string
+}
+
+type PleaseFileMetaRes struct {
+	AfterPath           string
+	LatestHash          string
+	LatestSyncTimestamp uint64
+	ModDate             string
+	UUID                string // Who fixed this file last time
+}
+
+// PleaseSyncReq is used when updating file's changes from client to server
+type PleaseSyncReq struct {
+	UUID                string
 	Event               string
 	BeforePath          string
 	AfterPath           string
@@ -40,38 +53,53 @@ type PleaseSync struct {
 	LastUpdateHash      string
 }
 
-func (pleaseSync *PleaseSync) Decode(data []byte) error {
+func (pleaseSyncReq *PleaseSyncReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(pleaseSync)
+	return decoder.Decode(pleaseSyncReq)
 }
 
-// PleaseFile is used when client request file to server
-type PleaseFile struct {
-	Uuid          string
+type PleaseSyncRes struct {
+	UUID      string
+	AfterPath string
+}
+
+// PleaseFileReq is used when client request file to server
+type PleaseFileReq struct {
+	UUID          string
 	SyncTimestamp uint64
 	BeforePath    string
 	AfterPath     string
 }
 
-func (pleaseFile *PleaseFile) Decode(data []byte) error {
+func (pleaseFileReq *PleaseFileReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(pleaseFile)
+	return decoder.Decode(pleaseFileReq)
 }
 
-// MustSyncMessage is used to inform whether file is updated or not
-type MustSyncMessage struct {
+type PleaseTakeReq struct {
+	UUID      string
+	AfterPath string
+}
+
+type PleaseTakeRes struct {
+	UUID      string
+	AfterPath string
+}
+
+// MustSyncReq is used to inform whether file is updated or not
+type MustSyncReq struct {
 	LatestHash          string
 	LatestSyncTimestamp uint64
 	BeforePath          string
 	AfterPath           string
 }
 
-func (mustSyncMessage *MustSyncMessage) Encode() ([]byte, error) {
+func (mustSyncReq *MustSyncReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(mustSyncMessage); err != nil {
+	if err := encoder.Encode(mustSyncReq); err != nil {
 		log.Panicf("Error while encoding request data: %s", err)
 		return nil, err
 	}
@@ -79,40 +107,20 @@ func (mustSyncMessage *MustSyncMessage) Encode() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// MustSyncFileWithMessage is used when synchronizing file's changes from server to client
-// request, but server -> client
-type MustSyncFileWithMessage struct {
-	LatestHash          string
-	LatestSyncTimestamp uint64
-	BeforePath          string
-	AfterPath           string
+type MustSyncRes struct {
+	UUID              string
+	AfterPath         string
+	LastSyncTimestamp string
+	LastSyncHash      string
 }
 
-func (mustSyncFileWithMessage *MustSyncFileWithMessage) Encode() ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(mustSyncFileWithMessage); err != nil {
-		log.Panicf("Error while encoding request data: %s", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
+type GiveYouReq struct {
+	UUID      string
+	AfterPath string
 }
-
-type GiveYouFile struct {
-	LatestHash          string
-	LatestSyncTimestamp uint64
-	BeforePath          string
-	AfterPath           string
-}
-
-func (giveYouFile *GiveYouFile) Encode() ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(giveYouFile); err != nil {
-		log.Panicf("Error while encoding request data: %s", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
+type GiveYouRes struct {
+	UUID                 string
+	AfterPath            string
+	LastestSyncTimestamp uint64
+	LatestHash           string
 }

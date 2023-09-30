@@ -2,10 +2,11 @@ package registration
 
 import (
 	"errors"
-	"github.com/quic-s/quics/config"
-	"github.com/quic-s/quics/pkg/types"
 	"log"
 	"strings"
+
+	"github.com/quic-s/quics/config"
+	"github.com/quic-s/quics/pkg/types"
 )
 
 type Service struct {
@@ -17,7 +18,7 @@ func NewRegistrationService(registrationRepository *Repository) *Service {
 }
 
 // CreateNewClient creates new client entity
-func (registrationService *Service) CreateNewClient(request types.RegisterClientRequest, password string, ip string) error {
+func (registrationService *Service) CreateNewClient(request types.ClientRegisterReq, password string, ip string) error {
 
 	if request.ClientPassword != password {
 		return errors.New("password is not correct")
@@ -33,36 +34,36 @@ func (registrationService *Service) CreateNewClient(request types.RegisterClient
 	newId, err := seq.Next()
 
 	// initialize client information
-	//var newUuid = utils.CreateUuid()
+	//var newUUID = utils.CreateUUID()
 	var client = types.Client{
 		Id:   newId,
 		Ip:   ip,
-		Uuid: request.Uuid,
+		UUID: request.UUID,
 	}
 
 	// Save client to badger database
-	registrationService.registrationRepository.SaveClient(request.Uuid, client)
+	registrationService.registrationRepository.SaveClient(request.UUID, client)
 
 	return nil
 }
 
 // RegisterRootDir registers initial root directory to client database
-func (registrationService *Service) RegisterRootDir(request types.RegisterRootDirRequest) error {
+func (registrationService *Service) RegisterRootDir(request types.RootDirRegisterReq) error {
 	// get client entity by uuid in request data
-	client := registrationService.registrationRepository.GetClientByUuid(request.Uuid)
+	client := registrationService.registrationRepository.GetClientByUUID(request.UUID)
 
 	// create root directory entity
 	path := config.GetSyncDirPath() + request.AfterPath
 	var rootDir = types.RootDirectory{
 		Path:     path,
-		Owner:    client.Uuid,
+		Owner:    client.UUID,
 		Password: request.RootDirPassword,
 	}
 	rootDirs := append(client.Root, rootDir)
 	client.Root = rootDirs
 
 	// save updated client entity
-	registrationService.registrationRepository.SaveClient(client.Uuid, *client)
+	registrationService.registrationRepository.SaveClient(client.UUID, *client)
 
 	// save requested root directory
 	registrationService.registrationRepository.SaveRootDir(path, rootDir)
@@ -70,8 +71,8 @@ func (registrationService *Service) RegisterRootDir(request types.RegisterRootDi
 	return nil
 }
 
-func (registrationService *Service) SyncRootDir(request types.SyncRootDirRequest) error {
-	client := registrationService.registrationRepository.GetClientByUuid(request.Uuid)
+func (registrationService *Service) SyncRootDir(request types.SyncRootDirReq) error {
+	client := registrationService.registrationRepository.GetClientByUUID(request.UUID)
 
 	path := config.GetSyncDirPath() + request.AfterPath
 	rootDir := registrationService.registrationRepository.GetRootDirByPath(path)
@@ -85,7 +86,7 @@ func (registrationService *Service) SyncRootDir(request types.SyncRootDirRequest
 	client.Root = rootDirs
 
 	// save updated client entity with new root directory
-	registrationService.registrationRepository.SaveClient(client.Uuid, *client)
+	registrationService.registrationRepository.SaveClient(client.UUID, *client)
 
 	return nil
 }

@@ -15,31 +15,31 @@ type Sharing struct {
 	File     FileHistory // to share file at point that client wanted in time
 }
 
-// FileDownloadRequest is used when creating file download link
-type FileDownloadRequest struct {
-	Uuid       string
+// FileDownloadReq is used when creating file download link
+type FileDownloadReq struct {
+	UUID       string
 	BeforePath string
 	AfterPath  string
 	MaxCount   uint
 }
 
-func (fileDownloadRequest *FileDownloadRequest) Decode(data []byte) error {
+func (fileDownloadReq *FileDownloadReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(fileDownloadRequest)
+	return decoder.Decode(fileDownloadReq)
 }
 
-// FileDownloadResponse is used when returning created file download link
-type FileDownloadResponse struct {
+// FileDownloadRes is used when returning created file download link
+type FileDownloadRes struct {
 	Link     string
 	Count    uint
 	MaxCount uint
 }
 
-func (fileDownloadResponse *FileDownloadResponse) Encode() ([]byte, error) {
+func (fileDownloadRes *FileDownloadRes) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(fileDownloadResponse); err != nil {
+	if err := encoder.Encode(fileDownloadRes); err != nil {
 		log.Panicf("Error while encoding request data: %s", err)
 		return nil, err
 	}
