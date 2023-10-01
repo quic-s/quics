@@ -12,44 +12,66 @@ type ViperConfig struct {
 	Value string
 }
 
-// GetDirPath returns the path of the .quics directory
-func GetDirPath() string {
+// GetQuicsDirPath returns the path of the .quics directory
+func GetQuicsDirPath() string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics")
+	return filepath.Join(tempDir, ".quics") // $HOME/.quics
 }
 
-func GetSyncDirPath() string {
+// GetQuicsSyncDirPath returns the path of the .quics/sync directory
+func GetQuicsSyncDirPath() string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync")
+	return filepath.Join(tempDir, ".quics", "sync") // $HOME/.quics/sync
 }
 
-func GetSyncRootDirPath(rootDir string) string {
+// GetQuicsRootDirPath returns the path of the ./quics/sync/{rootDir} directory
+func GetQuicsRootDirPath(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:])
+	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]) // $HOME/.quics/sync/{rootDir}
 }
 
-// ReadEnvFile read .qis.env file if it is existed
+// getQuicsHistoryPathByRootDir returns the path of the ./quics/sync/{rootDir}/history directory
+func getQuicsHistoryPathByRootDir(rootDir string) string {
+	tempDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:], "history") // $HOME/.quics/sync/{rootDir}/history
+}
+
+// getQuicsLatestPathByRootDir returns the path of the ./quics/sync/{rootDir}/latest directory
+func getQuicsLatestPathByRootDir(rootDir string) string {
+	tempDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:], "latest") // $HOME/.quics/sync/{rootDir}/latest
+}
+
+// ReadEnvFile reads .qis.env file if it is existed
 func ReadEnvFile() []map[string]string {
-	envPath := filepath.Join(GetDirPath(), "qis.env")
+	envPath := filepath.Join(GetQuicsDirPath(), "qis.env")
 	file, err := os.Open(envPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
 
-	// read file
+	// read .qis.env file
 	data, err := os.ReadFile(file.Name())
 	if err != nil {
 		log.Fatal(err)
@@ -77,18 +99,5 @@ func ReadEnvFile() []map[string]string {
 	}
 
 	log.Println(kvList)
-	return kvList
-}
-
-func GetRootDir() []map[string]string {
-	rawList := ReadEnvFile()
-	var kvList []map[string]string
-	for _, kvMap := range rawList {
-		for key, value := range kvMap {
-			if len(key) > 5 && key[:5] == "ROOT." {
-				kvList = append(kvList, map[string]string{key[5:]: value})
-			}
-		}
-	}
 	return kvList
 }
