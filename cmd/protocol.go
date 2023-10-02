@@ -3,509 +3,347 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
+	qp "github.com/quic-s/quics-protocol"
+	"github.com/quic-s/quics/config"
+	"github.com/quic-s/quics/pkg/types"
+	"github.com/quic-s/quics/pkg/utils"
 	"log"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-
-	qp "github.com/quic-s/quics-protocol"
-	"github.com/quic-s/quics-protocol/pkg/utils/fileinfo"
-	"github.com/quic-s/quics/config"
-	"github.com/quic-s/quics/pkg/registration"
-	"github.com/quic-s/quics/pkg/types"
 )
 
-const (
-	RegisterRootdir     string = "LOCALROOT"
-	RegisterRootdirList string = "SHOWREMOTELIST"
-	RegisterSyncRootdir string = "REMOTEROOT"
-
-	FileSyncRescan       string = "RESCAN"
-	FilesSyncPleasesync  string = "PLEASESYNC"
-	FilesSyncPleasefile  string = "PLEASEFILE"
-	FilesSyncMustsync    string = "MUSTSYNC"
-	FilesSyncTwooptions  string = "TWOOPTIONS"
-	FilesSyncGiveyoufile string = "GIVEYOUFILE"
-)
-
-var Interval = 180 * time.Second
-var requestRescan = make(chan bool)
-
-func connectProtocolHandler(proto *qp.QP) {
-
-	// [REGISTER] CLIENT: register root directory (local to remote)
-	err := proto.RecvMessageWithResponseHandleFunc(RegisterRootdir, func(conn *qp.Connection, msgType string, data []byte) []byte {
-		// decode request data
-
-		var request types.RootDirRegisterReq
-		if err := request.Decode(data); err != nil {
-			log.Println("quics: Error while decoding request data")
-			return []byte("FAIL")
-		}
-
-		err := RegistrationHandler.RegistrationService.RegisterRootDir(request)
-		if err != nil {
-			log.Println("quics: (RootDirRegisterReq) Error while creating root directory: ", err)
-			return []byte("FAIL")
-		}
-
-		return []byte("OK")
-	})
-	if err != nil {
-		log.Fatalln("quics: Error while receiving message from client. ", err)
-	}
-
-	// [REGISTER] CLIENT: sync root directory (remote to local)
-	err = proto.RecvMessageWithResponseHandleFunc(RegisterSyncRootdir, func(conn *qp.Connection, msgType string, data []byte) []byte {
-		var request types.SyncRootDirReq
-		if err := request.Decode(data); err != nil {
-			log.Println("quics: (SyncRootDirReq) Error while decoding request data")
-			return []byte("FAIL")
-		}
-
-		// get root directory path of requested data
-		err := RegistrationHandler.RegistrationService.SyncRootDir(request)
-		if err != nil {
-			log.Println("quics: (SyncRootDirReq) Error while creating root directory: ", err)
-			return []byte("FAIL")
-		}
-
-		return []byte("OK")
-	})
-	if err != nil {
-		log.Printf("quics: (SyncRootDirReq) Error while receiving message from client: %s\n", err)
-	}
-
-	// [REGISTER] get root directory list
-	err = proto.RecvMessageWithResponseHandleFunc(RegisterRootdirList, func(conn *qp.Connection, msgType string, data []byte) []byte {
-		// get all root direcotry list
-		rootDirs := RegistrationHandler.RegistrationService.GetRootDirList()
-		log.Println("quics: rootDirs: ", rootDirs)
-
-		var rootDirPaths []byte
-		for _, rootDir := range rootDirs {
-			rootDirPath := rootDir.Path[len(config.GetSyncDirPath()):]
-			rootDirPaths = append(rootDirPaths, []byte(rootDirPath)...)
-		}
-
-		log.Println("quics: rootDirPaths: ", rootDirPaths)
-
-		return rootDirPaths
-	})
-	if err != nil {
-		log.Printf("quics: Error while receiving message from client: %s\n", err)
-	}
-
-	// [SYNC] listen PleaseSync message
-	err = proto.RecvFileMessageHandleFunc(FilesSyncPleasesync, func(conn *qp.Connection, fileMsgType string, msgData []byte, fileInfo *fileinfo.FileInfo, fileReader io.Reader) {
-		// parse request data
-		var request types.PleaseSyncReq
-		if err := request.Decode(msgData); err != nil {
-			log.Println("quics: (PleaseSync) Error while decoding request data")
-			return
-		}
-
-		requestPaths := strings.Split(request.AfterPath, "/")
-
-		path := config.GetSyncDirPath() + "/" + requestPaths[1] + "/latest/" + requestPaths[2]
-
-		// check if file is exist
-		isExistFile := SyncHandler.SyncService.IsExistFile(path)
-		if isExistFile == 1 {
-
-			log.Println("quics: file is exist")
-
-			// if exsit, then verify if conflict is occurred
-			file, isConflict := SyncHandler.SyncService.CheckIsOccurredConflict(path, request)
-
-			if isConflict == 1 {
-				// if conflict is occurred
-				// make conflict directory and save conflict file
-
-				log.Println("quics: conflict is occurred")
-
-				rootDirPath := registration.ExtractRelateiveRootDirPath(file.RootDir.Path)
-				conflictPath := config.GetSyncRootDirPath(rootDirPath) + "/conflict/"
-				filePath := filepath.Join(conflictPath) + fileInfo.Name + "_" + strconv.FormatUint(request.LastUpdateTimestamp, 10)
-
-				dirPaths := strings.Split(filePath, "/")
-				dirPaths = dirPaths[:len(dirPaths)-1]
-				dirPath := strings.Join(dirPaths, "/")
-
-				if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
-					log.Fatalf("Error creating directory: %s with %s", err, dirPath)
-				}
-
-				inputFile, err := os.Create(filePath)
-				if err != nil {
-					log.Fatalln("quis: Error while creating file: ", err)
-					return
-				}
-				defer inputFile.Close()
-
-				n, err := io.Copy(inputFile, fileReader)
-				if err != nil {
-					fmt.Println("quics: Error while copying file: ", err)
-					return
-				}
-
-				if n != fileInfo.Size {
-					fmt.Println("quics: read only ", n, "bytes")
-					return
-				}
-
-				log.Println("quics: conflict file saved")
-
-				// to resolve conflict, send messgae for two options to client
-				for {
-					twoOptions := types.TwoOptions{
-						ServerSideHash:          file.LatestHash,
-						ServerSideSyncTimestamp: file.LatestSyncTimestamp,
-						ClientSideHash:          request.LastUpdateHash,
-						ClientSideTimestamp:     request.LastUpdateTimestamp,
-					}
-
-					data, err := twoOptions.Encode()
-					if err != nil {
-						fmt.Println("quics: (PleaseSync) Error while encoding data: ", err)
-					}
-
-					response, err := conn.SendMessageWithResponse(FilesSyncTwooptions, data)
-					if err != nil {
-						fmt.Println("quics: (PleaseSync) Error while sending message to client: ", err)
-						continue
-					}
-
-					if string(response) == "OK" {
-						break
-					} else {
-						continue
-					}
-				}
-
-			} else {
-				paths := strings.Split(request.AfterPath, "/")
-				rootDirPath := config.GetSyncDirPath() + "/" + paths[1]
-				rootDir := RegistrationHandler.RegistrationService.GetRootDirByPath(rootDirPath)
-				historyDirPath := rootDirPath + "/history/"
-				historyFilePath := historyDirPath + paths[2] + "_" + strconv.FormatUint(request.LastUpdateTimestamp, 10)
-
-				// not conflict
-				updatedFile := types.File{
-					Path:                rootDirPath + "/latest/" + paths[2],
-					RootDir:             rootDir,
-					LatestHash:          request.LastUpdateHash,
-					LatestSyncTimestamp: request.LastUpdateTimestamp,
-				}
-
-				inputFile, err := os.Create(updatedFile.Path)
-				if err != nil {
-					log.Fatalln("quis: Error while creating file: ", err)
-					return
-				}
-				defer inputFile.Close()
-
-				n, err := io.Copy(inputFile, fileReader)
-				if err != nil {
-					fmt.Println("quics: Error while copying file: ", err)
-					return
-				}
-				if n != fileInfo.Size {
-					fmt.Println("quics: read only ", n, "bytes")
-					return
-				}
-
-				historyFile, err := os.Create(historyFilePath)
-				if err != nil {
-					log.Fatalln("quis: Error while creating file: ", err)
-					return
-				}
-				defer historyFile.Close()
-
-				n, err = io.Copy(historyFile, inputFile)
-				if err != nil {
-					fmt.Println("quics: Error while copying file: ", err)
-					return
-				}
-				if n != fileInfo.Size {
-					fmt.Println("quics: read only ", n, "bytes")
-					return
-				}
-
-				err = SyncHandler.SyncService.SaveFileFromPleaseSync(path, updatedFile)
-				if err != nil {
-					log.Println("quics: Error while saving file: ", err)
-				}
-
-				// broadcast
-				mustSyncReq := types.MustSyncReq{
-					LatestHash:          updatedFile.LatestHash,
-					LatestSyncTimestamp: updatedFile.LatestSyncTimestamp,
-					BeforePath:          config.GetSyncDirPath(),
-					AfterPath:           request.AfterPath,
-				}
-
-				encodedMustSyncReq, err := mustSyncReq.Encode()
-
-				err = conn.SendMessage(FilesSyncMustsync, encodedMustSyncReq)
-				if err != nil {
-					log.Println("quics: Error while sending message for MustSync: ", err)
-				}
-			}
-		} else {
-			// not exist
-			paths := strings.Split(request.AfterPath, "/")
-			rootDirPath := config.GetSyncDirPath() + "/" + paths[1]
-			rootDir := RegistrationHandler.RegistrationService.GetRootDirByPath(rootDirPath)
-			historyDirPath := rootDirPath + "/history/"
-			historyFilePath := historyDirPath + strconv.FormatUint(request.LastUpdateTimestamp, 10) + "_" + paths[2]
-
-			updatedFile := types.File{
-				Path:                rootDirPath + "/latest/" + paths[2],
-				RootDir:             rootDir,
-				LatestHash:          request.LastUpdateHash,
-				LatestSyncTimestamp: request.LastUpdateTimestamp,
-			}
-
-			dirPaths := strings.Split(updatedFile.Path, "/")
-			dirPaths = dirPaths[:len(dirPaths)-1]
-			dirPath := strings.Join(dirPaths, "/")
-
-			if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
-				log.Fatalf("Error creating directory: %s with %s", err, dirPath)
-			}
-
-			if err := os.MkdirAll(historyDirPath, os.ModePerm); err != nil {
-				log.Fatalf("Error creating directory: %s with %s", err, historyDirPath)
-			}
-
-			inputFile, err := os.Create(updatedFile.Path)
-			if err != nil {
-				log.Fatalln("quis: Error while creating file: ", err)
-				return
-			}
-			defer inputFile.Close()
-
-			n, err := io.Copy(inputFile, fileReader)
-			if err != nil {
-				fmt.Println("quics: Error while copying file: ", err)
-				return
-			}
-			if n != fileInfo.Size {
-				fmt.Println("quics: read only ", n, "bytes")
-				return
-			}
-
-			historyFile, err := os.Create(historyFilePath)
-			if err != nil {
-				log.Fatalln("quis: Error while creating file: ", err)
-				return
-			}
-			defer inputFile.Close()
-
-			n, err = io.Copy(historyFile, fileReader)
-			if err != nil {
-				fmt.Println("quics: Error while copying file: ", err)
-				return
-			}
-			if n != fileInfo.Size {
-				fmt.Println("quics: read only ", n, "bytes")
-				return
-			}
-
-			err = SyncHandler.SyncService.SaveFileFromPleaseSync(path, updatedFile)
-			if err != nil {
-				log.Println("quics: Error while saving file: ", err)
-			}
-
-			// broadcast
-			mustSyncReq := types.MustSyncReq{
-				LatestHash:          updatedFile.LatestHash,
-				LatestSyncTimestamp: updatedFile.LatestSyncTimestamp,
-				BeforePath:          config.GetSyncDirPath(),
-				AfterPath:           request.AfterPath,
-			}
-
-			encodedMustSyncReq, err := mustSyncReq.Encode()
-
-			err = conn.SendMessage(FilesSyncMustsync, encodedMustSyncReq)
-			if err != nil {
-				log.Println("quics: Error while sending message for MustSync: ", err)
-			}
-		}
-	})
-	if err != nil {
-		log.Printf("quics: Error while receiving message from client: %s\n", err)
-	}
-
-	// [SYNC] RESCAN
-	err = proto.RecvMessageHandleFunc(FileSyncRescan, func(conn *qp.Connection, msgType string, data []byte) {
-		requestRescan <- true
-	})
-	if err != nil {
-		log.Printf("quics: Error while receiving message from client: %s\n", err)
-	}
-
-	// [SYNC] PleaseFile
-	err = proto.RecvMessageHandleFunc(FilesSyncPleasefile, func(conn *qp.Connection, msgType string, data []byte) {
-		// decode request data
-		var request types.PleaseFileReq
-		if err := request.Decode(data); err != nil {
-			log.Println("quics: Error while decoding request data")
-			return
-		}
-
-		paths := strings.Split(request.AfterPath, "/")
-		rootDirPath := config.GetSyncDirPath() + "/" + paths[1]
-		rootDirFilePath := rootDirPath + "/latest/" + paths[2]
-		historyDirPath := rootDirPath + "/history/"
-		historyFilePath := historyDirPath + paths[2] + "_" + strconv.FormatUint(request.SyncTimestamp, 10)
-
-		file := SyncHandler.SyncService.GetFileByPath(rootDirFilePath)
-
-		giveYouFile := types.GiveYouFile{
-			LatestHash:          file.LatestHash,
-			LatestSyncTimestamp: file.LatestSyncTimestamp,
-			BeforePath:          config.GetSyncDirPath(),
-			AfterPath:           request.AfterPath,
-		}
-		encodedGiveYouFile, err := giveYouFile.Encode()
-		if err != nil {
-			log.Println("quics: Error while encoding GiveYouFile: ", err)
-		}
-
-		err = conn.SendFileMessage(FilesSyncGiveyoufile, encodedGiveYouFile, historyFilePath)
-		if err != nil {
-			log.Println("quics: Error while sending file to client: ", err)
-			return
-		}
-	})
-	if err != nil {
-		log.Println("quics: Error while receiving message from client: ", err)
-	}
-}
-
+// startQuicsProtocol starts quics protocol server
 func startQuicsProtocol() {
+
+	// initialize protocol server
 	proto, err := qp.New(qp.LOG_LEVEL_INFO)
 	if err != nil {
-		log.Fatalf("Error while creating connection protocol: %s", err)
+		log.Println("quics: ", err)
+		return
 	}
 
+	// initialize server port
 	portStr := config.GetViperEnvVariables("QUICS_PORT")
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Fatalf("Error while getting port number: %s", err)
+		log.Println("quics: ", err)
+		return
 	}
 
+	// initialize udp server address
 	UDPAddr := &net.UDPAddr{
 		IP:   net.ParseIP("0.0.0.0"),
 		Port: port,
 	}
 
+	// initialize certificate for connection
 	cert, err := qp.GetCertificate("", "")
 	if err != nil {
-		log.Println("quics-protocol: ", err)
+		log.Println("quics: ", err)
 		return
 	}
 
+	// initialize tls config for connection with quics protocol
 	tlsConfig := &tls.Config{
 		Certificates: cert,
 		NextProtos:   []string{"quic-s"},
 	}
 
-	conn := func(conn *qp.Connection, msgType string, data []byte) {
-
-		// connect
-		Conns = append(Conns, conn)
-
-		var request types.ClientRegisterReq
-		if err := request.Decode(data); err != nil {
-			log.Println("quics: (ClientRegisterReq while decoding request data: ", err)
-			err := conn.Close()
-			if err != nil {
-				log.Println("quics: Error while closing the connection with client: ", err)
-			}
-			return
-		}
-
-		password := ServerHandler.ServerService.GetPassword()
-
-		err := RegistrationHandler.RegistrationService.CreateNewClient(request, password, conn.Conn.RemoteAddr().String())
-		if err != nil {
-			log.Println("quics: (ClientRegisterReq while creating new client: ", err)
-			err := conn.Close()
-			if err != nil {
-				log.Println("quics: Error while closing the connection with client: ", err)
-			}
-			return
-		}
-	}
-
-	// connect handler
+	// connect handler to quics protocol
 	connectProtocolHandler(proto)
 
 	go func() {
-		// protocol
-		err = proto.ListenWithMessage(UDPAddr, tlsConfig, conn)
+		// listen quics protocol with client
+		err = proto.Listen(UDPAddr, tlsConfig, func(conn *qp.Connection) {
+			fmt.Println("Successfully connected with ", conn.Conn.RemoteAddr().String())
+		})
 		if err != nil {
-			log.Fatalf("Error while listening protocol: %s", err)
+			log.Println("quics: ", err)
+			return
 		}
 	}()
 
 	fmt.Println("QUIC-S protocol listening successfully.")
-
-	go func() {
-		ticker := time.NewTicker(Interval)
-
-		for {
-			select {
-			case <-ticker.C:
-				CallMustSync()
-				ticker.Stop()
-				ticker = time.NewTicker(Interval)
-			case <-requestRescan:
-				CallMustSync()
-				ticker.Stop()
-				ticker = time.NewTicker(Interval)
-			}
-		}
-	}()
 }
 
-func CallMustSync() {
+// connectProtocolHandler connects handler to quics protocol
+func connectProtocolHandler(proto *qp.QP) {
+	var err error
 
-	files := SyncHandler.SyncService.GetFiles()
+	// register client
+	// 1. (client) Open transaction
+	// 2. (client) Send request data for registering client
+	// 3. (server) Receive request data
+	// 4. (server) Create new client to database
+	// TODO: 5. (server) Send response data for registering client
+	err = proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, func(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
+		log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
 
-	for _, file := range files {
-
-		var result string
-		if strings.HasPrefix(file.Path, config.GetSyncDirPath()) {
-			result = strings.TrimPrefix(file.Path, config.GetSyncDirPath())
-		}
-
-		target := "/latest/"
-		afterPath := strings.Replace(result, target, "/", -1)
-
-		mustSyncReq := types.MustSyncReq{
-			LatestHash:          file.LatestHash,
-			LatestSyncTimestamp: file.LatestSyncTimestamp,
-			BeforePath:          config.GetSyncDirPath(),
-			AfterPath:           afterPath,
-		}
-		encodedMustSyncReq, err := mustSyncReq.Encode()
+		data, err := stream.RecvBMessage()
 		if err != nil {
-			log.Println("quics: Error while encoding MustSyncReq: ", err)
+			log.Println("quics: ", err)
+			return
 		}
 
-		for _, conn := range Conns {
-			err := conn.SendMessage(FilesSyncMustsync, encodedMustSyncReq)
+		var request types.ClientRegisterReq
+		if err := request.Decode(data); err != nil {
+			log.Println("quics: ", err)
+			err := conn.Close()
 			if err != nil {
-				log.Println("quics: Error while sending message for MustSync: ", err)
+				log.Println("quics: ", err)
 			}
+			return
 		}
+
+		// create new client to database
+		err = RegistrationHandler.RegistrationService.CreateNewClient(request, Password, conn.Conn.RemoteAddr().String())
+		if err != nil {
+			log.Println("quics: ", err)
+			err := conn.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+			}
+			return
+		}
+
+		// TODO: is it necessary to send response data?
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	// register root directory
+	// 1. (client) Open transaction
+	// 2. (client) Send request data for registering root directory
+	// 3. (server) Receive request data
+	// 4. (server) Register root directory of client to database
+	// TODO: 5. (server) Send response data for registering root directory
+	err = proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, func(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
+		log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+
+		data, err := stream.RecvBMessage()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		var request types.RegisterRootDirReq
+		if err = request.Decode(data); err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		// Register root directory of client to database
+		err = RegistrationHandler.RegistrationService.RegisterRootDir(request)
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		// TODO: is it necessary to send response data?
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	// sync root directory
+	// 1. (client) Open transaction
+	// 2. (client) Send request data for syncing root directory
+	// 3. (server) Receive request data
+	// 4. (server) Sync root directory of client to database
+	// TODO: 5. (server) Send response data for syncing root directory
+	err = proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, func(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
+		log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+
+		data, err := stream.RecvBMessage()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		var request types.SyncRootDirReq
+		if err := request.Decode(data); err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		// get root directory path of requested data
+		err = RegistrationHandler.RegistrationService.SyncRootDir(request)
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		// TODO: is it necessary to send response data?
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	// get root directory list
+	// 1. (client) Open transaction
+	// 2. (client) Send request for getting root directory list
+	// 3. (server) Receive request data
+	// 4. (server) Get root directory list from database
+	// 5. (server) Send response data for getting root directory list
+	err = proto.RecvTransactionHandleFunc(types.GETROOTDIRS, func(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
+		log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+
+		rootDirs := RegistrationHandler.RegistrationService.GetRootDirList()
+
+		var rootDirPaths []byte
+		for _, rootDir := range rootDirs {
+			rootDirPath := rootDir.AfterPath
+			rootDirPaths = append(rootDirPaths, []byte(rootDirPath)...)
+		}
+
+		err = stream.SendBMessage(rootDirPaths)
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	// please sync transaction
+	// 1. (client) Open transaction
+	// 2. (client) PleaseFileMetaReq for getting a file metadata
+	// 3. (server) Find and return certain file metadata
+	// 4. (server) PleaseFileMetaRes for returning a file metadata
+	// 5. (client) PleaseSyncReq if file update is available
+	// 6. (server) Update the history with file metadata and set flag 'ContentsExisted' = false
+	// 7. (server) PleaseSyncRes
+	// 8. (client) PleaseTakeReq for sync a file
+	// 9. (server) Get file contents and set flag 'ContentsExisted' = true
+	// 10. (server) PleaseTakeRes
+	// 11. (server) Go to the MustSync transaction
+	err = proto.RecvTransactionHandleFunc(types.PLEASESYNC, func(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
+		log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+
+		data, err := stream.RecvBMessage()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		var pleaseFileMetaReq types.PleaseFileMetaReq
+		if err := pleaseFileMetaReq.Decode(data); err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		// TODO: find and return certain file metadata
+
+		var pleaseSyncReq types.PleaseSyncReq
+		if err := pleaseSyncReq.Decode(data); err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		// FIXME: change the condition from whether the file is exist to whether the request data is empty or not full
+		// TODO: should think file with directories
+
+		requestPaths := strings.Split(pleaseSyncReq.AfterPath, "/")
+		rootDirName := requestPaths[1]
+		rootDirPath := utils.GetQuicsRootDirPath(rootDirName)
+		rootDir := RegistrationHandler.RegistrationService.GetRootDirByPath(rootDirPath)
+
+		historyDirPath := utils.GetQuicsHistoryPathByRootDir(rootDirName)
+		historyFilePath := historyDirPath + strconv.FormatUint(pleaseSyncReq.LastUpdateTimestamp, 10) + "_" + paths[2]
+
+		fileSavedPath := utils.GetQuicsLatestPathByRootDir(rootDirName) // including latest directory
+
+		updatedFile := types.File{
+			BeforePath:          fileSavedPath,
+			AfterPath:           pleaseSyncReq.AfterPath,
+			RootDir:             rootDir,
+			LatestHash:          pleaseSyncReq.LastUpdateHash,
+			LatestSyncTimestamp: pleaseSyncReq.LastUpdateTimestamp,
+		}
+
+		dirPaths := strings.Split(updatedFile.BeforePath, "/")
+		dirPaths = dirPaths[:len(dirPaths)-1]
+		dirPath := strings.Join(dirPaths, "/")
+
+		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		//inputFile, err := os.Create(updatedFile.Path)
+		//if err != nil {
+		//	log.Println("quis: ", err)
+		//	return
+		//}
+		//defer inputFile.Close()
+		//
+		//n, err := io.Copy(inputFile, fileReader)
+		//if err != nil {
+		//	fmt.Println("quics: Error while copying file: ", err)
+		//	return
+		//}
+		//if n != fileInfo.Size {
+		//	fmt.Println("quics: read only ", n, "bytes")
+		//	return
+		//}
+		//
+		//if err := os.MkdirAll(historyDirPath, os.ModePerm); err != nil {
+		//	log.Println("quics: ", err)
+		//	return
+		//}
+		//
+		//historyFile, err := os.Create(historyFilePath)
+		//if err != nil {
+		//	log.Fatalln("quis: Error while creating file: ", err)
+		//	return
+		//}
+		//defer inputFile.Close()
+		//
+		//n, err = io.Copy(historyFile, fileReader)
+		//if err != nil {
+		//	fmt.Println("quics: Error while copying file: ", err)
+		//	return
+		//}
+		//if n != fileInfo.Size {
+		//	fmt.Println("quics: read only ", n, "bytes")
+		//	return
+		//}
+		//
+		//err = SyncHandler.SyncService.SaveFileFromPleaseSync(path, updatedFile)
+		//if err != nil {
+		//	log.Println("quics: Error while saving file: ", err)
+		//}
+
+		// open must sync transaction
+		openMustSyncTransaction(conn)
+
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+}
+
+func openMustSyncTransaction(conn *qp.Connection) {
+	var err error
+
+	// must sync transaction
+	// 1. (server) Open transaction
+	// 2. (server) MustSyncReq with file metadata to all registered clients without where the file come from
+	// 3. (client) MustSyncRes if file update is available
+	// 3-1. (server) If all request data are exist, then go to step 4
+	// 3-2. (server) If not, then this transaction should be closed
+	// 4. (server) GiveYouReq for giving file contents
+	// 5. (client) GiveYouRes
+	err = conn.OpenTransaction(types.MUSTSYNC, func(stream *qp.Stream, transactionName string, transactionId []byte) error {
+		// TODO: implement must sync transaction process
+
+		return nil
+	})
+	if err != nil {
+		log.Println("quics: ", err)
 	}
 }

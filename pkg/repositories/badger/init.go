@@ -2,7 +2,7 @@ package badger
 
 import (
 	"github.com/dgraph-io/badger/v3"
-	"github.com/quic-s/quics/config"
+	"github.com/quic-s/quics/pkg/utils"
 	"log"
 )
 
@@ -13,7 +13,7 @@ func NewBadgerDB() {
 	var err error
 
 	// initialize badger database in .quics/badger directory
-	opts := badger.DefaultOptions(config.GetQuicsDirPath() + "/badger")
+	opts := badger.DefaultOptions(utils.GetQuicsDirPath() + "/badger")
 	opts.Logger = nil
 	db, err = badger.Open(opts)
 	if err != nil {

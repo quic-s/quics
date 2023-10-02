@@ -6,12 +6,12 @@ import (
 )
 
 type RegistrationHandler struct {
-	registrationService registration.Service
+	RegistrationService registration.Service
 }
 
 func NewRegistrationHandler(registrationService registration.Service) *RegistrationHandler {
 	return &RegistrationHandler{
-		registrationService: registrationService,
+		RegistrationService: registrationService,
 	}
 }
 

@@ -6,15 +6,15 @@ import (
 )
 
 type MetadataHandler struct {
-	metadataService metadata.Service
+	MetadataService metadata.Service
 }
 
 func NewMetadataHandler(metadataService metadata.Service) *MetadataHandler {
 	return &MetadataHandler{
-		metadataService: metadataService,
+		MetadataService: metadataService,
 	}
 }
 
 func (metadataHandler *MetadataHandler) SetupRoutes(r *mux.Router) {
-	
+
 }

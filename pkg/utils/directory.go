@@ -1,4 +1,4 @@
-package config
+package utils
 
 import (
 	"log"
@@ -6,11 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-type ViperConfig struct {
-	Key   string
-	Value string
-}
 
 // GetQuicsDirPath returns the path of the .quics directory
 func GetQuicsDirPath() string {
@@ -42,8 +37,8 @@ func GetQuicsRootDirPath(rootDir string) string {
 	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]) // $HOME/.quics/sync/{rootDir}
 }
 
-// getQuicsHistoryPathByRootDir returns the path of the ./quics/sync/{rootDir}/history directory
-func getQuicsHistoryPathByRootDir(rootDir string) string {
+// GetQuicsHistoryPathByRootDir returns the path of the ./quics/sync/{rootDir}/history directory
+func GetQuicsHistoryPathByRootDir(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
@@ -52,8 +47,8 @@ func getQuicsHistoryPathByRootDir(rootDir string) string {
 	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:], "history") // $HOME/.quics/sync/{rootDir}/history
 }
 
-// getQuicsLatestPathByRootDir returns the path of the ./quics/sync/{rootDir}/latest directory
-func getQuicsLatestPathByRootDir(rootDir string) string {
+// GetQuicsLatestPathByRootDir returns the path of the ./quics/sync/{rootDir}/latest directory
+func GetQuicsLatestPathByRootDir(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)

@@ -2,8 +2,8 @@ package registration
 
 import (
 	"errors"
-	"github.com/quic-s/quics/config"
 	"github.com/quic-s/quics/pkg/types"
+	"github.com/quic-s/quics/pkg/utils"
 	"log"
 )
 
@@ -51,9 +51,9 @@ func (service *MyRegistrationService) RegisterRootDir(request types.RegisterRoot
 	client := service.registrationRepository.GetClientByUUID(request.UUID)
 
 	// create root directory entity
-	path := config.GetQuicsSyncDirPath() + request.AfterPath
+	path := utils.GetQuicsSyncDirPath() + request.AfterPath
 	var rootDir = types.RootDirectory{
-		BeforePath: config.GetQuicsSyncDirPath(),
+		BeforePath: utils.GetQuicsSyncDirPath(),
 		AfterPath:  request.AfterPath,
 		Owner:      client.UUID,
 		Password:   request.RootDirPassword,
@@ -74,7 +74,7 @@ func (service *MyRegistrationService) RegisterRootDir(request types.RegisterRoot
 func (service *MyRegistrationService) SyncRootDir(request types.SyncRootDirReq) error {
 	client := service.registrationRepository.GetClientByUUID(request.UUID)
 
-	path := config.GetQuicsSyncDirPath() + request.AfterPath
+	path := utils.GetQuicsSyncDirPath() + request.AfterPath
 	rootDir := service.registrationRepository.GetRootDirByPath(path)
 
 	// password check

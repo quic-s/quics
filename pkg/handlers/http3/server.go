@@ -6,12 +6,12 @@ import (
 )
 
 type ServerHandler struct {
-	serverService server.Service
+	ServerService server.Service
 }
 
 func NewServerHandler(serverService server.Service) *ServerHandler {
 	return &ServerHandler{
-		serverService: serverService,
+		ServerService: serverService,
 	}
 }
 

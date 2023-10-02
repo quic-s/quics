@@ -6,12 +6,12 @@ import (
 )
 
 type SyncHandler struct {
-	syncService sync.Service
+	SyncService sync.Service
 }
 
 func NewSyncHandler(syncService sync.Service) *SyncHandler {
 	return &SyncHandler{
-		syncService: syncService,
+		SyncService: syncService,
 	}
 }
 

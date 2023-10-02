@@ -6,12 +6,12 @@ import (
 )
 
 type HistoryHandler struct {
-	historyService history.Service
+	HistoryService history.Service
 }
 
 func NewHistoryHandler(historyService history.Service) *HistoryHandler {
 	return &HistoryHandler{
-		historyService: historyService,
+		HistoryService: historyService,
 	}
 }
 

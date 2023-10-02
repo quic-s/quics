@@ -6,6 +6,11 @@ import (
 	"log"
 )
 
+type MessageData interface {
+	Encode() ([]byte, error)
+	Decode([]byte) error
+}
+
 // ClientRegisterReq is used when registering client from client to server
 type ClientRegisterReq struct {
 	UUID           string // client
@@ -87,10 +92,10 @@ type MustSyncReq struct {
 
 // MustSyncRes is used to response to server that client will synchronize file
 type MustSyncRes struct {
-	UUID              string
-	AfterPath         string
-	LastSyncTimestamp string
-	LastSyncHash      string
+	UUID                string
+	AfterPath           string
+	LatestSyncTimestamp uint64
+	LatestSyncHash      string
 }
 
 // GiveYouReq is used when sending file to client
@@ -101,10 +106,10 @@ type GiveYouReq struct {
 
 // GiveYouRes is used to response to server that client received file
 type GiveYouRes struct {
-	UUID                string
-	AfterPath           string
-	LatestSyncTimestamp uint64
-	LatestHash          string
+	UUID              string
+	AfterPath         string
+	LastSyncTimestamp uint64
+	LastHash          string
 }
 
 // PleaseFileReq is used when client request file to server (metadata)

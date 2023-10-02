@@ -1,16 +1,16 @@
 package config
 
 import (
+	"github.com/quic-s/quics/pkg/utils"
+	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
-
-	"github.com/spf13/viper"
 )
 
 // GetViperEnvVariables gets env variables in env file using viper
 func GetViperEnvVariables(key string) string {
-	envPath := filepath.Join(GetQuicsDirPath(), "qis.env")
+	envPath := filepath.Join(utils.GetQuicsDirPath(), "qis.env")
 
 	_, err := os.Stat(envPath)
 	if err != nil {
@@ -50,7 +50,7 @@ func GetViperEnvVariables(key string) string {
 
 // WriteViperEnvVariables writes env variables to env file using viper
 func WriteViperEnvVariables(key string, value string) {
-	envPath := filepath.Join(GetQuicsDirPath(), ".qis.env")
+	envPath := filepath.Join(utils.GetQuicsDirPath(), ".qis.env")
 	_, err := os.Stat(envPath)
 	if os.IsNotExist(err) {
 		viper.SetConfigFile(".env")
