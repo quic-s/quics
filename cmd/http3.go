@@ -22,6 +22,7 @@ func connectRestHandler() *mux.Router {
 	return r
 }
 
+// startHttp3Server starts HTTP/3 server
 func startHttp3Server(r *mux.Router) {
 	quicConfig := &quic.Config{}
 
@@ -32,9 +33,9 @@ func startHttp3Server(r *mux.Router) {
 	}
 
 	// get directory path for certification
-	quicsDir := config.GetDirPath()
-	certFileDir := filepath.Join(quicsDir, config.GetViperEnvVariables("QUICS_CERT_NAME"))
-	keyFileDir := filepath.Join(quicsDir, config.GetViperEnvVariables("QUICS_KEY_NAME"))
+	quicsDirPath := utils.GetQuicsDirPath()
+	certFileDir := filepath.Join(quicsDirPath, config.GetViperEnvVariables("QUICS_CERT_NAME"))
+	keyFileDir := filepath.Join(quicsDirPath, config.GetViperEnvVariables("QUICS_KEY_NAME"))
 
 	// load the certificate and the key from the files
 	_, err := tls.LoadX509KeyPair(certFileDir, keyFileDir)
@@ -49,6 +50,7 @@ func startHttp3Server(r *mux.Router) {
 	fmt.Println("HTTP/3 server started successfully.")
 }
 
+// getHttp3Client returns created HTTP/3 client
 func getHttp3Client() *http.Client {
 	quicConfig := &quic.Config{}
 
