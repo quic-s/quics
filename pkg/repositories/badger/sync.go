@@ -1,4 +1,4 @@
-package sync
+package badger
 
 import (
 	"github.com/dgraph-io/badger/v3"
@@ -9,23 +9,19 @@ const (
 	PrefixFile string = "file_"
 )
 
-type Repository struct {
-	DB *badger.DB
+type SyncRepository struct {
 }
 
-type RepositoryInterface interface {
-	GetFilesByRootDirPath(rootDirPath string) []types.File
+func NewSyncRepository() *SyncRepository {
+	return &SyncRepository{}
 }
 
-func NewSyncRepository(db *badger.DB) *Repository {
-	return &Repository{DB: db}
-}
-
-func (syncRepository *Repository) GetFileByPath(path string) *types.File {
+// GetFileByPath gets file by file path
+func (repository *SyncRepository) GetFileByPath(path string) *types.File {
 	key := []byte(PrefixFile + path)
 	var file *types.File
 
-	err := syncRepository.DB.View(func(txn *badger.Txn) error {
+	err := db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
@@ -50,10 +46,11 @@ func (syncRepository *Repository) GetFileByPath(path string) *types.File {
 	return file
 }
 
-func (syncRepository *Repository) SaveFileByPath(path string, file types.File) error {
+// SaveFileByPath saves new file to badger
+func (repository *SyncRepository) SaveFileByPath(path string, file types.File) error {
 	key := []byte(PrefixFile + path)
 
-	err := syncRepository.DB.Update(func(txn *badger.Txn) error {
+	err := db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, file.Encode())
 		return err
 	})
@@ -63,10 +60,11 @@ func (syncRepository *Repository) SaveFileByPath(path string, file types.File) e
 	return nil
 }
 
-func (syncRepository *Repository) GetAllFiles() []types.File {
+// GetAllFiles gets all files
+func (repository *SyncRepository) GetAllFiles() []types.File {
 	var files []types.File
 
-	err := syncRepository.DB.View(func(txn *badger.Txn) error {
+	err := db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchSize = 10
 		it := txn.NewIterator(opts)

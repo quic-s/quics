@@ -15,6 +15,7 @@ import (
 	"time"
 )
 
+// SecurityFiles generates a certificate file and key pair
 func SecurityFiles() {
 
 	// generate a new RSA key pair
@@ -50,7 +51,7 @@ func SecurityFiles() {
 	keyOut := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 
 	// write the certificate and key to disk
-	quicsDir := config.GetDirPath()
+	quicsDir := config.GetQuicsDirPath()
 	certFile, err := os.Create(filepath.Join(quicsDir, config.GetViperEnvVariables("QUICS_CERT_NAME")))
 	if err != nil {
 		log.Fatal(err)
