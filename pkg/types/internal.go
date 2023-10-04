@@ -29,6 +29,7 @@ type File struct {
 	RootDir             RootDirectory
 	LatestHash          string
 	LatestSyncTimestamp uint64
+	ContentsExisted     bool
 }
 
 // FileHistory is used to store the file's history
@@ -53,6 +54,8 @@ type FileMetadata struct {
 	Owner      string
 	CreatedAt  string
 	ModifiedAt string
+	BeforePath string
+	AfterPath  string
 }
 
 // Sharing is used to store the file download information
