@@ -95,3 +95,38 @@ func (repository *SyncRepository) GetAllFiles() []types.File {
 
 	return files
 }
+
+// UpdateContentsExisted updates contents existed flag (if exist then true, or not then false)
+func (repository *SyncRepository) UpdateContentsExisted(path string, contentsExisted bool) error {
+	key := []byte(PrefixFile + path)
+
+	err := db.Update(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return err
+		}
+
+		file := &types.File{}
+		if err := file.Decode(val); err != nil {
+			return err
+		}
+
+		file.ContentsExisted = contentsExisted
+
+		if err := txn.Set(key, file.Encode()); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
