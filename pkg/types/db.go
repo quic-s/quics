@@ -6,6 +6,11 @@ import (
 	"log"
 )
 
+type DatabaseData interface {
+	Encode() []byte
+	Decode(data []byte) error
+}
+
 // Client is used to save connected client information
 type Client struct {
 	UUID string // key
