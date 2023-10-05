@@ -17,18 +17,34 @@ type ClientRegisterReq struct {
 	ClientPassword string // client
 }
 
+type ClientRegisterRes struct {
+	UUID string // client
+}
+
 // ClientDisconnectorReq is used when disconnecting client with server from client to server
 type ClientDisconnectorReq struct {
 	UUID           string // client
 	ServerPassword string // server
 }
 
-// RegisterRootDirReq is used when registering root directory of a client from client to server
-type RegisterRootDirReq struct {
+type AskRootDirReq struct {
+	UUID string
+}
+
+type AskRootDirRes struct {
+	RootDirList []string
+}
+
+// RootDirReqRegister is used when registering root directory of a client from client to server
+type RootDirRegisterReq struct {
 	UUID            string
 	RootDirPassword string
 	BeforePath      string
 	AfterPath       string
+}
+
+type RootDirRegisterRes struct {
+	UUID string
 }
 
 // SyncRootDirReq is used when synchronizing root directory of a client from client to server
@@ -158,6 +174,23 @@ func (clientRegisterReq *ClientRegisterReq) Decode(data []byte) error {
 	return decoder.Decode(clientRegisterReq)
 }
 
+func (clientRegisterRes *ClientRegisterRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(clientRegisterRes); err != nil {
+		log.Println("quics: (ClientRegisterRes.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (clientRegisterRes *ClientRegisterRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(clientRegisterRes)
+}
+
 func (clientDisconnectorReq *ClientDisconnectorReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
@@ -175,7 +208,41 @@ func (clientDisconnectorReq *ClientDisconnectorReq) Decode(data []byte) error {
 	return decoder.Decode(clientDisconnectorReq)
 }
 
-func (registerRootDirReq *RegisterRootDirReq) Encode() ([]byte, error) {
+func (askRootDirReq *AskRootDirReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askRootDirReq); err != nil {
+		log.Println("quics: (AskRootDirReq.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askRootDirReq *AskRootDirReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askRootDirReq)
+}
+
+func (askRootDirRes *AskRootDirRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askRootDirRes); err != nil {
+		log.Println("quics: (AskRootDirRes.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askRootDirRes *AskRootDirRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askRootDirRes)
+}
+
+func (registerRootDirReq *RootDirRegisterReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
 	if err := encoder.Encode(registerRootDirReq); err != nil {
@@ -186,10 +253,27 @@ func (registerRootDirReq *RegisterRootDirReq) Encode() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (registerRootDirReq *RegisterRootDirReq) Decode(data []byte) error {
+func (registerRootDirReq *RootDirRegisterReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(registerRootDirReq)
+}
+
+func (registerRootDirRes *RootDirRegisterRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(registerRootDirRes); err != nil {
+		log.Println("quics: (RegisterRootDirRes.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (registerRootDirRes *RootDirRegisterRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(registerRootDirRes)
 }
 
 func (syncRootDirReq *SyncRootDirReq) Encode() ([]byte, error) {
