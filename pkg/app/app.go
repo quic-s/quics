@@ -2,77 +2,105 @@ package app
 
 import (
 	"fmt"
-	"github.com/quic-s/quics/config"
-	"github.com/quic-s/quics/pkg/core/download"
-	"github.com/quic-s/quics/pkg/core/history"
-	"github.com/quic-s/quics/pkg/core/metadata"
-	"github.com/quic-s/quics/pkg/core/registration"
-	"github.com/quic-s/quics/pkg/core/server"
-	"github.com/quic-s/quics/pkg/core/sync"
-	httphdl "github.com/quic-s/quics/pkg/handlers/http"
-	http3hdl "github.com/quic-s/quics/pkg/handlers/http3"
-	repo "github.com/quic-s/quics/pkg/repositories/badger"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/quic-s/quics/config"
+	"github.com/quic-s/quics/pkg/core/registration"
+	"github.com/quic-s/quics/pkg/network/qp"
+	"github.com/quic-s/quics/pkg/network/qp/connection"
+	"github.com/quic-s/quics/pkg/repository/badger"
+	"github.com/quic-s/quics/pkg/types"
 )
 
 type App struct {
+	repo     *badger.Badger
+	Proto    *qp.Protocol
+	SigCh    chan os.Signal
+	Password string
 }
 
-var SigCh chan os.Signal
-var Password string
-
-var DownloadHandler *httphdl.DownloadHandler
-var HistoryHandler *http3hdl.HistoryHandler
-var MetadataHandler *http3hdl.MetadataHandler
-var RegistrationHandler *http3hdl.RegistrationHandler
-var ServerHandler *http3hdl.ServerHandler
-var SyncHandler *http3hdl.SyncHandler
-
 // Initialize initialize program
-func Initialize() (*App, error) {
+func New() (*App, error) {
 	// define system call actions
-	SigCh = make(chan os.Signal, 1)
+	SigCh := make(chan os.Signal, 1)
 	signal.Notify(SigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	// initialize server password
-	Password = config.GetViperEnvVariables("PASSWORD")
+	Password := config.GetViperEnvVariables("PASSWORD")
 
-	return &App{}, nil
-}
+	repo, err := badger.NewBadgerRepository()
+	if err != nil {
+		log.Println("quics: Error while connecting to the database: ", err)
+	}
 
-func (app *App) InitAdapters() {
-	repo.NewBadgerDB()
+	pool := connection.NewnPool()
 
-	downloadRepository := repo.NewDownloadRepository()
-	downloadService := download.NewDownloadService(downloadRepository)
-	DownloadHandler = httphdl.NewDownloadHandler(downloadService)
-
-	historyRepository := repo.NewHistoryRepository()
-	historyService := history.NewHistoryService(historyRepository)
-	HistoryHandler = http3hdl.NewHistoryHandler(historyService)
-
-	metadataRepository := repo.NewMetadataRepository()
-	metadataService := metadata.NewMetadataService(metadataRepository)
-	MetadataHandler = http3hdl.NewMetadataHandler(metadataService)
+	proto, err := qp.New("0.0.0.0", 6122, pool)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
 
 	registrationRepository := repo.NewRegistrationRepository()
-	registrationService := registration.NewRegistrationService(registrationRepository)
-	RegistrationHandler = http3hdl.NewRegistrationHandler(registrationService)
+	registrationNetworkAdapter := qp.NewRegistrationAdapter(pool)
+	registrationService := registration.NewService(Password, registrationRepository, registrationNetworkAdapter)
+	registrationHandler := qp.NewRegistrationHandler(registrationService)
 
-	serverRepository := repo.NewServerRepository()
-	serverService := server.NewServerService(serverRepository)
-	ServerHandler = http3hdl.NewServerHandler(serverService)
+	proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
+	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, registrationHandler.RegisterRootDir)
+	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, registrationHandler.GetRemoteDirs)
 
-	syncRepository := repo.NewSyncRepository()
-	syncService := sync.NewSyncService(syncRepository)
-	SyncHandler = http3hdl.NewSyncHandler(syncService)
+	// historyRepository := repo.NewHistoryRepository()
+	// historyService := history.NewHistoryService(historyRepository)
+	// HistoryHandler := http3hdl.NewHistoryHandler(historyService)
+
+	// metadataRepository := repo.NewMetadataRepository()
+	// metadataService := metadata.NewMetadataService(metadataRepository)
+	// MetadataHandler := http3hdl.NewMetadataHandler(metadataService)
+
+	// registrationRepository := repo.NewRegistrationRepository()
+	// registrationService := registration.NewService(registrationRepository)
+	// RegistrationHandler := http3hdl.NewRegistrationHandler(registrationService)
+
+	// serverRepository := repo.NewServerRepository()
+	// serverService := server.NewService(serverRepository)
+	// ServerHandler := http3hdl.NewServerHandler(serverService)
+
+	// sharingRepository := repo.NewSharingRepository()
+	// sharingService := sharing.NewService(sharingRepository)
+	// sharingHandler := httphdl.NewSharingHandler(sharingService)
+
+	// syncRepository := repo.NewSyncRepository()
+	// syncService := sync.NewService(syncRepository)
+	// SyncHandler := http3hdl.NewSyncHandler(syncService)
+
+	return &App{
+		repo:  repo,
+		Proto: proto,
+		SigCh: SigCh,
+		// HistoryHandler:      HistoryHandler,
+		// MetadataHandler:     MetadataHandler,
+		// RegistrationHandler: RegistrationHandler,
+		// ServerHandler:       ServerHandler,
+		// SharingHandler:      SharingHandler,
+		// SyncHandler:         SyncHandler,
+	}, nil
 }
 
-func (app *App) Close() {
+func (a *App) Start() {
+	// start quics protocol server
+	err := a.Proto.Start()
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+}
+
+func (a *App) Close() {
 	// if pressed ctrl + c, then stop server with closing database
-	<-SigCh
-	repo.CloseBadgerDB()
+	<-a.SigCh
+	a.repo.Close()
 	fmt.Println("Database is closed successfully.")
 }

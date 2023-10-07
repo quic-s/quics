@@ -1,4 +1,4 @@
-package download
+package sharing
 
 type Repository interface {
 }

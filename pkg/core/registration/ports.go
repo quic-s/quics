@@ -1,22 +1,26 @@
 package registration
 
 import (
+	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/pkg/types"
 )
 
 type Repository interface {
-	SaveClient(uuid string, client types.Client)
-	GetClientByUUID(uuid string) *types.Client
-	SaveRootDir(path string, rootDir types.RootDirectory)
-	GetRootDirByPath(path string) *types.RootDirectory
-	GetAllRootDir() []types.RootDirectory
+	SaveClient(uuid string, client *types.Client) error
+	GetClientByUUID(uuid string) (*types.Client, error)
+	SaveRootDir(path string, rootDir *types.RootDirectory) error
+	GetRootDirByPath(path string) (*types.RootDirectory, error)
+	GetAllRootDir() ([]*types.RootDirectory, error)
 	GetSequence(key []byte, increment uint64) (uint64, error)
 }
 
 type Service interface {
-	CreateNewClient(request types.ClientRegisterReq, password string, ip string) error
-	RegisterRootDir(request types.RegisterRootDirReq) error
-	SyncRootDir(request types.SyncRootDirReq) error
-	GetRootDirList() []types.RootDirectory
-	GetRootDirByPath(path string) types.RootDirectory
+	RegisterClient(request *types.ClientRegisterReq, conn *qp.Connection) (*types.ClientRegisterRes, error)
+	RegisterRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error)
+	GetRootDirList() ([]*types.RootDirectory, error)
+	GetRootDirByPath(path string) (*types.RootDirectory, error)
+}
+
+type NetworkAdapter interface {
+	UpdateClientConnection(uuid string, conn *qp.Connection) error
 }

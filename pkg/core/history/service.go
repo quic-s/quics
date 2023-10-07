@@ -1,11 +1,11 @@
 package history
 
-type MyHistoryService struct {
+type HistoryService struct {
 	historyRepository Repository
 }
 
-func NewHistoryService(historyRepository Repository) *MyHistoryService {
-	return &MyHistoryService{
+func NewHistoryService(historyRepository Repository) *HistoryService {
+	return &HistoryService{
 		historyRepository: historyRepository,
 	}
 }

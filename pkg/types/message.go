@@ -67,7 +67,7 @@ type PleaseFileMetaRes struct {
 	AfterPath           string
 	LatestHash          string
 	LatestSyncTimestamp uint64
-	ModifiedDate        string
+	ModifiedDate        uint64
 }
 
 // PleaseSyncReq is used when updating file's changes from client to server
@@ -130,10 +130,12 @@ type GiveYouRes struct {
 
 // PleaseFileReq is used when client request file to server (metadata)
 type PleaseFileReq struct {
-	UUID          string
-	SyncTimestamp uint64
-	BeforePath    string
-	AfterPath     string
+	UUID              string
+	AfterPath         string
+	SelectedTimestamp uint64
+	NewTimestamp      uint64
+	NewHash           string
+	Side              string
 }
 
 // PleaseFileRes is used when server response file to client (metadata)
@@ -142,16 +144,15 @@ type PleaseFileRes struct {
 	AfterPath string
 }
 
-// FileDownloadReq is used when creating file download link
-type FileDownloadReq struct {
-	UUID       string
-	BeforePath string
-	AfterPath  string
-	MaxCount   uint
+// LinkShareReq is used when creating file download link
+type LinkShareReq struct {
+	UUID      string
+	AfterPath string
+	MaxCount  uint
 }
 
-// FileDownloadRes is used when returning created file download link
-type FileDownloadRes struct {
+// LinkShareRes is used when returning created file download link
+type LinkShareRes struct {
 	Link     string
 	Count    uint
 	MaxCount uint
@@ -497,36 +498,36 @@ func (pleaseFileRes *PleaseFileRes) Decode(data []byte) error {
 	return decoder.Decode(pleaseFileRes)
 }
 
-func (fileDownloadReq *FileDownloadReq) Encode() ([]byte, error) {
+func (linkShareReq *LinkShareReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(fileDownloadReq); err != nil {
-		log.Println("quics: (FileDownloadReq.Encode) ", err)
+	if err := encoder.Encode(linkShareReq); err != nil {
+		log.Println("quics: ", err)
 		return nil, err
 	}
 
 	return buffer.Bytes(), nil
 }
 
-func (fileDownloadReq *FileDownloadReq) Decode(data []byte) error {
+func (linkShareReq *LinkShareReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(fileDownloadReq)
+	return decoder.Decode(linkShareReq)
 }
 
-func (fileDownloadRes *FileDownloadRes) Encode() ([]byte, error) {
+func (linkShareRes *LinkShareRes) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(fileDownloadRes); err != nil {
-		log.Println("quics: (FileDownLoadRes.Encode) ", err)
+	if err := encoder.Encode(linkShareRes); err != nil {
+		log.Println("quics: ", err)
 		return nil, err
 	}
 
 	return buffer.Bytes(), nil
 }
 
-func (fileDownloadRes *FileDownloadRes) Decode(data []byte) error {
+func (linkShareRes *LinkShareRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(fileDownloadRes)
+	return decoder.Decode(linkShareRes)
 }
