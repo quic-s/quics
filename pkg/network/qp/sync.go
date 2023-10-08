@@ -1,8 +1,10 @@
 package qp
 
 import (
-	"github.com/quic-s/quics/pkg/network/qp/connection"
 	"log"
+	stdsync "sync"
+
+	"github.com/quic-s/quics/pkg/network/qp/connection"
 
 	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/pkg/core/sync"
@@ -190,6 +192,55 @@ func NewSyncAdapter(pool *connection.Pool) *SyncAdapter {
 	}
 }
 
+type transaction struct {
+	wg     *stdsync.WaitGroup
+	stream *qp.Stream
+}
+
+func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*transaction, error) {
+	// get connection from pool by uuid
+	conn, err := sa.Pool.GetConnection(uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	transaction := &transaction{
+		wg:     &stdsync.WaitGroup{},
+		stream: nil,
+	}
+
+	// make error channel to receive error from goroutine
+	errChan := make(chan error)
+	go func() {
+		err := conn.OpenTransaction(types.MUSTSYNC, func(stream *qp.Stream, transactionName string, transactionID []byte) error {
+			// add wait group to wait for closing transaction
+			transaction.wg.Add(1)
+
+			// set stream to transaction
+			transaction.stream = stream
+
+			// send nil to error channel
+			// this would be followed after set stream
+			errChan <- nil
+
+			transaction.wg.Wait()
+			return nil
+		})
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	// wait for setting stream
+	err = <-errChan
+	// if error is not nil, then return error
+	if err != nil {
+		return nil, err
+	}
+
+	return transaction, nil
+}
+
 // must sync transaction
 // 1. (server) Open transaction
 // 2. (server) MustSyncReq with file metadata to all registered clients without where the file come from
@@ -198,24 +249,57 @@ func NewSyncAdapter(pool *connection.Pool) *SyncAdapter {
 // 3-2. (server) If not, then this transaction should be closed
 // 4. (server) GiveYouReq for giving file contents
 // 5. (client) GiveYouRes
-func (sa *SyncAdapter) MustSync(mustSyncReq *types.MustSyncReq, conns []*qp.Connection, stream *qp.Stream) error {
+func (t *transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.MustSyncRes, error) {
 
 	request, err := mustSyncReq.Encode()
 	if err != nil {
-		log.Println("quics: ", err)
-		return err
+		return nil, err
 	}
 
-	err = stream.SendBMessage(request)
+	err = t.stream.SendBMessage(request)
 	if err != nil {
-		log.Println("quics: ", err)
-		return err
+		return nil, err
 	}
 
 	// receive
-	// service call
+	res, err := t.stream.RecvBMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	mustSyncRes := &types.MustSyncRes{}
+	if err := mustSyncRes.Decode(res); err != nil {
+		return nil, err
+	}
+	return mustSyncRes, nil
+}
+
+func (t *transaction) RequestGiveYou(giveYouReq *types.GiveYouReq) (*types.GiveYouRes, error) {
+	request, err := giveYouReq.Encode()
+	if err != nil {
+		return nil, err
+	}
 
 	// send
+	err = t.stream.SendBMessage(request)
+	if err != nil {
+		return nil, err
+	}
 
+	// receive
+	res, err := t.stream.RecvBMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	giveYouRes := &types.GiveYouRes{}
+	if err := giveYouRes.Decode(res); err != nil {
+		return nil, err
+	}
+	return giveYouRes, nil
+}
+
+func (t *transaction) Close() error {
+	t.wg.Done()
 	return nil
 }
