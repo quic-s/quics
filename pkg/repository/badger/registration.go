@@ -1,9 +1,10 @@
 package badger
 
 import (
+	"log"
+
 	"github.com/dgraph-io/badger/v3"
 	"github.com/quic-s/quics/pkg/types"
-	"log"
 )
 
 const (
@@ -12,31 +13,30 @@ const (
 )
 
 type RegistrationRepository struct {
-}
-
-func NewRegistrationRepository() *RegistrationRepository {
-	return &RegistrationRepository{}
+	db *badger.DB
 }
 
 // SaveClient saves new client to badger and this system
-func (repository *RegistrationRepository) SaveClient(uuid string, client types.Client) {
+func (rr *RegistrationRepository) SaveClient(uuid string, client *types.Client) error {
 	key := []byte(PrefixClient + uuid)
 
-	err := db.Update(func(txn *badger.Txn) error {
+	err := rr.db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, client.Encode())
 		return err
 	})
 	if err != nil {
 		log.Println("quics: (SaveClient) ", err)
+		return err
 	}
+	return nil
 }
 
 // GetClientByUUID gets client by client uuid
-func (repository *RegistrationRepository) GetClientByUUID(uuid string) *types.Client {
+func (rr *RegistrationRepository) GetClientByUUID(uuid string) (*types.Client, error) {
 	key := []byte(PrefixClient + uuid)
 	var client *types.Client
 
-	err := db.View(func(txn *badger.Txn) error {
+	err := rr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
@@ -55,30 +55,32 @@ func (repository *RegistrationRepository) GetClientByUUID(uuid string) *types.Cl
 		return nil
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return client
+	return client, nil
 }
 
-func (repository *RegistrationRepository) SaveRootDir(path string, rootDir types.RootDirectory) {
+func (rr *RegistrationRepository) SaveRootDir(path string, rootDir *types.RootDirectory) error {
 	key := []byte(PrefixRootDir + path)
 
-	err := db.Update(func(txn *badger.Txn) error {
+	err := rr.db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, rootDir.Encode())
 		return err
 	})
 	if err != nil {
 		log.Println("quics: (SaveClient) ", err)
+		return err
 	}
+	return nil
 }
 
-func (repository *RegistrationRepository) GetRootDirByPath(path string) *types.RootDirectory {
+func (rr *RegistrationRepository) GetRootDirByPath(path string) (*types.RootDirectory, error) {
 	key := []byte(PrefixRootDir + path)
 
 	var rootDir *types.RootDirectory
 
-	err := db.View(func(txn *badger.Txn) error {
+	err := rr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
@@ -97,16 +99,15 @@ func (repository *RegistrationRepository) GetRootDirByPath(path string) *types.R
 		return nil
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return rootDir
+	return rootDir, nil
 }
 
-func (repository *RegistrationRepository) GetAllRootDir() []types.RootDirectory {
-	var rootDirs []types.RootDirectory
-
-	err := db.View(func(txn *badger.Txn) error {
+func (rr *RegistrationRepository) GetAllRootDir() ([]*types.RootDirectory, error) {
+	rootDirs := []*types.RootDirectory{}
+	err := rr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchSize = 10
 		it := txn.NewIterator(opts)
@@ -124,21 +125,21 @@ func (repository *RegistrationRepository) GetAllRootDir() []types.RootDirectory 
 				return err
 			}
 
-			rootDirs = append(rootDirs, *rootDir)
+			rootDirs = append(rootDirs, rootDir)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return rootDirs
+	return rootDirs, nil
 }
 
 // GetSequence returns badger sequence by key
-func (repository *RegistrationRepository) GetSequence(key []byte, increment uint64) (uint64, error) {
-	seq, err := db.GetSequence(key, increment)
+func (rr *RegistrationRepository) GetSequence(key []byte, increment uint64) (uint64, error) {
+	seq, err := rr.db.GetSequence(key, increment)
 	if err != nil {
 		log.Panicln("quics: (GetSequence) ", err)
 	}

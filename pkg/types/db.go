@@ -4,9 +4,15 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+	"os"
+	"time"
 )
 
-type DatabaseData interface {
+type DatabaseDataTypes interface {
+	Client | RootDirectory | File | FileHistory | FileMetadata | Sharing
+}
+
+type DatabaseData[T DatabaseDataTypes] interface {
 	Encode() []byte
 	Decode(data []byte) error
 }
@@ -35,6 +41,7 @@ type File struct {
 	LatestHash          string
 	LatestSyncTimestamp uint64
 	ContentsExisted     bool
+	Metadata            FileMetadata
 }
 
 // FileHistory is used to store the file's history
@@ -44,23 +51,17 @@ type FileHistory struct {
 	UUID       string
 	BeforePath string
 	AfterPath  string
+	Hash       string
 	File       FileMetadata // must have file metadata at the point that client wanted in time
 }
 
 // FileMetadata retains file contents at last sync timestamp
 type FileMetadata struct {
-	Id         string
-	Hash       string
-	Version    string
-	Name       string
-	Format     string
-	Size       uint64
-	Auth       string
-	Owner      string
-	CreatedAt  string
-	ModifiedAt string
-	BeforePath string
-	AfterPath  string
+	Name    string
+	Size    int64
+	Mode    os.FileMode
+	ModTime time.Time
+	IsDir   bool
 }
 
 // Sharing is used to store the file download information

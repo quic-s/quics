@@ -10,17 +10,14 @@ const (
 )
 
 type MetadataRepository struct {
-}
-
-func NewMetadataRepository() *MetadataRepository {
-	return &MetadataRepository{}
+	db *badger.DB
 }
 
 // SaveFileMetadata saves new file metadata to badger
-func (repository *MetadataRepository) SaveFileMetadata(path string, fileMetadata types.FileMetadata) error {
+func (mr *MetadataRepository) SaveFileMetadata(path string, fileMetadata types.FileMetadata) error {
 	key := []byte(PrefixMetadata + path)
 
-	err := db.Update(func(txn *badger.Txn) error {
+	err := mr.db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, fileMetadata.Encode())
 		return err
 	})
@@ -32,11 +29,11 @@ func (repository *MetadataRepository) SaveFileMetadata(path string, fileMetadata
 }
 
 // GetFileMetadataByPath find and return certain file metadata by path
-func (repository *MetadataRepository) GetFileMetadataByPath(path string) *types.FileMetadata {
+func (mr *MetadataRepository) GetFileMetadataByPath(path string) *types.FileMetadata {
 	key := []byte(PrefixMetadata + path)
-	var fileMetadata *types.FileMetadata
+	fileMetadata := &types.FileMetadata{}
 
-	err := db.View(func(txn *badger.Txn) error {
+	err := mr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err

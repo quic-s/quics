@@ -1,11 +1,12 @@
 package config
 
 import (
-	"github.com/quic-s/quics/pkg/utils"
-	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/quic-s/quics/pkg/utils"
+	"github.com/spf13/viper"
 )
 
 // GetViperEnvVariables gets env variables in env file using viper

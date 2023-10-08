@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/quic-s/quics/pkg/app"
 	"log"
+
+	"github.com/quic-s/quics/pkg/app"
 )
 
 const (
@@ -15,21 +16,12 @@ func main() {
 
 	// initialize application
 	// TODO: check whether it is correct
-	quics, err := app.Initialize()
+	quics, err := app.New()
 	if err != nil {
 		log.Println("quics: ", err)
-		return
 	}
 
-	// initialize adapters
-	quics.InitAdapters()
-
-	// start HTTP/3 server
-	r := connectRestHandler()
-	startHttp3Server(r)
-
-	// start quics protocol server
-	startQuicsProtocol()
+	quics.Start()
 
 	fmt.Println("************************************************************")
 	fmt.Println("                           Start                            ")

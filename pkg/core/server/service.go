@@ -4,36 +4,36 @@ import (
 	"fmt"
 )
 
-type MyServerService struct {
+type ServerService struct {
 	serverRepository Repository
 }
 
-func NewServerService(serverRepository Repository) *MyServerService {
-	return &MyServerService{
+func NewService(serverRepository Repository) *ServerService {
+	return &ServerService{
 		serverRepository: serverRepository,
 	}
 }
 
 // StartServer executes when server starts
-func (service *MyServerService) StartServer() {
+func (ss *ServerService) StartServer() {
 	fmt.Println("Start server...")
 	fmt.Println("Server started successfully.")
 }
 
 // StopServer Stop quics server
-func (service *MyServerService) StopServer() {
+func (ss *ServerService) StopServer() {
 	fmt.Println("Stop server...")
 	fmt.Println("Server stopped successfully.")
 }
 
 // RebootServer Reboot quics server
-func (service *MyServerService) RebootServer() {
+func (ss *ServerService) RebootServer() {
 	fmt.Println("Stop server...")
 	fmt.Println("Server rebooted successfully.")
 }
 
 // ShutdownServer Shutdown quics server
-func (service *MyServerService) ShutdownServer() {
+func (ss *ServerService) ShutdownServer() {
 	fmt.Println("Shutdown server...")
 	fmt.Println("Server shutdown successfully.")
 }

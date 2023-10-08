@@ -10,18 +10,15 @@ const (
 )
 
 type SyncRepository struct {
-}
-
-func NewSyncRepository() *SyncRepository {
-	return &SyncRepository{}
+	db *badger.DB
 }
 
 // GetFileByPath gets file by file path
-func (repository *SyncRepository) GetFileByPath(path string) *types.File {
+func (sr *SyncRepository) GetFileByPath(path string) (*types.File, error) {
 	key := []byte(PrefixFile + path)
 	var file *types.File
 
-	err := db.View(func(txn *badger.Txn) error {
+	err := sr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
@@ -40,17 +37,17 @@ func (repository *SyncRepository) GetFileByPath(path string) *types.File {
 		return nil
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return file
+	return file, nil
 }
 
 // SaveFileByPath saves new file to badger
-func (repository *SyncRepository) SaveFileByPath(path string, file types.File) error {
+func (sr *SyncRepository) SaveFileByPath(path string, file types.File) error {
 	key := []byte(PrefixFile + path)
 
-	err := db.Update(func(txn *badger.Txn) error {
+	err := sr.db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, file.Encode())
 		return err
 	})
@@ -61,10 +58,10 @@ func (repository *SyncRepository) SaveFileByPath(path string, file types.File) e
 }
 
 // GetAllFiles gets all files
-func (repository *SyncRepository) GetAllFiles() []types.File {
+func (sr *SyncRepository) GetAllFiles() []types.File {
 	var files []types.File
 
-	err := db.View(func(txn *badger.Txn) error {
+	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchSize = 10
 		it := txn.NewIterator(opts)
@@ -97,10 +94,10 @@ func (repository *SyncRepository) GetAllFiles() []types.File {
 }
 
 // UpdateContentsExisted updates contents existed flag (if exist then true, or not then false)
-func (repository *SyncRepository) UpdateContentsExisted(path string, contentsExisted bool) error {
+func (sr *SyncRepository) UpdateContentsExisted(path string, contentsExisted bool) error {
 	key := []byte(PrefixFile + path)
 
-	err := db.Update(func(txn *badger.Txn) error {
+	err := sr.db.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err

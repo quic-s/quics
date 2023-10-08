@@ -2,57 +2,68 @@ package registration
 
 import (
 	"errors"
+	"log"
+
+	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/pkg/types"
 	"github.com/quic-s/quics/pkg/utils"
-	"log"
 )
 
-type MyRegistrationService struct {
+type RegistrationService struct {
+	password               string
 	registrationRepository Repository
+	networkAdapter         NetworkAdapter
 }
 
 // NewRegistrationService creates new registration service
-func NewRegistrationService(registrationRepository Repository) *MyRegistrationService {
-	return &MyRegistrationService{
+func NewService(password string, registrationRepository Repository, networkAdapter NetworkAdapter) *RegistrationService {
+	return &RegistrationService{
+		password:               password,
 		registrationRepository: registrationRepository,
+		networkAdapter:         networkAdapter,
 	}
 }
 
 // CreateNewClient creates new client entity
-func (service *MyRegistrationService) CreateNewClient(request types.ClientRegisterReq, password string, ip string) error {
-
-	if request.ClientPassword != password {
-		return errors.New("quics: (CreateNewClient) password is not correct")
+func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, conn *qp.Connection) (*types.ClientRegisterRes, error) {
+	if request.ClientPassword != rs.password {
+		return nil, errors.New("quics: (CreateNewClient) password is not correct")
 	}
 
 	// create new id using badger sequence
-	newId, err := service.registrationRepository.GetSequence([]byte("client"), 1)
+	newId, err := rs.registrationRepository.GetSequence([]byte("client"), 1)
 	if err != nil {
 		log.Println("quics: (CreateNewClient) error while getting sequence")
-		return err
+		return nil, err
 	}
 
 	// initialize client information
-	var client = types.Client{
+	client := &types.Client{
 		Id:   newId,
-		Ip:   ip,
 		UUID: request.UUID,
 	}
 
 	// Save client to badger database
-	service.registrationRepository.SaveClient(request.UUID, client)
+	rs.registrationRepository.SaveClient(request.UUID, client)
 
-	return nil
+	rs.networkAdapter.UpdateClientConnection(request.UUID, conn)
+
+	return &types.ClientRegisterRes{
+		UUID: request.UUID,
+	}, nil
 }
 
 // RegisterRootDir registers initial root directory to client database
-func (service *MyRegistrationService) RegisterRootDir(request types.RegisterRootDirReq) error {
+func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error) {
 	// get client entity by uuid in request data
-	client := service.registrationRepository.GetClientByUUID(request.UUID)
+	client, err := rs.registrationRepository.GetClientByUUID(request.UUID)
+	if err != nil {
+		return nil, err
+	}
 
 	// create root directory entity
 	path := utils.GetQuicsSyncDirPath() + request.AfterPath
-	var rootDir = types.RootDirectory{
+	rootDir := types.RootDirectory{
 		BeforePath: utils.GetQuicsSyncDirPath(),
 		AfterPath:  request.AfterPath,
 		Owner:      client.UUID,
@@ -62,43 +73,38 @@ func (service *MyRegistrationService) RegisterRootDir(request types.RegisterRoot
 	client.Root = rootDirs
 
 	// save updated client entity
-	service.registrationRepository.SaveClient(client.UUID, *client)
-
-	// save requested root directory
-	service.registrationRepository.SaveRootDir(path, rootDir)
-
-	return nil
-}
-
-// SyncRootDir syncs root directory to other client from owner client
-func (service *MyRegistrationService) SyncRootDir(request types.SyncRootDirReq) error {
-	client := service.registrationRepository.GetClientByUUID(request.UUID)
-
-	path := utils.GetQuicsSyncDirPath() + request.AfterPath
-	rootDir := service.registrationRepository.GetRootDirByPath(path)
-
-	// password check
-	if rootDir.Password != request.RootDirPassword {
-		return errors.New("quics: (SyncRootDir) password is not correct")
+	err = rs.registrationRepository.SaveClient(client.UUID, client)
+	if err != nil {
+		return nil, err
 	}
 
-	rootDirs := append(client.Root, *rootDir)
-	client.Root = rootDirs
+	// save requested root directory
+	err = rs.registrationRepository.SaveRootDir(path, &rootDir)
+	if err != nil {
+		return nil, err
+	}
 
-	// save updated client entity with new root directory
-	service.registrationRepository.SaveClient(client.UUID, *client)
-
-	return nil
+	return &types.RootDirRegisterRes{
+		UUID: request.UUID,
+	}, nil
 }
 
 // GetRootDirList gets root directory list of client
-func (service *MyRegistrationService) GetRootDirList() []types.RootDirectory {
-	rootDirs := service.registrationRepository.GetAllRootDir()
-	return rootDirs
+func (rs *RegistrationService) GetRootDirList() ([]*types.RootDirectory, error) {
+	rootDirs, err := rs.registrationRepository.GetAllRootDir()
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	return rootDirs, err
 }
 
 // GetRootDirByPath gets root directory by path
-func (service *MyRegistrationService) GetRootDirByPath(path string) types.RootDirectory {
-	rootDir := service.registrationRepository.GetRootDirByPath(path)
-	return *rootDir
+func (rs *RegistrationService) GetRootDirByPath(path string) (*types.RootDirectory, error) {
+	rootDir, err := rs.registrationRepository.GetRootDirByPath(path)
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	return rootDir, err
 }
