@@ -67,7 +67,7 @@ type PleaseFileMetaRes struct {
 	AfterPath           string
 	LatestHash          string
 	LatestSyncTimestamp uint64
-	ModifiedDate        uint64
+	ModifiedDate        string
 }
 
 // PleaseSyncReq is used when updating file's changes from client to server
