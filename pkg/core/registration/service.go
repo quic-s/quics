@@ -90,13 +90,22 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 }
 
 // GetRootDirList gets root directory list of client
-func (rs *RegistrationService) GetRootDirList() ([]*types.RootDirectory, error) {
+func (rs *RegistrationService) GetRootDirList() (*types.AskRootDirRes, error) {
 	rootDirs, err := rs.registrationRepository.GetAllRootDir()
 	if err != nil {
 		log.Println("quics: ", err)
+		return nil, err
 	}
 
-	return rootDirs, err
+	rootDirNames := []string{}
+	for _, rootDir := range rootDirs {
+		rootDirNames = append(rootDirNames, rootDir.AfterPath)
+	}
+	askRootDirRes := &types.AskRootDirRes{
+		RootDirList: rootDirNames,
+	}
+
+	return askRootDirRes, err
 }
 
 // GetRootDirByPath gets root directory by path

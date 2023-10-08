@@ -17,7 +17,7 @@ type Repository interface {
 type Service interface {
 	RegisterClient(request *types.ClientRegisterReq, conn *qp.Connection) (*types.ClientRegisterRes, error)
 	RegisterRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error)
-	GetRootDirList() ([]*types.RootDirectory, error)
+	GetRootDirList() (*types.AskRootDirRes, error)
 	GetRootDirByPath(path string) (*types.RootDirectory, error)
 }
 

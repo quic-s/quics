@@ -9,12 +9,12 @@ import (
 
 // GetQuicsDirPath returns the path of the .quics directory
 func GetQuicsDirPath() string {
-	tempDir, err := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics") // $HOME/.quics
+	return filepath.Join(homeDir, ".quics") // $HOME/.quics
 }
 
 // GetQuicsSyncDirPath returns the path of the .quics/sync directory

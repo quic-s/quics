@@ -11,7 +11,10 @@ type Pool struct {
 }
 
 func NewnPool() *Pool {
-	return &Pool{}
+	conns := make(map[string]*qp.Connection)
+	return &Pool{
+		Conns: conns,
+	}
 }
 
 func (cp *Pool) UpdateConnection(uuid string, conn *qp.Connection) error {

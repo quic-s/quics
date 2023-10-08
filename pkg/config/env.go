@@ -11,11 +11,19 @@ import (
 
 // GetViperEnvVariables gets env variables in env file using viper
 func GetViperEnvVariables(key string) string {
+	_, err := os.Stat(utils.GetQuicsDirPath())
+	if os.IsNotExist(err) {
+		err := os.Mkdir(utils.GetQuicsDirPath(), 0755)
+		if err != nil {
+			log.Fatalf("quics: Error while creating .quics directory: %s", err)
+		}
+	}
+
 	envPath := filepath.Join(utils.GetQuicsDirPath(), "qis.env")
 
-	_, err := os.Stat(envPath)
-	if err != nil {
-		sourceEnvPath := ".env"
+	_, err = os.Stat(envPath)
+	if os.IsNotExist(err) {
+		sourceEnvPath := "../.env"
 		sourceViper := viper.New()
 		sourceViper.SetConfigFile(sourceEnvPath)
 		sourceViper.SetConfigType("env")
@@ -25,20 +33,19 @@ func GetViperEnvVariables(key string) string {
 			return ""
 		}
 
-		for _, key := range sourceViper.AllKeys() {
-			value := sourceViper.Get(key)
-			viper.Set(key, value)
+		_, err := os.Create(envPath)
+		if err != nil {
+			log.Fatalf("quics: Error while creating config file: %s", err)
 		}
-
-		if err := viper.WriteConfigAs(envPath); err != nil {
+		if err := sourceViper.WriteConfigAs(envPath); err != nil {
 			log.Fatalf("quics: Error while writing config file: %s", err)
 		}
-
-	} else {
-		viper.SetConfigFile(envPath)
-		viper.SetConfigType("env")
+	} else if err != nil {
+		log.Panicf("quics: Error while reading config file: %s", err)
 	}
 
+	viper.SetConfigFile(envPath)
+	viper.SetConfigType("env")
 	err = viper.ReadInConfig()
 	if err != nil {
 		log.Println("quics: Error while reading config file: ", err)

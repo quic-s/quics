@@ -112,13 +112,12 @@ func (rh *RegistrationHandler) GetRemoteDirs(conn *qp.Connection, stream *qp.Str
 		return err
 	}
 
-	rootDirPaths := []byte{}
-	for _, rootDir := range rootDirs {
-		rootDirPath := rootDir.AfterPath
-		rootDirPaths = append(rootDirPaths, []byte(rootDirPath)...)
+	res, err := rootDirs.Encode()
+	if err != nil {
+		return err
 	}
 
-	err = stream.SendBMessage(rootDirPaths)
+	err = stream.SendBMessage(res)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
