@@ -4,8 +4,10 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/quic-s/quics-protocol/pkg/types/fileinfo"
 	"github.com/quic-s/quics/pkg/core/history"
@@ -28,8 +30,44 @@ func NewService(registrationRepository registration.Repository, historyRepositor
 	}
 }
 
-func (ss *SyncService) GetFileMetadata(pleaseFileMetaReq *types.PleaseFileMetaReq) (*types.PleaseFileMetaRes, error) {
-	file, err := ss.syncRepository.GetFileByPath(pleaseFileMetaReq.AfterPath)
+// GetFileMetadataForPleaseSync returns file metadata by path
+func (ss *SyncService) GetFileMetadataForPleaseSync(pleaseFileMetaReq *types.PleaseFileMetaReq) (*types.PleaseFileMetaRes, error) {
+	afterPath := pleaseFileMetaReq.AfterPath
+
+	isExistFile, err := ss.syncRepository.IsExistFileByPath(afterPath)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	if !isExistFile {
+		// If file not exist, then create the file information to database
+		fileMetadata := types.FileMetadata{
+			Name:    "",
+			Size:    0,
+			Mode:    os.FileMode(0), // FIXME: initialize with proper value
+			ModTime: time.Now(),     // FIXME: initialize with proper value
+			IsDir:   false,
+		}
+
+		file := &types.File{
+			BeforePath:          "",
+			AfterPath:           afterPath,
+			RootDir:             types.RootDirectory{},
+			LatestHash:          "",
+			LatestSyncTimestamp: 0,
+			ContentsExisted:     false,
+			Metadata:            fileMetadata,
+		}
+
+		err := ss.syncRepository.SaveFileByPath(afterPath, file)
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+	}
+
+	file, err := ss.syncRepository.GetFileByPath(afterPath)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
@@ -40,25 +78,99 @@ func (ss *SyncService) GetFileMetadata(pleaseFileMetaReq *types.PleaseFileMetaRe
 		AfterPath:           pleaseFileMetaReq.AfterPath,
 		LatestHash:          file.LatestHash,
 		LatestSyncTimestamp: file.LatestSyncTimestamp,
-		ModifiedDate:        uint64(file.Metadata.ModTime.UnixNano()),
+		ModifiedDate:        file.Metadata.ModTime.Local().Format("yyyy-MM-dd"),
 	}
 
 	return pleaseFileMetaRes, nil
 }
 
-// SaveFileFromPleaseSync saves file from please sync request
-func (ss *SyncService) SaveFileFromPleaseSync(path string, file types.File) error {
-	err := ss.syncRepository.SaveFileByPath(path, file)
+// UpdateFileWithoutContents updates file (ContentExisted = false)
+func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error) {
+	file, err := ss.syncRepository.GetFileByPath(pleaseSyncReq.AfterPath)
 	if err != nil {
-		return err
+		log.Println("quics: ", err)
+		return nil, err
 	}
 
-	return nil
+	// TODO: event handling is needed
+
+	file.LatestHash = pleaseSyncReq.LastUpdateHash
+	file.LatestSyncTimestamp = pleaseSyncReq.LastUpdateTimestamp
+	err = ss.syncRepository.UpdateFile(file)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	// update sync file
+	pleaseSyncRes := &types.PleaseSyncRes{
+		UUID:      pleaseSyncReq.UUID,
+		AfterPath: pleaseSyncReq.AfterPath,
+	}
+
+	return pleaseSyncRes, nil
+}
+
+// UpdateFileWithContents updates file (ContentExisted = true)
+func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileInfo *fileinfo.FileInfo, fileContent io.Reader) (*types.PleaseTakeRes, error) {
+	file, err := ss.syncRepository.GetFileByPath(pleaseTakeReq.AfterPath)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	err = syncFileToLatestDir(file.AfterPath, fileInfo, fileContent)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	err = syncFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileInfo, fileContent)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	// create file history entity
+	fileHistory := &types.FileHistory{
+		Id:         0,
+		Date:       time.Now().Format("yyyy-MM-dd"),
+		UUID:       pleaseTakeReq.UUID,
+		BeforePath: file.BeforePath,
+		AfterPath:  file.AfterPath,
+		Hash:       file.LatestHash,
+		File:       file.Metadata,
+	}
+	err = ss.historyRepository.SaveNewFileHistory(fileHistory.AfterPath, fileHistory)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+// GetFileMetadataForMustSync returns file metadata by path
+func (ss *SyncService) GetFileMetadataForMustSync(afterPath string) (*types.MustSyncReq, error) {
+	file, err := ss.syncRepository.GetFileByPath(afterPath)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	mustSyncReq := &types.MustSyncReq{
+		LatestHash:          file.LatestHash,
+		LatestSyncTimestamp: file.LatestSyncTimestamp,
+		BeforePath:          file.BeforePath,
+		AfterPath:           file.AfterPath,
+	}
+
+	return mustSyncReq, nil
 }
 
 // GetFilesByRootDir returns files by root directory path
-func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []types.File {
-	filesByRootDir := make([]types.File, 0)
+func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []*types.File {
+	filesByRootDir := make([]*types.File, 0)
 	files := ss.syncRepository.GetAllFiles()
 
 	for _, file := range files {
@@ -71,7 +183,7 @@ func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []types.File {
 }
 
 // GetFiles returns all files in database
-func (ss *SyncService) GetFiles() []types.File {
+func (ss *SyncService) GetFiles() []*types.File {
 	return ss.syncRepository.GetAllFiles()
 }
 
@@ -107,8 +219,29 @@ func (ss *SyncService) SyncRootDir(request *types.SyncRootDirReq) error {
 	return nil
 }
 
+// CallMustSync calls must sync transaction
+func (ss *SyncService) CallMustSync(pleaseTakeRes *types.PleaseTakeRes) {
+	// extract root directory of this file
+
+	// initailize connections
+
+	// call adapter with goroutine
+}
+
+// ********************************************************************************
+//                                  Private Logic
+// ********************************************************************************
+
+// FIXME: should think file with directories
+func getRootDirNameAndFileName(afterPath string) (string, string) {
+	requestPaths := strings.Split(afterPath, "/")
+	rootDirName := requestPaths[1]
+	fileName := requestPaths[2]
+	return rootDirName, fileName
+}
+
 // SyncFileToLatestDir creates/updates sync file to latest directory
-func (ss *SyncService) SyncFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
+func syncFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
 	rootDirName, _ := getRootDirNameAndFileName(afterPath)
 	filePath := utils.GetQuicsLatestPathByRootDir(rootDirName)
 
@@ -122,7 +255,8 @@ func (ss *SyncService) SyncFileToLatestDir(afterPath string, fileInfo *fileinfo.
 }
 
 // SyncFileToHistoryDir creates/updates sync file to history directory
-func (ss *SyncService) SyncFileToHistoryDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
+func syncFileToHistoryDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
+	// create history directory
 	rootDirName, fileName := getRootDirNameAndFileName(afterPath)
 	historyDirPath := utils.GetQuicsHistoryPathByRootDir(rootDirName)
 	historyFilePath := historyDirPath + strconv.FormatUint(timestamp, 10) + "_" + fileName
@@ -134,16 +268,4 @@ func (ss *SyncService) SyncFileToHistoryDir(afterPath string, timestamp uint64, 
 	}
 
 	return nil
-}
-
-// ********************************************************************************
-//                                  Private Logic
-// ********************************************************************************
-
-// FIXME: should think file with directories
-func getRootDirNameAndFileName(afterPath string) (string, string) {
-	requestPaths := strings.Split(afterPath, "/")
-	rootDirName := requestPaths[1]
-	fileName := requestPaths[2]
-	return rootDirName, fileName
 }

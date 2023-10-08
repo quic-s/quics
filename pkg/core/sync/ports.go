@@ -8,21 +8,26 @@ import (
 )
 
 type Repository interface {
+	IsExistFileByPath(afterPath string) (bool, error)
+	SaveFileByPath(path string, file *types.File) error
 	GetFileByPath(path string) (*types.File, error)
-	SaveFileByPath(path string, file types.File) error
-	GetAllFiles() []types.File
+	UpdateFile(file *types.File) error
+	GetAllFiles() []*types.File
 }
 
 type Service interface {
-	GetFileMetadata(path string) (*types.FileMetadata, error)
+	GetFileMetadataForPleaseSync(pleaseFileMetaReq *types.PleaseFileMetaReq) (*types.PleaseFileMetaRes, error)
+	UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error)
+	UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileInfo *fileinfo.FileInfo, fileContent io.Reader) (*types.PleaseTakeRes, error)
+	GetFileMetadataForMustSync(afterPath string) (*types.MustSyncReq, error)
+	CallMustSync(pleaseTakeRes *types.PleaseTakeRes) error
+
+	GetFilesByRootDir(rootDirPath string) []*types.File
+	GetFiles() []*types.File
+	GetFileByPath(path string) (*types.File, error)
 	SyncRootDir(request *types.SyncRootDirReq) error
-	SyncFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error
-	SyncFileToHistoryDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error
-	SaveFileFromPleaseSync(path string, file types.File) error
-	GetFilesByRootDir(rootDirPath string) []types.File
-	GetFiles() []types.File
-	GetFileByPath(path string) *types.File
 }
 
 type NetworkAdapter interface {
+	MustSync(afterPath string) error
 }
