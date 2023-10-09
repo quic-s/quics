@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/quic-s/quics-protocol/pkg/types/fileinfo"
@@ -15,6 +16,7 @@ import (
 )
 
 type SyncService struct {
+	mut                    map[string]*sync.Mutex
 	registrationRepository registration.Repository
 	historyRepository      history.Repository
 	syncRepository         Repository
@@ -22,7 +24,9 @@ type SyncService struct {
 }
 
 func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository, networkAdapter NetworkAdapter) *SyncService {
+	mut := make(map[string]*sync.Mutex)
 	return &SyncService{
+		mut:                    mut,
 		registrationRepository: registrationRepository,
 		historyRepository:      historyRepository,
 		syncRepository:         syncRepository,
@@ -73,6 +77,13 @@ func (ss *SyncService) SyncRootDir(request *types.SyncRootDirReq) error {
 // GetFileMetadataForPleaseSync returns file metadata by path
 func (ss *SyncService) GetFileMetadataForPleaseSync(pleaseFileMetaReq *types.PleaseFileMetaReq) (*types.PleaseFileMetaRes, error) {
 	afterPath := pleaseFileMetaReq.AfterPath
+
+	// check mut is exist
+	if _, exists := ss.mut[afterPath]; !exists {
+		ss.mut[afterPath] = &sync.Mutex{}
+	}
+	ss.mut[afterPath].Lock()
+	defer ss.mut[afterPath].Unlock()
 
 	isExistFile, err := ss.syncRepository.IsExistFileByPath(afterPath)
 	if err != nil {

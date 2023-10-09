@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"github.com/quic-s/quics/pkg/network/qp"
 	"io"
 
 	"github.com/quic-s/quics-protocol/pkg/types/fileinfo"
@@ -29,5 +28,11 @@ type Service interface {
 }
 
 type NetworkAdapter interface {
-	OpenMustSyncTransaction(uuid string) (*qp.Transaction, error)
+	OpenMustSyncTransaction(uuid string) (Transaction, error)
+}
+
+type Transaction interface {
+	RequestMustSync(*types.MustSyncReq) (*types.MustSyncRes, error)
+	RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePath string) (*types.GiveYouRes, error)
+	Close() error
 }

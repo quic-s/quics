@@ -205,7 +205,7 @@ type Transaction struct {
 // 3-2. (server) If not, then this transaction should be closed
 // 4. (server) GiveYouReq for giving file contents
 // 5. (client) GiveYouRes
-func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*Transaction, error) {
+func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (sync.Transaction, error) {
 	// get connection from pool by uuid
 	conn, err := sa.Pool.GetConnection(uuid)
 	if err != nil {
