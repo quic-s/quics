@@ -44,9 +44,17 @@ func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, 
 	}
 
 	// Save client to badger database
-	rs.registrationRepository.SaveClient(request.UUID, client)
+	err = rs.registrationRepository.SaveClient(request.UUID, client)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
 
-	rs.networkAdapter.UpdateClientConnection(request.UUID, conn)
+	err = rs.networkAdapter.UpdateClientConnection(request.UUID, conn)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
 
 	return &types.ClientRegisterRes{
 		UUID: request.UUID,
@@ -61,12 +69,16 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 		return nil, err
 	}
 
+	UUIDs := make([]string, 0)
+	UUIDs = append(UUIDs, request.UUID)
+
 	// create root directory entity
 	rootDir := types.RootDirectory{
 		BeforePath: utils.GetQuicsSyncDirPath(),
 		AfterPath:  request.AfterPath,
 		Owner:      client.UUID,
 		Password:   request.RootDirPassword,
+		UUIDs:      UUIDs,
 	}
 	rootDirs := append(client.Root, rootDir)
 	client.Root = rootDirs

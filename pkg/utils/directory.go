@@ -37,7 +37,7 @@ func GetQuicsRootDirPath(rootDir string) string {
 	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:])
 }
 
-// GetQuicsHistoryPathByRootDir ./quics/sync/{rootDir}.history
+// GetQuicsHistoryPathByRootDir $HOME/.quics/sync/{rootDir}.history
 func GetQuicsHistoryPathByRootDir(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
@@ -47,7 +47,7 @@ func GetQuicsHistoryPathByRootDir(rootDir string) string {
 	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]+".history")
 }
 
-// GetQuicsConflictPathByRootDir ./quics/sync/{rootDir}.conflict
+// GetQuicsConflictPathByRootDir $HOME/.quics/sync/{rootDir}.conflict
 func GetQuicsConflictPathByRootDir(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {

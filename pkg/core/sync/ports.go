@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"github.com/quic-s/quics/pkg/network/qp"
 	"io"
 
 	"github.com/quic-s/quics-protocol/pkg/types/fileinfo"
@@ -19,7 +20,6 @@ type Service interface {
 	GetFileMetadataForPleaseSync(pleaseFileMetaReq *types.PleaseFileMetaReq) (*types.PleaseFileMetaRes, error)
 	UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error)
 	UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileInfo *fileinfo.FileInfo, fileContent io.Reader) (*types.PleaseTakeRes, error)
-	GetFileMetadataForMustSync(afterPath string) (*types.MustSyncReq, error)
 	CallMustSync(pleaseTakeRes *types.PleaseTakeRes) error
 
 	GetFilesByRootDir(rootDirPath string) []*types.File
@@ -29,5 +29,5 @@ type Service interface {
 }
 
 type NetworkAdapter interface {
-	MustSync(afterPath string) error
+	OpenMustSyncTransaction(uuid string) (*qp.Transaction, error)
 }

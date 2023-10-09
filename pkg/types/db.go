@@ -36,6 +36,7 @@ type RootDirectory struct {
 	BeforePath string
 	Owner      string
 	Password   string
+	UUIDs      []string
 }
 
 // File is used to store the file's information

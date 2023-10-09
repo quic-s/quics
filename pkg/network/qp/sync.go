@@ -197,6 +197,14 @@ type Transaction struct {
 	stream *qp.Stream
 }
 
+// must sync transaction
+// 1. (server) Open transaction
+// 2. (server) MustSyncReq with file metadata to all registered clients without where the file come from
+// 3. (client) MustSyncRes if file update is available
+// 3-1. (server) If all request data are exist, then go to step 4
+// 3-2. (server) If not, then this transaction should be closed
+// 4. (server) GiveYouReq for giving file contents
+// 5. (client) GiveYouRes
 func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*Transaction, error) {
 	// get connection from pool by uuid
 	conn, err := sa.Pool.GetConnection(uuid)
@@ -233,7 +241,6 @@ func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*Transaction, error
 
 	// wait for setting stream
 	err = <-errChan
-	// if error is not nil, then return error
 	if err != nil {
 		return nil, err
 	}
@@ -241,14 +248,6 @@ func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*Transaction, error
 	return transaction, nil
 }
 
-// must sync transaction
-// 1. (server) Open transaction
-// 2. (server) MustSyncReq with file metadata to all registered clients without where the file come from
-// 3. (client) MustSyncRes if file update is available
-// 3-1. (server) If all request data are exist, then go to step 4
-// 3-2. (server) If not, then this transaction should be closed
-// 4. (server) GiveYouReq for giving file contents
-// 5. (client) GiveYouRes
 func (t *Transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.MustSyncRes, error) {
 
 	request, err := mustSyncReq.Encode()
@@ -274,14 +273,14 @@ func (t *Transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.Mu
 	return mustSyncRes, nil
 }
 
-func (t *Transaction) RequestGiveYou(giveYouReq *types.GiveYouReq) (*types.GiveYouRes, error) {
+func (t *Transaction) RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePath string) (*types.GiveYouRes, error) {
 	request, err := giveYouReq.Encode()
 	if err != nil {
 		return nil, err
 	}
 
-	// send
-	err = t.stream.SendBMessage(request)
+	// send (history file)
+	err = t.stream.SendFileBMessage(request, historyFilePath)
 	if err != nil {
 		return nil, err
 	}

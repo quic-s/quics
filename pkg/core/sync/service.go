@@ -5,8 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/quic-s/quics-protocol/pkg/types/fileinfo"
@@ -20,14 +18,56 @@ type SyncService struct {
 	registrationRepository registration.Repository
 	historyRepository      history.Repository
 	syncRepository         Repository
+	networkAdapter         NetworkAdapter
 }
 
-func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository) *SyncService {
+func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository, networkAdapter NetworkAdapter) *SyncService {
 	return &SyncService{
 		registrationRepository: registrationRepository,
 		historyRepository:      historyRepository,
 		syncRepository:         syncRepository,
+		networkAdapter:         networkAdapter,
 	}
+}
+
+// SyncRootDir syncs root directory to other client from owner client
+func (ss *SyncService) SyncRootDir(request *types.SyncRootDirReq) error {
+	client, err := ss.registrationRepository.GetClientByUUID(request.UUID)
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	path := utils.GetQuicsSyncDirPath() + request.AfterPath
+	rootDir, err := ss.registrationRepository.GetRootDirByPath(path)
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	// password check
+	if rootDir.Password != request.RootDirPassword {
+		return errors.New("quics: Root directory password is not correct")
+	}
+
+	// add client UUID to root directory
+	rootDir.UUIDs = append(rootDir.UUIDs, client.UUID)
+	err = ss.registrationRepository.SaveRootDir(rootDir.AfterPath, rootDir)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	// add root directory to client
+	rootDirs := append(client.Root, *rootDir)
+	client.Root = rootDirs
+
+	// save updated client entity with new root directory
+	err = ss.registrationRepository.SaveClient(client.UUID, client)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
 }
 
 // GetFileMetadataForPleaseSync returns file metadata by path
@@ -151,22 +191,94 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 	return nil, nil
 }
 
-// GetFileMetadataForMustSync returns file metadata by path
-func (ss *SyncService) GetFileMetadataForMustSync(afterPath string) (*types.MustSyncReq, error) {
-	file, err := ss.syncRepository.GetFileByPath(afterPath)
+// CallMustSync calls must sync transaction
+func (ss *SyncService) CallMustSync(pleaseTakeRes *types.PleaseTakeRes) error {
+	afterPath := pleaseTakeRes.AfterPath
+
+	// extract root directory of this file
+	rootDirName, _ := utils.GetNamesByAfterPath(afterPath)
+	rootDir, err := ss.registrationRepository.GetRootDirByPath(rootDirName)
 	if err != nil {
 		log.Println("quics: ", err)
-		return nil, err
+		return err
 	}
 
-	mustSyncReq := &types.MustSyncReq{
-		LatestHash:          file.LatestHash,
-		LatestSyncTimestamp: file.LatestSyncTimestamp,
-		BeforePath:          file.BeforePath,
-		AfterPath:           file.AfterPath,
+	// remove the UUID of this client that requested previous please sync
+	UUIDs := rootDir.UUIDs
+	for i, UUID := range UUIDs {
+		if UUID == pleaseTakeRes.UUID {
+			UUIDs = append(UUIDs[:i], UUIDs[i+1:]...)
+		}
 	}
 
-	return mustSyncReq, nil
+	go func() {
+		for _, UUID := range UUIDs {
+			transaction, err := ss.networkAdapter.OpenMustSyncTransaction(UUID)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+
+			// -> must sync
+
+			file, err := ss.syncRepository.GetFileByPath(afterPath)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+
+			mustSyncReq := &types.MustSyncReq{
+				LatestHash:          file.LatestHash,
+				LatestSyncTimestamp: file.LatestSyncTimestamp,
+				BeforePath:          file.BeforePath,
+				AfterPath:           file.AfterPath,
+			}
+
+			mustSyncRes, err := transaction.RequestMustSync(mustSyncReq)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+
+			// <- must sync
+
+			// -> give file
+
+			giveYouReq := &types.GiveYouReq{
+				UUID:      mustSyncRes.UUID,
+				AfterPath: mustSyncRes.AfterPath,
+			}
+
+			historyFilePath := utils.GetHistoryFileNameByAfterPath(mustSyncRes.AfterPath, mustSyncRes.LatestSyncTimestamp)
+			giveYouRes, err := transaction.RequestGiveYou(giveYouReq, historyFilePath)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+
+			file, err = ss.syncRepository.GetFileByPath(giveYouRes.AfterPath)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+
+			err = validateGiveYouTransaction(file, giveYouRes)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+
+			// <- give file
+
+			err = transaction.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+		}
+	}()
+
+	return nil
 }
 
 // GetFilesByRootDir returns files by root directory path
@@ -193,57 +305,13 @@ func (ss *SyncService) GetFileByPath(path string) (*types.File, error) {
 	return ss.syncRepository.GetFileByPath(path)
 }
 
-// SyncRootDir syncs root directory to other client from owner client
-func (ss *SyncService) SyncRootDir(request *types.SyncRootDirReq) error {
-	client, err := ss.registrationRepository.GetClientByUUID(request.UUID)
-	if err != nil {
-		log.Println("quics: ", err)
-	}
-
-	path := utils.GetQuicsSyncDirPath() + request.AfterPath
-	rootDir, err := ss.registrationRepository.GetRootDirByPath(path)
-	if err != nil {
-		log.Println("quics: ", err)
-	}
-
-	// password check
-	if rootDir.Password != request.RootDirPassword {
-		return errors.New("quics: (SyncRootDir) password is not correct")
-	}
-
-	rootDirs := append(client.Root, *rootDir)
-	client.Root = rootDirs
-
-	// save updated client entity with new root directory
-	ss.registrationRepository.SaveClient(client.UUID, client)
-
-	return nil
-}
-
-// CallMustSync calls must sync transaction
-func (ss *SyncService) CallMustSync(pleaseTakeRes *types.PleaseTakeRes) {
-	// extract root directory of this file
-
-	// initailize connections
-
-	// call adapter with goroutine
-}
-
 // ********************************************************************************
 //                                  Private Logic
 // ********************************************************************************
 
-// FIXME: should think file with directories
-func getRootDirNameAndFileName(afterPath string) (string, string) {
-	requestPaths := strings.Split(afterPath, "/")
-	rootDirName := requestPaths[1]
-	fileName := requestPaths[2]
-	return rootDirName, fileName
-}
-
 // SyncFileToLatestDir creates/updates sync file to latest directory
 func saveFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
-	rootDirName, _ := getRootDirNameAndFileName(afterPath)
+	rootDirName, _ := utils.GetNamesByAfterPath(afterPath)
 	filePath := utils.GetQuicsRootDirPath(rootDirName)
 
 	err := fileInfo.WriteFileWithInfo(filePath, fileContent)
@@ -258,14 +326,37 @@ func saveFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileCont
 // SyncFileToHistoryDir creates/updates sync file to history directory
 func saveFileToHistoryDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
 	// create history directory
-	rootDirName, fileName := getRootDirNameAndFileName(afterPath)
-	historyDirPath := utils.GetQuicsHistoryPathByRootDir(rootDirName)
-	historyFilePath := historyDirPath + strconv.FormatUint(timestamp, 10) + "_" + fileName
+	historyFilePath := utils.GetHistoryFileNameByAfterPath(afterPath, timestamp)
 
 	err := fileInfo.WriteFileWithInfo(historyFilePath, fileContent)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
+	}
+
+	return nil
+}
+
+func validateGiveYouTransaction(file *types.File, giveYouRes *types.GiveYouRes) error {
+	if file.LatestSyncTimestamp != giveYouRes.LastSyncTimestamp && file.LatestHash != giveYouRes.LastHash {
+		err := errors.New("not equals hash and timestamp")
+		if err != nil {
+			return err
+		}
+	}
+
+	if file.LatestSyncTimestamp != giveYouRes.LastSyncTimestamp {
+		err := errors.New("not equals timestamp")
+		if err != nil {
+			return err
+		}
+	}
+
+	if file.LatestHash != giveYouRes.LastHash {
+		err := errors.New("not equals hash")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
