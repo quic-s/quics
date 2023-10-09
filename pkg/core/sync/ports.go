@@ -9,8 +9,8 @@ import (
 
 type Repository interface {
 	IsExistFileByPath(afterPath string) (bool, error)
-	SaveFileByPath(path string, file *types.File) error
-	GetFileByPath(path string) (*types.File, error)
+	SaveFileByPath(afterPath string, file *types.File) error
+	GetFileByPath(afterPath string) (*types.File, error)
 	UpdateFile(file *types.File) error
 	GetAllFiles() []*types.File
 }
@@ -24,7 +24,7 @@ type Service interface {
 
 	GetFilesByRootDir(rootDirPath string) []*types.File
 	GetFiles() []*types.File
-	GetFileByPath(path string) (*types.File, error)
+	GetFileByPath(afterPath string) (*types.File, error)
 	SyncRootDir(request *types.SyncRootDirReq) error
 }
 

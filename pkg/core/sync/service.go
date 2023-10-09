@@ -119,13 +119,15 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 		return nil, err
 	}
 
-	err = syncFileToLatestDir(file.AfterPath, fileInfo, fileContent)
+	// save latest file to {rootDir}
+	err = saveFileToLatestDir(file.AfterPath, fileInfo, fileContent)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
 	}
 
-	err = syncFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileInfo, fileContent)
+	// save history file to {rootDir}.history
+	err = saveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileInfo, fileContent)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
@@ -133,7 +135,6 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 
 	// create file history entity
 	fileHistory := &types.FileHistory{
-		Id:         0,
 		Date:       time.Now().Format("yyyy-MM-dd"),
 		UUID:       pleaseTakeReq.UUID,
 		BeforePath: file.BeforePath,
@@ -241,9 +242,9 @@ func getRootDirNameAndFileName(afterPath string) (string, string) {
 }
 
 // SyncFileToLatestDir creates/updates sync file to latest directory
-func syncFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
+func saveFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
 	rootDirName, _ := getRootDirNameAndFileName(afterPath)
-	filePath := utils.GetQuicsLatestPathByRootDir(rootDirName)
+	filePath := utils.GetQuicsRootDirPath(rootDirName)
 
 	err := fileInfo.WriteFileWithInfo(filePath, fileContent)
 	if err != nil {
@@ -255,7 +256,7 @@ func syncFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileCont
 }
 
 // SyncFileToHistoryDir creates/updates sync file to history directory
-func syncFileToHistoryDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
+func saveFileToHistoryDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
 	// create history directory
 	rootDirName, fileName := getRootDirNameAndFileName(afterPath)
 	historyDirPath := utils.GetQuicsHistoryPathByRootDir(rootDirName)

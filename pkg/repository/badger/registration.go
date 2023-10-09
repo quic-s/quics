@@ -61,8 +61,8 @@ func (rr *RegistrationRepository) GetClientByUUID(uuid string) (*types.Client, e
 	return client, nil
 }
 
-func (rr *RegistrationRepository) SaveRootDir(path string, rootDir *types.RootDirectory) error {
-	key := []byte(PrefixRootDir + path)
+func (rr *RegistrationRepository) SaveRootDir(afterPath string, rootDir *types.RootDirectory) error {
+	key := []byte(PrefixRootDir + afterPath)
 
 	err := rr.db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, rootDir.Encode())
@@ -75,8 +75,8 @@ func (rr *RegistrationRepository) SaveRootDir(path string, rootDir *types.RootDi
 	return nil
 }
 
-func (rr *RegistrationRepository) GetRootDirByPath(path string) (*types.RootDirectory, error) {
-	key := []byte(PrefixRootDir + path)
+func (rr *RegistrationRepository) GetRootDirByPath(afterPath string) (*types.RootDirectory, error) {
+	key := []byte(PrefixRootDir + afterPath)
 
 	var rootDir *types.RootDirectory
 

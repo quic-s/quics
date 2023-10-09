@@ -192,19 +192,19 @@ func NewSyncAdapter(pool *connection.Pool) *SyncAdapter {
 	}
 }
 
-type transaction struct {
+type Transaction struct {
 	wg     *stdsync.WaitGroup
 	stream *qp.Stream
 }
 
-func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*transaction, error) {
+func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*Transaction, error) {
 	// get connection from pool by uuid
 	conn, err := sa.Pool.GetConnection(uuid)
 	if err != nil {
 		return nil, err
 	}
 
-	transaction := &transaction{
+	transaction := &Transaction{
 		wg:     &stdsync.WaitGroup{},
 		stream: nil,
 	}
@@ -249,7 +249,7 @@ func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (*transaction, error
 // 3-2. (server) If not, then this transaction should be closed
 // 4. (server) GiveYouReq for giving file contents
 // 5. (client) GiveYouRes
-func (t *transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.MustSyncRes, error) {
+func (t *Transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.MustSyncRes, error) {
 
 	request, err := mustSyncReq.Encode()
 	if err != nil {
@@ -274,7 +274,7 @@ func (t *transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.Mu
 	return mustSyncRes, nil
 }
 
-func (t *transaction) RequestGiveYou(giveYouReq *types.GiveYouReq) (*types.GiveYouRes, error) {
+func (t *Transaction) RequestGiveYou(giveYouReq *types.GiveYouReq) (*types.GiveYouRes, error) {
 	request, err := giveYouReq.Encode()
 	if err != nil {
 		return nil, err
@@ -299,7 +299,7 @@ func (t *transaction) RequestGiveYou(giveYouReq *types.GiveYouReq) (*types.GiveY
 	return giveYouRes, nil
 }
 
-func (t *transaction) Close() error {
+func (t *Transaction) Close() error {
 	t.wg.Done()
 	return nil
 }

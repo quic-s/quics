@@ -62,7 +62,6 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 	}
 
 	// create root directory entity
-	path := utils.GetQuicsSyncDirPath() + request.AfterPath
 	rootDir := types.RootDirectory{
 		BeforePath: utils.GetQuicsSyncDirPath(),
 		AfterPath:  request.AfterPath,
@@ -79,7 +78,7 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 	}
 
 	// save requested root directory
-	err = rs.registrationRepository.SaveRootDir(path, &rootDir)
+	err = rs.registrationRepository.SaveRootDir(request.AfterPath, &rootDir)
 	if err != nil {
 		return nil, err
 	}

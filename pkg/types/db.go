@@ -1,5 +1,10 @@
 package types
 
+// **************************************************************
+// beforePath: except root directory path
+// afterPath: /rootDir/..
+// **************************************************************
+
 import (
 	"bytes"
 	"encoding/gob"
@@ -27,16 +32,16 @@ type Client struct {
 
 // RootDirectory is used when registering root directory to client
 type RootDirectory struct {
-	BeforePath string
 	AfterPath  string // key
+	BeforePath string
 	Owner      string
 	Password   string
 }
 
 // File is used to store the file's information
 type File struct {
-	BeforePath          string
 	AfterPath           string // key
+	BeforePath          string
 	RootDir             RootDirectory
 	LatestHash          string
 	LatestSyncTimestamp uint64
@@ -46,11 +51,10 @@ type File struct {
 
 // FileHistory is used to store the file's history
 type FileHistory struct {
-	Id         uint64
+	AfterPath  string // key
+	BeforePath string
 	Date       string
 	UUID       string
-	BeforePath string
-	AfterPath  string
 	Hash       string
 	File       FileMetadata // must have file metadata at the point that client wanted in time
 }
