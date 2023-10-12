@@ -19,7 +19,7 @@ type Service interface {
 	GetFileMetadataForPleaseSync(pleaseFileMetaReq *types.PleaseFileMetaReq) (*types.PleaseFileMetaRes, error)
 	UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error)
 	UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileInfo *fileinfo.FileInfo, fileContent io.Reader) (*types.PleaseTakeRes, error)
-	CallMustSync(pleaseTakeRes *types.PleaseTakeRes) error
+	CallMustSync(filePath string, UUIDs []string) error
 
 	GetFilesByRootDir(rootDirPath string) []*types.File
 	GetFiles() []*types.File

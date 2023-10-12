@@ -10,7 +10,7 @@ import (
 func GetNamesByAfterPath(afterPath string) (string, string) {
 	paths := strings.Split(afterPath, "/")
 	rootDirName := paths[1]
-	fileName := paths[2]
+	fileName := paths[len(paths)-1]
 	return rootDirName, fileName
 }
 

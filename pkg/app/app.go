@@ -10,6 +10,7 @@ import (
 
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/registration"
+	"github.com/quic-s/quics/pkg/core/sync"
 	"github.com/quic-s/quics/pkg/network/qp"
 	"github.com/quic-s/quics/pkg/network/qp/connection"
 	"github.com/quic-s/quics/pkg/repository/badger"
@@ -60,13 +61,15 @@ func New() (*App, error) {
 	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, registrationHandler.RegisterRootDir)
 	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, registrationHandler.GetRemoteDirs)
 
-	// historyRepository := repo.NewHistoryRepository()
+	historyRepository := repo.NewHistoryRepository()
+	syncNetworkAdapter := qp.NewSyncAdapter(pool)
 
-	// syncRepository := repo.NewSyncRepository()
-	// syncService := sync.NewService(registrationRepository, historyRepository, syncRepository)
-	// syncHandler := qp.NewSyncHandler(syncService)
+	syncRepository := repo.NewSyncRepository()
+	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter)
+	syncHandler := qp.NewSyncHandler(syncService)
 
-	// proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
+	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
+	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
 
 	// historyRepository := repo.NewHistoryRepository()
 	// historyService := history.NewHistoryService(historyRepository)

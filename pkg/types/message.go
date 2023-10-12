@@ -77,6 +77,7 @@ type PleaseSyncReq struct {
 	AfterPath           string
 	LastUpdateTimestamp uint64
 	LastUpdateHash      string
+	LastSyncHash        string
 	Metadata            FileMetadata
 }
 

@@ -35,29 +35,30 @@ func NewSyncHandler(service sync.Service) *SyncHandler {
 // 3. (server) Receive request data
 // 4. (server) Sync root directory of client to database
 // TODO: 5. (server) Send response data for syncing root directory
-func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
+func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
 	log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	request := &types.SyncRootDirReq{}
 	if err := request.Decode(data); err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	// get root directory path of requested data
 	err = sh.syncService.SyncRootDir(request)
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	// TODO: is it necessary to send response data?
+	return nil
 }
 
 // please sync transaction
@@ -72,21 +73,21 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 // 9. (server) Get file contents and set flag 'ContentsExisted' = true
 // 10. (server) PleaseTakeRes
 // 11. (server) Go to the MustSync transaction
-func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
-	log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: message received : PleaseSync", conn.Conn.RemoteAddr().String())
 
 	// -> return file metadata to client
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	pleaseSyncReq := &types.PleaseSyncReq{}
 	if err := pleaseSyncReq.Decode(data); err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	// lock mutex by hash value of file path
@@ -101,19 +102,19 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 	pleaseSyncRes, err := sh.syncService.UpdateFileWithoutContents(pleaseSyncReq)
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	response, err := pleaseSyncRes.Encode()
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	// <- update file sync information before update file contents
@@ -123,35 +124,35 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 	data, fileInfo, fileContent, err := stream.RecvFileBMessage()
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	pleaseTakeReq := &types.PleaseTakeReq{}
 	if err := pleaseTakeReq.Decode(data); err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	pleaseTakeRes, err := sh.syncService.UpdateFileWithContents(pleaseTakeReq, fileInfo, fileContent)
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	response, err = pleaseTakeRes.Encode()
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
 
 	// <- update file contents
-
+	return nil
 }
 
 type SyncAdapter struct {

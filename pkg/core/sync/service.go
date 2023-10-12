@@ -3,9 +3,12 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/quic-s/quics-protocol/pkg/types/fileinfo"
@@ -130,11 +133,7 @@ func (ss *SyncService) GetFileMetadataForPleaseSync(pleaseFileMetaReq *types.Ple
 
 // UpdateFileWithoutContents updates file (ContentExisted = false)
 func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error) {
-	isExistFile, err := ss.syncRepository.IsExistFileByPath(pleaseSyncReq.AfterPath)
-	if err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
+	isExistFile, _ := ss.syncRepository.IsExistFileByPath(pleaseSyncReq.AfterPath)
 
 	if !isExistFile {
 		// If file not exist, then create the file information to database
@@ -174,7 +173,7 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 
 	// check file is coflict
 	// conflict case LastestSyncTimestamp < LastUpdateTimestamp && LastestSyncHash == LastSyncHash
-	if file.LatestSyncTimestamp < pleaseSyncReq.LastUpdateTimestamp && file.LatestHash == pleaseSyncReq.LastUpdateHash {
+	if file.LatestSyncTimestamp < pleaseSyncReq.LastUpdateTimestamp && file.LatestHash == pleaseSyncReq.LastSyncHash {
 		file.LatestHash = pleaseSyncReq.LastUpdateHash
 		file.LatestSyncTimestamp = pleaseSyncReq.LastUpdateTimestamp
 		file.Metadata = pleaseSyncReq.Metadata
@@ -210,7 +209,33 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 		return pleaseSyncRes, nil
 	} else {
 		// TODO: handle conflict
-		return nil, nil
+		file.Conflict = types.ConflictMetadata{
+			BeforePath: file.BeforePath,
+			AfterPath:  file.AfterPath,
+
+			ServerDevice:    "",
+			ServerTimestamp: file.LatestSyncTimestamp,
+			ServerHash:      file.LatestHash,
+			ServerModDate:   file.Metadata.ModTime.String(),
+
+			LocalDevice:    "",
+			LocalTimestamp: pleaseSyncReq.LastUpdateTimestamp,
+			LocalHash:      pleaseSyncReq.LastUpdateHash,
+			LocalModDate:   pleaseSyncReq.Metadata.ModTime.String(),
+		}
+
+		err = ss.syncRepository.UpdateFile(file)
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+		// update sync file
+		pleaseSyncRes := &types.PleaseSyncRes{
+			UUID:      pleaseSyncReq.UUID,
+			AfterPath: pleaseSyncReq.AfterPath,
+		}
+
+		return pleaseSyncRes, nil
 	}
 }
 
@@ -222,61 +247,83 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 		return nil, err
 	}
 
-	// save latest file to {rootDir}
-	err = saveFileToLatestDir(file.AfterPath, fileInfo, fileContent)
-	if err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-
-	// save history file to {rootDir}.history
-	err = saveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileInfo, fileContent)
-	if err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-
-	file.ContentsExisted = true
-	err = ss.syncRepository.UpdateFile(file)
-	if err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-
-	// TODO: call must sync
-	// -> must sync transaction with goroutine (and end please transaction)
-
-	go func() {
-		// extract root directory of this file
-		rootDirName, _ := utils.GetNamesByAfterPath(file.AfterPath)
-		rootDir, err := ss.registrationRepository.GetRootDirByPath(rootDirName)
+	fmt.Println(file.Conflict)
+	// check file is coflicted
+	if reflect.ValueOf(file.Conflict).IsZero() {
+		// if file is not conflicted then update file
+		// save latest file to {rootDir}
+		err = saveFileToLatestDir(file.AfterPath, fileInfo, fileContent)
 		if err != nil {
 			log.Println("quics: ", err)
-			return
+			return nil, err
 		}
 
-		// remove the UUID of this client that requested previous please sync
-		UUIDs := rootDir.UUIDs
-		for i, UUID := range UUIDs {
-			if UUID == pleaseTakeReq.UUID {
-				UUIDs = append(UUIDs[:i], UUIDs[i+1:]...)
+		// save history file to {rootDir}.history
+		err = saveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileInfo, fileContent)
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+
+		file.ContentsExisted = true
+		err = ss.syncRepository.UpdateFile(file)
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+
+		// TODO: call must sync
+		// -> must sync transaction with goroutine (and end please transaction)
+
+		go func() {
+			// extract root directory of this file
+			rootDirName, _ := utils.GetNamesByAfterPath(file.AfterPath)
+			rootDir, err := ss.registrationRepository.GetRootDirByPath(rootDirName)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
 			}
-		}
 
-		err = ss.CallMustSync(file.AfterPath, UUIDs)
+			// remove the UUID of this client that requested previous please sync
+			UUIDs := rootDir.UUIDs
+			for i, UUID := range UUIDs {
+				if UUID == pleaseTakeReq.UUID {
+					UUIDs = append(UUIDs[:i], UUIDs[i+1:]...)
+				}
+			}
+
+			err = ss.CallMustSync(file.AfterPath, UUIDs)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+		}()
+
+		// <- must sync transaction with goroutine (and end please transaction)
+
+		pleaseTakeRes := &types.PleaseTakeRes{
+			UUID:      pleaseTakeReq.UUID,
+			AfterPath: pleaseTakeReq.AfterPath,
+		}
+		return pleaseTakeRes, nil
+	} else {
+		// if file is conflicted then save file to {rootDir}.conflict
+
+		// save file to {rootDir}.conflict
+		err = saveFileToConflictDir(file.AfterPath, fileInfo, fileContent)
 		if err != nil {
 			log.Println("quics: ", err)
-			return
+			return nil, err
 		}
-	}()
 
-	// <- must sync transaction with goroutine (and end please transaction)
+		// update sync file
+		pleaseTakeRes := &types.PleaseTakeRes{
+			UUID:      pleaseTakeReq.UUID,
+			AfterPath: pleaseTakeReq.AfterPath,
+		}
 
-	pleaseTakeRes := &types.PleaseTakeRes{
-		UUID:      pleaseTakeReq.UUID,
-		AfterPath: pleaseTakeReq.AfterPath,
+		return pleaseTakeRes, nil
 	}
-	return pleaseTakeRes, nil
 }
 
 // CallMustSync calls must sync transaction
@@ -414,10 +461,23 @@ func (ss *SyncService) GetFileByPath(path string) (*types.File, error) {
 
 // SyncFileToLatestDir creates/updates sync file to latest directory
 func saveFileToLatestDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
-	rootDirName, _ := utils.GetNamesByAfterPath(afterPath)
+	rootDirName, fileName := utils.GetNamesByAfterPath(afterPath)
 	filePath := utils.GetQuicsRootDirPath(rootDirName)
 
-	err := fileInfo.WriteFileWithInfo(filePath, fileContent)
+	err := fileInfo.WriteFileWithInfo(filepath.Join(filePath, fileName), fileContent)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func saveFileToConflictDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error {
+	rootDirName, fileName := utils.GetNamesByAfterPath(afterPath)
+	filePath := utils.GetQuicsConflictPathByRootDir(rootDirName)
+
+	err := fileInfo.WriteFileWithInfo(filepath.Join(filePath, fileName), fileContent)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
