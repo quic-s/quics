@@ -47,7 +47,7 @@ type File struct {
 	LatestHash          string
 	LatestSyncTimestamp uint64
 	ContentsExisted     bool
-	IsConflict          bool
+	Conflict            ConflictMetadata
 	Metadata            FileMetadata
 }
 
@@ -69,6 +69,22 @@ type FileMetadata struct {
 	Mode    os.FileMode
 	ModTime time.Time
 	IsDir   bool
+}
+
+// ConflictMetadata is used to store the file's conflict information
+type ConflictMetadata struct {
+	BeforePath string
+	AfterPath  string
+
+	ServerDevice    string
+	ServerTimestamp uint64
+	ServerHash      string
+	ServerModDate   string
+
+	LocalDevice    string
+	LocalTimestamp uint64
+	LocalHash      string
+	LocalModDate   string
 }
 
 // Sharing is used to store the file download information

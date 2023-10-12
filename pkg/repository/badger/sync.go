@@ -31,7 +31,7 @@ func (sr *SyncRepository) IsExistFileByPath(afterPath string) (bool, error) {
 // GetFileByPath gets file by file path
 func (sr *SyncRepository) GetFileByPath(path string) (*types.File, error) {
 	key := []byte(PrefixFile + path)
-	var file *types.File
+	file := &types.File{}
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)

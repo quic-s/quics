@@ -1,6 +1,7 @@
 package qp
 
 import (
+	"crypto/sha1"
 	"log"
 	stdsync "sync"
 
@@ -12,11 +13,18 @@ import (
 )
 
 type SyncHandler struct {
+	psMut       map[byte]*stdsync.Mutex
 	syncService sync.Service
 }
 
 func NewSyncHandler(service sync.Service) *SyncHandler {
+	psMut := make(map[byte]*stdsync.Mutex)
+
+	for i := uint8(0); i < 16; i++ {
+		psMut[i] = &stdsync.Mutex{}
+	}
 	return &SyncHandler{
+		psMut:       psMut,
 		syncService: service,
 	}
 }
@@ -36,7 +44,7 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 		return
 	}
 
-	var request *types.SyncRootDirReq
+	request := &types.SyncRootDirReq{}
 	if err := request.Decode(data); err != nil {
 		log.Println("quics: ", err)
 		return
@@ -75,45 +83,20 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 		return
 	}
 
-	pleaseFileMetaReq := &types.PleaseFileMetaReq{}
-	if err := pleaseFileMetaReq.Decode(data); err != nil {
-		log.Println("quics: ", err)
-		return
-	}
-
-	pleaseFileMetaRes, err := sh.syncService.GetFileMetadataForPleaseSync(pleaseFileMetaReq)
-	if err != nil {
-		log.Println("quics: ", err)
-		return
-	}
-
-	response, err := pleaseFileMetaRes.Encode()
-	if err != nil {
-		log.Println("quics: ", err)
-		return
-	}
-
-	err = stream.SendBMessage(response)
-	if err != nil {
-		log.Println("quics: ", err)
-		return
-	}
-
-	// <- return file metadata to client
-
-	// -> update file sync information before update file contents
-
-	data, err = stream.RecvBMessage()
-	if err != nil {
-		log.Println("quics: ", err)
-		return
-	}
-
 	pleaseSyncReq := &types.PleaseSyncReq{}
 	if err := pleaseSyncReq.Decode(data); err != nil {
 		log.Println("quics: ", err)
 		return
 	}
+
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(pleaseSyncReq.AfterPath))
+	hash := h.Sum(nil)
+
+	sh.psMut[uint8(hash[0]%16)].Lock()
+	defer sh.psMut[uint8(hash[0]%16)].Unlock()
 
 	pleaseSyncRes, err := sh.syncService.UpdateFileWithoutContents(pleaseSyncReq)
 	if err != nil {
@@ -121,7 +104,7 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 		return
 	}
 
-	response, err = pleaseSyncRes.Encode()
+	response, err := pleaseSyncRes.Encode()
 	if err != nil {
 		log.Println("quics: ", err)
 		return
@@ -169,17 +152,6 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 
 	// <- update file contents
 
-	// -> must sync transaction with goroutine (and end please transaction)
-
-	go func() {
-		err = sh.syncService.CallMustSync(pleaseTakeRes)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-	}()
-
-	// <- must sync transaction with goroutine (and end please transaction)
 }
 
 type SyncAdapter struct {
