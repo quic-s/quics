@@ -44,9 +44,17 @@ func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, 
 	}
 
 	// Save client to badger database
-	rs.registrationRepository.SaveClient(request.UUID, client)
+	err = rs.registrationRepository.SaveClient(request.UUID, client)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
 
-	rs.networkAdapter.UpdateClientConnection(request.UUID, conn)
+	err = rs.networkAdapter.UpdateClientConnection(request.UUID, conn)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
 
 	return &types.ClientRegisterRes{
 		UUID: request.UUID,
@@ -61,13 +69,16 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 		return nil, err
 	}
 
+	UUIDs := make([]string, 0)
+	UUIDs = append(UUIDs, request.UUID)
+
 	// create root directory entity
-	path := utils.GetQuicsSyncDirPath() + request.AfterPath
 	rootDir := types.RootDirectory{
 		BeforePath: utils.GetQuicsSyncDirPath(),
 		AfterPath:  request.AfterPath,
 		Owner:      client.UUID,
 		Password:   request.RootDirPassword,
+		UUIDs:      UUIDs,
 	}
 	rootDirs := append(client.Root, rootDir)
 	client.Root = rootDirs
@@ -79,7 +90,7 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 	}
 
 	// save requested root directory
-	err = rs.registrationRepository.SaveRootDir(path, &rootDir)
+	err = rs.registrationRepository.SaveRootDir(request.AfterPath, &rootDir)
 	if err != nil {
 		return nil, err
 	}
@@ -90,13 +101,22 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 }
 
 // GetRootDirList gets root directory list of client
-func (rs *RegistrationService) GetRootDirList() ([]*types.RootDirectory, error) {
+func (rs *RegistrationService) GetRootDirList() (*types.AskRootDirRes, error) {
 	rootDirs, err := rs.registrationRepository.GetAllRootDir()
 	if err != nil {
 		log.Println("quics: ", err)
+		return nil, err
 	}
 
-	return rootDirs, err
+	rootDirNames := []string{}
+	for _, rootDir := range rootDirs {
+		rootDirNames = append(rootDirNames, rootDir.AfterPath)
+	}
+	askRootDirRes := &types.AskRootDirRes{
+		RootDirList: rootDirNames,
+	}
+
+	return askRootDirRes, err
 }
 
 // GetRootDirByPath gets root directory by path

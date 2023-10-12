@@ -1,7 +1,11 @@
 package qp
 
 import (
+	"crypto/sha1"
 	"log"
+	stdsync "sync"
+
+	"github.com/quic-s/quics/pkg/network/qp/connection"
 
 	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/pkg/core/sync"
@@ -9,11 +13,18 @@ import (
 )
 
 type SyncHandler struct {
+	psMut       map[byte]*stdsync.Mutex
 	syncService sync.Service
 }
 
 func NewSyncHandler(service sync.Service) *SyncHandler {
+	psMut := make(map[byte]*stdsync.Mutex)
+
+	for i := uint8(0); i < 16; i++ {
+		psMut[i] = &stdsync.Mutex{}
+	}
 	return &SyncHandler{
+		psMut:       psMut,
 		syncService: service,
 	}
 }
@@ -33,7 +44,7 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 		return
 	}
 
-	var request *types.SyncRootDirReq
+	request := &types.SyncRootDirReq{}
 	if err := request.Decode(data); err != nil {
 		log.Println("quics: ", err)
 		return
@@ -64,7 +75,7 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) {
 	log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
 
-	// -> step 2 to 4: metadata
+	// -> return file metadata to client
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
@@ -72,31 +83,42 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 		return
 	}
 
-	pleaseFileMetaReq := &types.PleaseFileMetaReq{}
-	if err := pleaseFileMetaReq.Decode(data); err != nil {
+	pleaseSyncReq := &types.PleaseSyncReq{}
+	if err := pleaseSyncReq.Decode(data); err != nil {
 		log.Println("quics: ", err)
 		return
 	}
 
-	// ple
-	// sFileMetaRes := &types.PleaseFileMetaRes{}
-	// h.pleaseFileMetaRes = sh.syncServ.GetFileMetadata(pleaseFileMetaReq)
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(pleaseSyncReq.AfterPath))
+	hash := h.Sum(nil)
 
-	// <- step 2 to 4: metadata
+	sh.psMut[uint8(hash[0]%16)].Lock()
+	defer sh.psMut[uint8(hash[0]%16)].Unlock()
 
-	// -> step 5 to 7: sync infomration
+	pleaseSyncRes, err := sh.syncService.UpdateFileWithoutContents(pleaseSyncReq)
+	if err != nil {
+		log.Println("quics: ", err)
+		return
+	}
 
-	// <- step 5 to 7: sync infomration
+	response, err := pleaseSyncRes.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return
+	}
 
-	// -> step 8 to 10: file
+	err = stream.SendBMessage(response)
+	if err != nil {
+		log.Println("quics: ", err)
+		return
+	}
 
-	// <- step 8 to 10: file
+	// <- update file sync information before update file contents
 
-	// -> step 11: must sync transaction
-
-	// <- step 11: must sync transaction
-
-	// TODO: find and return certain file metadata
+	// -> update file contents
 
 	data, fileInfo, fileContent, err := stream.RecvFileBMessage()
 	if err != nil {
@@ -104,26 +126,151 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 		return
 	}
 
-	var pleaseSyncReq types.PleaseSyncReq
-	if err := pleaseSyncReq.Decode(data); err != nil {
+	pleaseTakeReq := &types.PleaseTakeReq{}
+	if err := pleaseTakeReq.Decode(data); err != nil {
 		log.Println("quics: ", err)
 		return
 	}
 
-	// FIXME: change the condition from whether the file is exist to whether the request data is empty or not full
-
-	err = sh.syncService.SyncFileToLatestDir(pleaseSyncReq.AfterPath, fileInfo, fileContent)
+	pleaseTakeRes, err := sh.syncService.UpdateFileWithContents(pleaseTakeReq, fileInfo, fileContent)
 	if err != nil {
 		log.Println("quics: ", err)
 		return
 	}
 
-	err = sh.syncService.SyncFileToHistoryDir(pleaseSyncReq.AfterPath, pleaseSyncReq.LastUpdateTimestamp, fileInfo, fileContent)
+	response, err = pleaseTakeRes.Encode()
 	if err != nil {
 		log.Println("quics: ", err)
 		return
 	}
 
-	// open must sync transaction
-	// openMustSyncTransaction(conn)
+	err = stream.SendBMessage(response)
+	if err != nil {
+		log.Println("quics: ", err)
+		return
+	}
+
+	// <- update file contents
+
+}
+
+type SyncAdapter struct {
+	Pool *connection.Pool
+}
+
+func NewSyncAdapter(pool *connection.Pool) *SyncAdapter {
+	return &SyncAdapter{
+		Pool: pool,
+	}
+}
+
+type Transaction struct {
+	wg     *stdsync.WaitGroup
+	stream *qp.Stream
+}
+
+// must sync transaction
+// 1. (server) Open transaction
+// 2. (server) MustSyncReq with file metadata to all registered clients without where the file come from
+// 3. (client) MustSyncRes if file update is available
+// 3-1. (server) If all request data are exist, then go to step 4
+// 3-2. (server) If not, then this transaction should be closed
+// 4. (server) GiveYouReq for giving file contents
+// 5. (client) GiveYouRes
+func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (sync.Transaction, error) {
+	// get connection from pool by uuid
+	conn, err := sa.Pool.GetConnection(uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	transaction := &Transaction{
+		wg:     &stdsync.WaitGroup{},
+		stream: nil,
+	}
+
+	// make error channel to receive error from goroutine
+	errChan := make(chan error)
+	go func() {
+		err := conn.OpenTransaction(types.MUSTSYNC, func(stream *qp.Stream, transactionName string, transactionID []byte) error {
+			// add wait group to wait for closing transaction
+			transaction.wg.Add(1)
+
+			// set stream to transaction
+			transaction.stream = stream
+
+			// send nil to error channel
+			// this would be followed after set stream
+			errChan <- nil
+
+			transaction.wg.Wait()
+			return nil
+		})
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	// wait for setting stream
+	err = <-errChan
+	if err != nil {
+		return nil, err
+	}
+
+	return transaction, nil
+}
+
+func (t *Transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.MustSyncRes, error) {
+
+	request, err := mustSyncReq.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	err = t.stream.SendBMessage(request)
+	if err != nil {
+		return nil, err
+	}
+
+	// receive
+	res, err := t.stream.RecvBMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	mustSyncRes := &types.MustSyncRes{}
+	if err := mustSyncRes.Decode(res); err != nil {
+		return nil, err
+	}
+	return mustSyncRes, nil
+}
+
+func (t *Transaction) RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePath string) (*types.GiveYouRes, error) {
+	request, err := giveYouReq.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	// send (history file)
+	err = t.stream.SendFileBMessage(request, historyFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// receive
+	res, err := t.stream.RecvBMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	giveYouRes := &types.GiveYouRes{}
+	if err := giveYouRes.Decode(res); err != nil {
+		return nil, err
+	}
+	return giveYouRes, nil
+}
+
+func (t *Transaction) Close() error {
+	t.wg.Done()
+	return nil
 }

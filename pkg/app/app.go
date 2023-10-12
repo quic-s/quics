@@ -5,9 +5,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
-	"github.com/quic-s/quics/config"
+	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/registration"
 	"github.com/quic-s/quics/pkg/network/qp"
 	"github.com/quic-s/quics/pkg/network/qp/connection"
@@ -25,11 +26,17 @@ type App struct {
 // Initialize initialize program
 func New() (*App, error) {
 	// define system call actions
-	SigCh := make(chan os.Signal, 1)
-	signal.Notify(SigCh, syscall.SIGINT, syscall.SIGTERM)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// initialize server password
-	Password := config.GetViperEnvVariables("PASSWORD")
+	// get env variables
+	password := config.GetViperEnvVariables("PASSWORD")
+	// ip := config.GetViperEnvVariables("IP")
+	port, err := strconv.Atoi(config.GetViperEnvVariables("QUICS_PORT"))
+	if err != nil {
+		log.Println("quics: quics port is not integer: ", err)
+		return nil, err
+	}
 
 	repo, err := badger.NewBadgerRepository()
 	if err != nil {
@@ -38,7 +45,7 @@ func New() (*App, error) {
 
 	pool := connection.NewnPool()
 
-	proto, err := qp.New("0.0.0.0", 6122, pool)
+	proto, err := qp.New("0.0.0.0", port, pool)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
@@ -46,12 +53,20 @@ func New() (*App, error) {
 
 	registrationRepository := repo.NewRegistrationRepository()
 	registrationNetworkAdapter := qp.NewRegistrationAdapter(pool)
-	registrationService := registration.NewService(Password, registrationRepository, registrationNetworkAdapter)
+	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
 	registrationHandler := qp.NewRegistrationHandler(registrationService)
 
 	proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
 	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, registrationHandler.RegisterRootDir)
 	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, registrationHandler.GetRemoteDirs)
+
+	// historyRepository := repo.NewHistoryRepository()
+
+	// syncRepository := repo.NewSyncRepository()
+	// syncService := sync.NewService(registrationRepository, historyRepository, syncRepository)
+	// syncHandler := qp.NewSyncHandler(syncService)
+
+	// proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
 
 	// historyRepository := repo.NewHistoryRepository()
 	// historyService := history.NewHistoryService(historyRepository)
@@ -80,7 +95,7 @@ func New() (*App, error) {
 	return &App{
 		repo:  repo,
 		Proto: proto,
-		SigCh: SigCh,
+		SigCh: sigCh,
 		// HistoryHandler:      HistoryHandler,
 		// MetadataHandler:     MetadataHandler,
 		// RegistrationHandler: RegistrationHandler,

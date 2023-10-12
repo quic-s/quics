@@ -74,10 +74,10 @@ type PleaseFileMetaRes struct {
 type PleaseSyncReq struct {
 	UUID                string
 	Event               string
-	BeforePath          string
 	AfterPath           string
 	LastUpdateTimestamp uint64
 	LastUpdateHash      string
+	Metadata            FileMetadata
 }
 
 // PleaseSyncRes is used to response to client of whether file is updated or not

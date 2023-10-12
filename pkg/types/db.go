@@ -1,5 +1,10 @@
 package types
 
+// **************************************************************
+// beforePath: except root directory path
+// afterPath: /rootDir/..
+// **************************************************************
+
 import (
 	"bytes"
 	"encoding/gob"
@@ -27,30 +32,32 @@ type Client struct {
 
 // RootDirectory is used when registering root directory to client
 type RootDirectory struct {
-	BeforePath string
 	AfterPath  string // key
+	BeforePath string
 	Owner      string
 	Password   string
+	UUIDs      []string
 }
 
 // File is used to store the file's information
 type File struct {
-	BeforePath          string
 	AfterPath           string // key
-	RootDir             RootDirectory
+	BeforePath          string
+	RootDirKey          string
 	LatestHash          string
 	LatestSyncTimestamp uint64
 	ContentsExisted     bool
+	Conflict            ConflictMetadata
 	Metadata            FileMetadata
 }
 
 // FileHistory is used to store the file's history
 type FileHistory struct {
-	Id         uint64
+	AfterPath  string // key
+	BeforePath string
 	Date       string
 	UUID       string
-	BeforePath string
-	AfterPath  string
+	Timestamp  uint64
 	Hash       string
 	File       FileMetadata // must have file metadata at the point that client wanted in time
 }
@@ -62,6 +69,22 @@ type FileMetadata struct {
 	Mode    os.FileMode
 	ModTime time.Time
 	IsDir   bool
+}
+
+// ConflictMetadata is used to store the file's conflict information
+type ConflictMetadata struct {
+	BeforePath string
+	AfterPath  string
+
+	ServerDevice    string
+	ServerTimestamp uint64
+	ServerHash      string
+	ServerModDate   string
+
+	LocalDevice    string
+	LocalTimestamp uint64
+	LocalHash      string
+	LocalModDate   string
 }
 
 // Sharing is used to store the file download information
@@ -152,6 +175,54 @@ func (fileMetadata *FileMetadata) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(fileMetadata)
+}
+
+func (fileMetadata *FileMetadata) DecodeFromOSFileInfo(fileInfo os.FileInfo) {
+	fileMetadata.Name = fileInfo.Name()
+	fileMetadata.Size = fileInfo.Size()
+	fileMetadata.Mode = fileInfo.Mode()
+	fileMetadata.ModTime = fileInfo.ModTime()
+	fileMetadata.IsDir = fileInfo.IsDir()
+}
+
+func (fileMetadata *FileMetadata) WriteToFile(path string) error {
+	// When the file is a directory, create the directory and return.
+	if fileMetadata.IsDir {
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+
+		// Set file metadata.
+		err = file.Chmod(fileMetadata.Mode)
+		if err != nil {
+			return err
+		}
+		err = os.Chtimes(path, time.Now(), fileMetadata.ModTime)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// When the file is not a directory, create the file and write the file content.
+
+	// Open file with O_TRUNC flag to overwrite the file when the file already exists.
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, fileMetadata.Mode)
+	if err != nil {
+		return err
+	}
+	// Set file metadata.
+	err = file.Chmod(fileMetadata.Mode)
+	if err != nil {
+		return err
+	}
+	err = os.Chtimes(path, time.Now(), fileMetadata.ModTime)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (sharing *Sharing) Encode() []byte {

@@ -13,10 +13,25 @@ type SyncRepository struct {
 	db *badger.DB
 }
 
+// IsExistFileByPath checks if file exists by file path
+func (sr *SyncRepository) IsExistFileByPath(afterPath string) (bool, error) {
+	key := []byte(PrefixFile + afterPath)
+
+	err := sr.db.View(func(txn *badger.Txn) error {
+		_, err := txn.Get(key)
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 // GetFileByPath gets file by file path
 func (sr *SyncRepository) GetFileByPath(path string) (*types.File, error) {
 	key := []byte(PrefixFile + path)
-	var file *types.File
+	file := &types.File{}
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -44,7 +59,7 @@ func (sr *SyncRepository) GetFileByPath(path string) (*types.File, error) {
 }
 
 // SaveFileByPath saves new file to badger
-func (sr *SyncRepository) SaveFileByPath(path string, file types.File) error {
+func (sr *SyncRepository) SaveFileByPath(path string, file *types.File) error {
 	key := []byte(PrefixFile + path)
 
 	err := sr.db.Update(func(txn *badger.Txn) error {
@@ -54,12 +69,13 @@ func (sr *SyncRepository) SaveFileByPath(path string, file types.File) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // GetAllFiles gets all files
-func (sr *SyncRepository) GetAllFiles() []types.File {
-	var files []types.File
+func (sr *SyncRepository) GetAllFiles() []*types.File {
+	files := make([]*types.File, 0)
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -81,7 +97,7 @@ func (sr *SyncRepository) GetAllFiles() []types.File {
 				return err
 			}
 
-			files = append(files, *file)
+			files = append(files, file)
 		}
 
 		return nil
@@ -115,6 +131,23 @@ func (sr *SyncRepository) UpdateContentsExisted(path string, contentsExisted boo
 
 		file.ContentsExisted = contentsExisted
 
+		if err := txn.Set(key, file.Encode()); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sr *SyncRepository) UpdateFile(file *types.File) error {
+	key := []byte(PrefixFile + file.AfterPath)
+
+	err := sr.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(key, file.Encode()); err != nil {
 			return err
 		}

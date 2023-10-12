@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/quic-s/quics/config"
+	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/utils"
 )
 

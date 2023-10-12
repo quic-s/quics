@@ -7,54 +7,54 @@ import (
 	"strings"
 )
 
-// GetQuicsDirPath returns the path of the .quics directory
+// GetQuicsDirPath $HOME/.quics
 func GetQuicsDirPath() string {
-	tempDir, err := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics") // $HOME/.quics
+	return filepath.Join(homeDir, ".quics")
 }
 
-// GetQuicsSyncDirPath returns the path of the .quics/sync directory
+// GetQuicsSyncDirPath $HOME/.quics/sync
 func GetQuicsSyncDirPath() string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync") // $HOME/.quics/sync
+	return filepath.Join(tempDir, ".quics", "sync")
 }
 
-// GetQuicsRootDirPath returns the path of the ./quics/sync/{rootDir} directory
+// GetQuicsRootDirPath $HOME/.quics/sync/{rootDir}
 func GetQuicsRootDirPath(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]) // $HOME/.quics/sync/{rootDir}
+	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:])
 }
 
-// GetQuicsHistoryPathByRootDir returns the path of the ./quics/sync/{rootDir}/history directory
+// GetQuicsHistoryPathByRootDir $HOME/.quics/sync/{rootDir}.history
 func GetQuicsHistoryPathByRootDir(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:], "history") // $HOME/.quics/sync/{rootDir}/history
+	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]+".history")
 }
 
-// GetQuicsLatestPathByRootDir returns the path of the ./quics/sync/{rootDir}/latest directory
-func GetQuicsLatestPathByRootDir(rootDir string) string {
+// GetQuicsConflictPathByRootDir $HOME/.quics/sync/{rootDir}.conflict
+func GetQuicsConflictPathByRootDir(rootDir string) string {
 	tempDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:], "latest") // $HOME/.quics/sync/{rootDir}/latest
+	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]+".conflict")
 }
 
 // ReadEnvFile reads .qis.env file if it is existed
