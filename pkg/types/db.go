@@ -43,10 +43,11 @@ type RootDirectory struct {
 type File struct {
 	AfterPath           string // key
 	BeforePath          string
-	RootDir             RootDirectory
+	RootDirKey          string
 	LatestHash          string
 	LatestSyncTimestamp uint64
 	ContentsExisted     bool
+	IsConflict          bool
 	Metadata            FileMetadata
 }
 
@@ -56,6 +57,7 @@ type FileHistory struct {
 	BeforePath string
 	Date       string
 	UUID       string
+	Timestamp  uint64
 	Hash       string
 	File       FileMetadata // must have file metadata at the point that client wanted in time
 }
@@ -157,6 +159,54 @@ func (fileMetadata *FileMetadata) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(fileMetadata)
+}
+
+func (fileMetadata *FileMetadata) DecodeFromOSFileInfo(fileInfo os.FileInfo) {
+	fileMetadata.Name = fileInfo.Name()
+	fileMetadata.Size = fileInfo.Size()
+	fileMetadata.Mode = fileInfo.Mode()
+	fileMetadata.ModTime = fileInfo.ModTime()
+	fileMetadata.IsDir = fileInfo.IsDir()
+}
+
+func (fileMetadata *FileMetadata) WriteToFile(path string) error {
+	// When the file is a directory, create the directory and return.
+	if fileMetadata.IsDir {
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+
+		// Set file metadata.
+		err = file.Chmod(fileMetadata.Mode)
+		if err != nil {
+			return err
+		}
+		err = os.Chtimes(path, time.Now(), fileMetadata.ModTime)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// When the file is not a directory, create the file and write the file content.
+
+	// Open file with O_TRUNC flag to overwrite the file when the file already exists.
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, fileMetadata.Mode)
+	if err != nil {
+		return err
+	}
+	// Set file metadata.
+	err = file.Chmod(fileMetadata.Mode)
+	if err != nil {
+		return err
+	}
+	err = os.Chtimes(path, time.Now(), fileMetadata.ModTime)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (sharing *Sharing) Encode() []byte {
