@@ -34,8 +34,8 @@ func (rr *RegistrationRepository) SaveClient(uuid string, client *types.Client) 
 // GetClientByUUID gets client by client uuid
 func (rr *RegistrationRepository) GetClientByUUID(uuid string) (*types.Client, error) {
 	key := []byte(PrefixClient + uuid)
-	var client *types.Client
 
+	client := &types.Client{}
 	err := rr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
@@ -78,8 +78,7 @@ func (rr *RegistrationRepository) SaveRootDir(afterPath string, rootDir *types.R
 func (rr *RegistrationRepository) GetRootDirByPath(afterPath string) (*types.RootDirectory, error) {
 	key := []byte(PrefixRootDir + afterPath)
 
-	var rootDir *types.RootDirectory
-
+	rootDir := &types.RootDirectory{}
 	err := rr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {

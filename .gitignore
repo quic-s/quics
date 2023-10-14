@@ -31,3 +31,17 @@ qis
 
 # devcontainer
 .devcontainer
+
+# for vscode
+.vscode
+
+# temp dir
+tmp
+
+# test files
+test.go
+test.txt
+
+# test build
+main
+

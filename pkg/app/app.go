@@ -11,10 +11,12 @@ import (
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/registration"
 	"github.com/quic-s/quics/pkg/core/sync"
+	"github.com/quic-s/quics/pkg/fs"
 	"github.com/quic-s/quics/pkg/network/qp"
 	"github.com/quic-s/quics/pkg/network/qp/connection"
 	"github.com/quic-s/quics/pkg/repository/badger"
 	"github.com/quic-s/quics/pkg/types"
+	"github.com/quic-s/quics/pkg/utils"
 )
 
 type App struct {
@@ -63,9 +65,10 @@ func New() (*App, error) {
 
 	historyRepository := repo.NewHistoryRepository()
 	syncNetworkAdapter := qp.NewSyncAdapter(pool)
+	syncDirAdapter := fs.NewSyncDir(utils.GetQuicsSyncDirPath())
 
 	syncRepository := repo.NewSyncRepository()
-	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter)
+	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
 	syncHandler := qp.NewSyncHandler(syncService)
 
 	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
