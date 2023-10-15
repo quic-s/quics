@@ -73,6 +73,8 @@ func New() (*App, error) {
 
 	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
 	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
+	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
+	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
 
 	// historyRepository := repo.NewHistoryRepository()
 	// historyService := history.NewHistoryService(historyRepository)

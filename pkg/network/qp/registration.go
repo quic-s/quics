@@ -106,6 +106,17 @@ func (rh *RegistrationHandler) RegisterRootDir(conn *qp.Connection, stream *qp.S
 func (rh *RegistrationHandler) GetRemoteDirs(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
 	log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
 
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+	request := &types.AskConflictListReq{}
+	if err = request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
 	rootDirs, err := rh.registrationService.GetRootDirList()
 	if err != nil {
 		log.Println("quics: ", err)

@@ -3,7 +3,6 @@ package sync
 import (
 	"io"
 
-	"github.com/quic-s/quics-protocol/pkg/types/fileinfo"
 	"github.com/quic-s/quics/pkg/types"
 )
 
@@ -24,10 +23,12 @@ type Repository interface {
 type Service interface {
 	SyncRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error)
 	UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error)
-	UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileInfo *fileinfo.FileInfo, fileContent io.Reader) (*types.PleaseTakeRes, error)
+	UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileMetadata *types.FileMetadata, fileContent io.Reader) (*types.PleaseTakeRes, error)
 	CallMustSync(filePath string, UUIDs []string) error
+
 	GetConflictList(*types.AskConflictListReq) (*types.AskConflictListRes, error)
-	// ChooseOne() // TODO: implement this
+	ChooseOne(request *types.PleaseFileReq) (*types.PleaseFileRes, error)
+	CallForceSync(filePath string, UUIDs []string) error
 
 	GetFilesByRootDir(rootDirPath string) []*types.File
 	GetFiles() []*types.File
@@ -35,14 +36,18 @@ type Service interface {
 }
 
 type SyncDirAdapter interface {
-	CopyHistoryFileToLatestDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo) error
+	SaveFileToLatestDir(afterPath string, fileMetadata *types.FileMetadata, fileContent io.Reader) error
+	GetFileFromLatestDir(afterPath string) (*types.FileMetadata, io.Reader, error)
 	DeleteFileFromLatestDir(afterPath string) error
-	SaveFileToConflictDir(afterPath string, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error
-	SaveFileToHistoryDir(afterPath string, timestamp uint64, fileInfo *fileinfo.FileInfo, fileContent io.Reader) error
+	SaveFileToConflictDir(uuid string, afterPath string, fileMetadata *types.FileMetadata, fileContent io.Reader) error
+	GetFileFromConflictDir(afterPath string, uuid string) (*types.FileMetadata, io.Reader, error)
+	DeleteFilesFromConflictDir(afterPath string) error
+	SaveFileToHistoryDir(afterPath string, timestamp uint64, fileMetadata *types.FileMetadata, fileContent io.Reader) error
+	GetFileFromHistoryDir(afterPath string, timestamp uint64) (*types.FileMetadata, io.Reader, error)
 }
 
 type NetworkAdapter interface {
-	OpenMustSyncTransaction(uuid string) (Transaction, error)
+	OpenTransaction(transactionName string, uuid string) (Transaction, error)
 }
 
 type Transaction interface {

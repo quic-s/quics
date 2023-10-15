@@ -140,12 +140,9 @@ type GiveYouRes struct {
 
 // PleaseFileReq is used when client request file to server (metadata)
 type PleaseFileReq struct {
-	UUID              string
-	AfterPath         string
-	SelectedTimestamp uint64
-	NewTimestamp      uint64
-	NewHash           string
-	Side              string
+	UUID      string
+	AfterPath string
+	Side      string
 }
 
 // PleaseFileRes is used when server response file to client (metadata)

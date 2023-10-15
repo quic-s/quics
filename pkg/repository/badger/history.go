@@ -1,6 +1,8 @@
 package badger
 
 import (
+	"strconv"
+
 	"github.com/dgraph-io/badger/v3"
 	"github.com/quic-s/quics/pkg/types"
 )
@@ -15,7 +17,7 @@ type HistoryRepository struct {
 
 // SaveNewFileHistory creates the history with file metadata
 func (hr *HistoryRepository) SaveNewFileHistory(afterPath string, fileHistory *types.FileHistory) error {
-	key := []byte(PrefixHistory + afterPath)
+	key := []byte(PrefixHistory + afterPath + "_" + strconv.FormatUint(fileHistory.Timestamp, 10))
 
 	err := hr.db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, fileHistory.Encode())
@@ -29,8 +31,8 @@ func (hr *HistoryRepository) SaveNewFileHistory(afterPath string, fileHistory *t
 }
 
 // GetFileHistory returns the history of the file
-func (hr *HistoryRepository) GetFileHistory(afterPath string) (*types.FileHistory, error) {
-	key := []byte(PrefixHistory + afterPath)
+func (hr *HistoryRepository) GetFileHistory(afterPath string, timestamp uint64) (*types.FileHistory, error) {
+	key := []byte(PrefixHistory + afterPath + "_" + strconv.FormatUint(timestamp, 10))
 	fileHistory := &types.FileHistory{}
 
 	err := hr.db.View(func(txn *badger.Txn) error {

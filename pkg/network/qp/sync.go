@@ -142,8 +142,15 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 		log.Println("quics: ", err)
 		return err
 	}
+	fileMetedata := &types.FileMetadata{
+		Name:    fileInfo.Name,
+		Size:    fileInfo.Size,
+		Mode:    fileInfo.Mode,
+		ModTime: fileInfo.ModTime,
+		IsDir:   fileInfo.IsDir,
+	}
 
-	pleaseTakeRes, err := sh.syncService.UpdateFileWithContents(pleaseTakeReq, fileInfo, fileContent)
+	pleaseTakeRes, err := sh.syncService.UpdateFileWithContents(pleaseTakeReq, fileMetedata, fileContent)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
@@ -202,6 +209,38 @@ func (sh *SyncHandler) AskConflictList(conn *qp.Connection, stream *qp.Stream, t
 }
 
 func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: ChooseOne received ", conn.Conn.RemoteAddr().String())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.PleaseFileReq{}
+	if err := request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	// get root directory path of requested data
+	pleaseFileRes, err := sh.syncService.ChooseOne(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, err := pleaseFileRes.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(response)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
 	return nil
 }
 
@@ -220,15 +259,7 @@ type Transaction struct {
 	stream *qp.Stream
 }
 
-// must sync transaction
-// 1. (server) Open transaction
-// 2. (server) MustSyncReq with file metadata to all registered clients without where the file come from
-// 3. (client) MustSyncRes if file update is available
-// 3-1. (server) If all request data are exist, then go to step 4
-// 3-2. (server) If not, then this transaction should be closed
-// 4. (server) GiveYouReq for giving file contents
-// 5. (client) GiveYouRes
-func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (sync.Transaction, error) {
+func (sa *SyncAdapter) OpenTransaction(transactionName string, uuid string) (sync.Transaction, error) {
 	// get connection from pool by uuid
 	conn, err := sa.Pool.GetConnection(uuid)
 	if err != nil {
@@ -243,7 +274,7 @@ func (sa *SyncAdapter) OpenMustSyncTransaction(uuid string) (sync.Transaction, e
 	// make error channel to receive error from goroutine
 	errChan := make(chan error)
 	go func() {
-		err := conn.OpenTransaction(types.MUSTSYNC, func(stream *qp.Stream, transactionName string, transactionID []byte) error {
+		err := conn.OpenTransaction(transactionName, func(stream *qp.Stream, transactionName string, transactionID []byte) error {
 			// add wait group to wait for closing transaction
 			transaction.wg.Add(1)
 
