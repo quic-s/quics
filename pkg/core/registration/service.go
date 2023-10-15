@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/dgraph-io/badger/v3"
 	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/pkg/types"
 	"github.com/quic-s/quics/pkg/utils"
@@ -63,6 +64,13 @@ func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, 
 
 // RegisterRootDir registers initial root directory to client database
 func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error) {
+	_, err := rs.registrationRepository.GetRootDirByPath(request.AfterPath)
+	if err == nil {
+		return nil, errors.New("root dir is already exists")
+	} else if err != badger.ErrKeyNotFound && err != nil {
+		return nil, err
+	}
+
 	// get client entity by uuid in request data
 	client, err := rs.registrationRepository.GetClientByUUID(request.UUID)
 	if err != nil {
@@ -73,14 +81,14 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 	UUIDs = append(UUIDs, request.UUID)
 
 	// create root directory entity
-	rootDir := types.RootDirectory{
+	rootDir := &types.RootDirectory{
 		BeforePath: utils.GetQuicsSyncDirPath(),
 		AfterPath:  request.AfterPath,
 		Owner:      client.UUID,
 		Password:   request.RootDirPassword,
 		UUIDs:      UUIDs,
 	}
-	rootDirs := append(client.Root, rootDir)
+	rootDirs := append(client.Root, *rootDir)
 	client.Root = rootDirs
 
 	// save updated client entity
@@ -90,7 +98,7 @@ func (rs *RegistrationService) RegisterRootDir(request *types.RootDirRegisterReq
 	}
 
 	// save requested root directory
-	err = rs.registrationRepository.SaveRootDir(request.AfterPath, &rootDir)
+	err = rs.registrationRepository.SaveRootDir(request.AfterPath, rootDir)
 	if err != nil {
 		return nil, err
 	}

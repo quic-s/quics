@@ -46,8 +46,9 @@ type File struct {
 	RootDirKey          string
 	LatestHash          string
 	LatestSyncTimestamp uint64
+	LatestEditClient    string
 	ContentsExisted     bool
-	Conflict            ConflictMetadata
+	Conflict            Conflict
 	Metadata            FileMetadata
 }
 
@@ -71,20 +72,9 @@ type FileMetadata struct {
 	IsDir   bool
 }
 
-// ConflictMetadata is used to store the file's conflict information
-type ConflictMetadata struct {
-	BeforePath string
-	AfterPath  string
-
-	ServerDevice    string
-	ServerTimestamp uint64
-	ServerHash      string
-	ServerModDate   string
-
-	LocalDevice    string
-	LocalTimestamp uint64
-	LocalHash      string
-	LocalModDate   string
+type Conflict struct {
+	AfterPath    string
+	StagingFiles map[string]FileHistory
 }
 
 // Sharing is used to store the file download information
@@ -239,4 +229,20 @@ func (sharing *Sharing) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(sharing)
+}
+
+func (c *Conflict) Encode() []byte {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(c); err != nil {
+		log.Println("quics: (Sharing.Encode) ", err)
+	}
+
+	return buffer.Bytes()
+}
+
+func (c *Conflict) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(c)
 }

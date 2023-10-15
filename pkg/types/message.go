@@ -35,6 +35,15 @@ type AskRootDirRes struct {
 	RootDirList []string
 }
 
+type AskConflictListReq struct {
+	UUID string
+}
+
+type AskConflictListRes struct {
+	UUID      string
+	Conflicts []Conflict
+}
+
 // RootDirReqRegister is used when registering root directory of a client from client to server
 type RootDirRegisterReq struct {
 	UUID            string
@@ -242,6 +251,40 @@ func (askRootDirRes *AskRootDirRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(askRootDirRes)
+}
+
+func (askConflictListReq *AskConflictListReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askConflictListReq); err != nil {
+		log.Println("quics: (AskRootDirRes.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askConflictListReq *AskConflictListReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askConflictListReq)
+}
+
+func (askConflictListRes *AskConflictListRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askConflictListRes); err != nil {
+		log.Println("quics: (AskRootDirRes.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askConflictListRes *AskConflictListRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askConflictListRes)
 }
 
 func (registerRootDirReq *RootDirRegisterReq) Encode() ([]byte, error) {

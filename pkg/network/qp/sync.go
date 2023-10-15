@@ -44,20 +44,30 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 		return err
 	}
 
-	request := &types.SyncRootDirReq{}
+	request := &types.RootDirRegisterReq{}
 	if err := request.Decode(data); err != nil {
 		log.Println("quics: ", err)
 		return err
 	}
 
 	// get root directory path of requested data
-	err = sh.syncService.SyncRootDir(request)
+	rootDirRegisterRes, err := sh.syncService.SyncRootDir(request)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
 	}
 
-	// TODO: is it necessary to send response data?
+	response, err := rootDirRegisterRes.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(response)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
 	return nil
 }
 
@@ -152,6 +162,46 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 	}
 
 	// <- update file contents
+	return nil
+}
+
+func (sh *SyncHandler) AskConflictList(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: AskConflicList received ", conn.Conn.RemoteAddr().String())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.AskConflictListReq{}
+	if err := request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	// get root directory path of requested data
+	askConflictListRes, err := sh.syncService.GetConflictList(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, err := askConflictListRes.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(response)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+	return nil
+}
+
+func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
 	return nil
 }
 
