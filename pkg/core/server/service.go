@@ -2,38 +2,53 @@ package server
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/quic-s/quics/pkg/app"
 )
 
 type ServerService struct {
+	quics            *app.App
 	serverRepository Repository
 }
 
-func NewService(serverRepository Repository) *ServerService {
+func NewService(app *app.App, serverRepository Repository) *ServerService {
 	return &ServerService{
+		quics:            app,
 		serverRepository: serverRepository,
 	}
 }
 
-// StartServer executes when server starts
-func (ss *ServerService) StartServer() {
-	fmt.Println("Start server...")
-	fmt.Println("Server started successfully.")
+// ListenProtocol is executed when server starts
+func (ss *ServerService) ListenProtocol() error {
+	fmt.Println("************************************************************")
+	fmt.Println("                     Listen Protocol                        ")
+	fmt.Println("************************************************************")
+
+	go func() {
+		err := ss.quics.Start()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		err = ss.quics.Close()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		return
+	}()
+
+	return nil
 }
 
-// StopServer Stop quics server
-func (ss *ServerService) StopServer() {
-	fmt.Println("Stop server...")
-	fmt.Println("Server stopped successfully.")
-}
+// StopServer stop quic-s server
+func (ss *ServerService) StopServer() error {
+	fmt.Println("************************************************************")
+	fmt.Println("                           Stop                             ")
+	fmt.Println("************************************************************")
 
-// RebootServer Reboot quics server
-func (ss *ServerService) RebootServer() {
-	fmt.Println("Stop server...")
-	fmt.Println("Server rebooted successfully.")
-}
-
-// ShutdownServer Shutdown quics server
-func (ss *ServerService) ShutdownServer() {
-	fmt.Println("Shutdown server...")
-	fmt.Println("Server shutdown successfully.")
+	return nil
 }

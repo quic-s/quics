@@ -26,8 +26,14 @@ func NewBadgerRepository() (*Badger, error) {
 	}, nil
 }
 
-func (b *Badger) Close() {
-	b.db.Close()
+func (b *Badger) Close() error {
+	err := b.db.Close()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
 }
 
 func (b *Badger) NewHistoryRepository() *HistoryRepository {
