@@ -24,6 +24,9 @@ type App struct {
 	Proto    *qp.Protocol
 	SigCh    chan os.Signal
 	Password string
+
+	registrationService registration.Service
+	syncService         sync.Service
 }
 
 // Initialize initialize program
@@ -60,8 +63,6 @@ func New() (*App, error) {
 	registrationHandler := qp.NewRegistrationHandler(registrationService)
 
 	proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
-	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, registrationHandler.RegisterRootDir)
-	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, registrationHandler.GetRemoteDirs)
 
 	historyRepository := repo.NewHistoryRepository()
 	syncNetworkAdapter := qp.NewSyncAdapter(pool)
@@ -71,8 +72,13 @@ func New() (*App, error) {
 	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
 	syncHandler := qp.NewSyncHandler(syncService)
 
+	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, syncHandler.RegisterRootDir)
 	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
+	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, syncHandler.GetRemoteDirs)
 	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
+	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
+	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
+	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
 
 	// historyRepository := repo.NewHistoryRepository()
 	// historyService := history.NewHistoryService(historyRepository)
@@ -99,9 +105,11 @@ func New() (*App, error) {
 	// SyncHandler := http3hdl.NewSyncHandler(syncService)
 
 	return &App{
-		repo:  repo,
-		Proto: proto,
-		SigCh: sigCh,
+		repo:                repo,
+		Proto:               proto,
+		SigCh:               sigCh,
+		registrationService: registrationService,
+		syncService:         syncService,
 		// HistoryHandler:      HistoryHandler,
 		// MetadataHandler:     MetadataHandler,
 		// RegistrationHandler: RegistrationHandler,
@@ -117,6 +125,7 @@ func (a *App) Start() {
 	if err != nil {
 		log.Println("quics: ", err)
 	}
+	a.syncService.BackgroundFullScan(300)
 }
 
 func (a *App) Close() {

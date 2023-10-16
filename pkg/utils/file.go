@@ -22,3 +22,11 @@ func GetHistoryFileNameByAfterPath(afterPath string, timestamp uint64) string {
 	historyFilePath := filepath.Join(historyDirPath, fileName+"_"+strconv.FormatUint(timestamp, 10))
 	return historyFilePath
 }
+
+// GetHistoryFileNameByAfterPath returns history file name in history directory extracting from afterPath
+func GetConflictFileNameByAfterPath(afterPath string, uuid string) string {
+	rootDirName, fileName := GetNamesByAfterPath(afterPath)
+	conflictDirPath := GetQuicsConflictPathByRootDir(rootDirName)
+	conflictFilePath := filepath.Join(conflictDirPath, fileName+"_"+uuid)
+	return conflictFilePath
+}
