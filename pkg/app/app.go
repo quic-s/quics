@@ -18,16 +18,11 @@ import (
 type App struct {
 	repo     *badger.Badger
 	Proto    *qp.Protocol
-	SigCh    chan os.Signal
 	Password string
 }
 
 // New initialize program
 func New(repo *badger.Badger) (*App, error) {
-	// define system call actions
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
 	// get env variables (server password, port)
 	password := config.GetViperEnvVariables("PASSWORD")
 	port, err := strconv.Atoi(config.GetViperEnvVariables("QUICS_PORT"))
@@ -68,7 +63,6 @@ func New(repo *badger.Badger) (*App, error) {
 	return &App{
 		repo:  repo,
 		Proto: proto,
-		SigCh: sigCh,
 	}, nil
 }
 
@@ -84,13 +78,38 @@ func (a *App) Start() error {
 }
 
 func (a *App) Close() error {
+	// define system call actions
+	interruptCh := make(chan os.Signal)
+	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
+
 	// if pressed ctrl + c, then stop server with closing database
-	<-a.SigCh
-	err := a.repo.Close()
-	if err != nil {
-		log.Println("quics: ", err)
-		return err
-	}
+	go func() {
+		<-interruptCh
+
+		err := a.repo.Close()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		os.Exit(0)
+	}()
+
+	return nil
+}
+
+func (a *App) Stop() error {
+
+	go func() {
+		err := a.repo.Close()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		log.Println("quics: Closed")
+		os.Exit(0)
+	}()
 
 	return nil
 }
