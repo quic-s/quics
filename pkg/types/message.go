@@ -221,6 +221,20 @@ type NeedSyncRes struct {
 	UUID string
 }
 
+type NeedContentReq struct {
+	UUID                string
+	AfterPath           string
+	LastUpdateTimestamp uint64
+	LastUpdateHash      string
+}
+
+type NeedContentRes struct {
+	UUID                string
+	AfterPath           string
+	LastUpdateTimestamp uint64
+	LastUpdateHash      string
+}
+
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
@@ -724,4 +738,36 @@ func (needSyncRes *NeedSyncRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(needSyncRes)
+}
+
+func (needContentReq *NeedContentReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needContentReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needContentReq *NeedContentReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needContentReq)
+}
+
+func (needContentRes *NeedContentRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needContentRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needContentRes *NeedContentRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needContentRes)
 }
