@@ -323,6 +323,41 @@ func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transac
 	return nil
 }
 
+func (sh *SyncHandler) Rescan(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: Rescan received ", conn.Conn.RemoteAddr().String())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.RescanReq{}
+	if err := request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	rescanRes, err := sh.syncService.Rescan(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, err := rescanRes.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(response)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+	return nil
+}
+
 type SyncAdapter struct {
 	Pool *connection.Pool
 }

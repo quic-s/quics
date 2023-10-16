@@ -41,6 +41,7 @@ type Service interface {
 
 	FullScan(uuid string) error
 	BackgroundFullScan(interval uint64) error
+	Rescan(*types.RescanReq) (*types.RescanRes, error)
 
 	GetFilesByRootDir(rootDirPath string) []types.File
 	GetFiles() []types.File

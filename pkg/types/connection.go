@@ -12,4 +12,5 @@ const (
 	CONFLICTLIST    = "CONFLICTLIST"
 	CHOOSEONE       = "CHOOSEONE"
 	FULLSCAN        = "FULLSCAN"
+	RESCAN          = "RESCAN"
 )

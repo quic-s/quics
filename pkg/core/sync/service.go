@@ -18,6 +18,7 @@ import (
 
 type SyncService struct {
 	cancel                 map[string]context.CancelFunc
+	FSTrigger              chan string
 	registrationRepository registration.Repository
 	historyRepository      history.Repository
 	syncRepository         Repository
@@ -26,9 +27,9 @@ type SyncService struct {
 }
 
 func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository, networkAdapter NetworkAdapter, syncDirAdpater SyncDirAdapter) Service {
-	cancel := make(map[string]context.CancelFunc)
 	return &SyncService{
-		cancel:                 cancel,
+		cancel:                 make(map[string]context.CancelFunc),
+		FSTrigger:              make(chan string),
 		registrationRepository: registrationRepository,
 		historyRepository:      historyRepository,
 		syncRepository:         syncRepository,
@@ -953,22 +954,43 @@ func (ss *SyncService) BackgroundFullScan(secInterval uint64) error {
 	go func() {
 		for {
 			time.Sleep(time.Duration(secInterval) * time.Second)
-			clients, err := ss.registrationRepository.GetAllClients()
-			if err != nil {
-				log.Println("quics: ", err)
-				continue
-			}
-
-			for _, client := range clients {
-				err = ss.FullScan(client.UUID)
+			ss.FSTrigger <- "all"
+		}
+	}()
+	go func() {
+		for {
+			uuid := <-ss.FSTrigger
+			if uuid == "all" {
+				clients, err := ss.registrationRepository.GetAllClients()
 				if err != nil {
 					log.Println("quics: ", err)
 					continue
+				}
+
+				for _, client := range clients {
+					err = ss.FullScan(client.UUID)
+					if err != nil {
+						log.Println("quics: ", err)
+						continue
+					}
+				}
+			} else {
+				err := ss.FullScan(uuid)
+				if err != nil {
+					log.Println("quics: ", err)
 				}
 			}
 		}
 	}()
 	return nil
+}
+
+func (ss *SyncService) Rescan(request *types.RescanReq) (*types.RescanRes, error) {
+	ss.FSTrigger <- request.UUID
+	rescanRes := &types.RescanRes{
+		UUID: request.UUID,
+	}
+	return rescanRes, nil
 }
 
 // GetFilesByRootDir returns files by root directory path

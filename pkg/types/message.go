@@ -183,6 +183,15 @@ type SyncMetadata struct { // Per file
 	LastSyncHash        string
 }
 
+type RescanReq struct {
+	UUID          string
+	RootAfterPath []string
+}
+
+type RescanRes struct {
+	UUID string
+}
+
 type NeedSyncReq struct {
 	UUID        string
 	FileNeedPSs []FileNeedPS
@@ -636,6 +645,38 @@ func (askAllMetaRes *AskAllMetaRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(askAllMetaRes)
+}
+
+func (rescanReq *RescanReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(rescanReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (rescanReq *RescanReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(rescanReq)
+}
+
+func (rescanRes *RescanRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(rescanRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (rescanRes *RescanRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(rescanRes)
 }
 
 func (needSyncReq *NeedSyncReq) Encode() ([]byte, error) {
