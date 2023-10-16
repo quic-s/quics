@@ -13,7 +13,12 @@ const (
 	GETROOTDIRS     = "GETROOTDIRS"
 	PLEASESYNC      = "PLEASESYNC"
 	MUSTSYNC        = "MUSTSYNC"
+	FORCESYNC       = "FORCESYNC"
 	CONFLICT        = "CONFLICT"
+	CONFLICTLIST    = "CONFLICTLIST"
+	CHOOSEONE       = "CHOOSEONE"
+	FULLSCAN        = "FULLSCAN"
+	RESCAN          = "RESCAN"
 )
 
 type MessageData interface {
@@ -43,6 +48,15 @@ type AskRootDirReq struct {
 
 type AskRootDirRes struct {
 	RootDirList []string
+}
+
+type AskConflictListReq struct {
+	UUID string
+}
+
+type AskConflictListRes struct {
+	UUID      string
+	Conflicts []Conflict
 }
 
 // RootDirReqRegister is used when registering root directory of a client from client to server
@@ -84,10 +98,11 @@ type PleaseFileMetaRes struct {
 type PleaseSyncReq struct {
 	UUID                string
 	Event               string
-	BeforePath          string
 	AfterPath           string
 	LastUpdateTimestamp uint64
 	LastUpdateHash      string
+	LastSyncHash        string
+	Metadata            FileMetadata
 }
 
 // PleaseSyncRes is used to response to client of whether file is updated or not
@@ -140,12 +155,9 @@ type GiveYouRes struct {
 
 // PleaseFileReq is used when client request file to server (metadata)
 type PleaseFileReq struct {
-	UUID              string
-	AfterPath         string
-	SelectedTimestamp uint64
-	NewTimestamp      uint64
-	NewHash           string
-	Side              string
+	UUID      string
+	AfterPath string
+	Side      string
 }
 
 // PleaseFileRes is used when server response file to client (metadata)
@@ -166,6 +178,47 @@ type LinkShareRes struct {
 	Link     string
 	Count    uint
 	MaxCount uint
+}
+
+type AskAllMetaReq struct {
+	UUID string
+}
+
+type AskAllMetaRes struct {
+	UUID         string
+	SyncMetaList []SyncMetadata
+}
+
+type SyncMetadata struct { // Per file
+	BeforePath          string
+	AfterPath           string
+	LastUpdateTimestamp uint64 // Local File changed time
+	LastUpdateHash      string
+	LastSyncTimestamp   uint64 // Sync Success Time
+	LastSyncHash        string
+}
+
+type RescanReq struct {
+	UUID          string
+	RootAfterPath []string
+}
+
+type RescanRes struct {
+	UUID string
+}
+
+type NeedSyncReq struct {
+	UUID        string
+	FileNeedPSs []FileNeedPS
+}
+
+type FileNeedPS struct {
+	AfterPath string
+	Event     string
+}
+
+type NeedSyncRes struct {
+	UUID string
 }
 
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
@@ -251,6 +304,40 @@ func (askRootDirRes *AskRootDirRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(askRootDirRes)
+}
+
+func (askConflictListReq *AskConflictListReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askConflictListReq); err != nil {
+		log.Println("quics: (AskRootDirRes.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askConflictListReq *AskConflictListReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askConflictListReq)
+}
+
+func (askConflictListRes *AskConflictListRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askConflictListRes); err != nil {
+		log.Println("quics: (AskRootDirRes.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askConflictListRes *AskConflictListRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askConflictListRes)
 }
 
 func (registerRootDirReq *RootDirRegisterReq) Encode() ([]byte, error) {
@@ -540,4 +627,101 @@ func (linkShareRes *LinkShareRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(linkShareRes)
+}
+
+func (askAllMetaReq *AskAllMetaReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askAllMetaReq); err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askAllMetaReq *AskAllMetaReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askAllMetaReq)
+}
+
+func (askAllMetaRes *AskAllMetaRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askAllMetaRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askAllMetaRes *AskAllMetaRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askAllMetaRes)
+}
+
+func (rescanReq *RescanReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(rescanReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (rescanReq *RescanReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(rescanReq)
+}
+
+func (rescanRes *RescanRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(rescanRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (rescanRes *RescanRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(rescanRes)
+}
+
+func (needSyncReq *NeedSyncReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needSyncReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needSyncReq *NeedSyncReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needSyncReq)
+}
+
+func (needSyncRes *NeedSyncRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needSyncRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needSyncRes *NeedSyncRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needSyncRes)
 }

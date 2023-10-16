@@ -34,7 +34,7 @@ func GetQuicsRootDirPath(rootDir string) string {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:])
+	return filepath.Join(tempDir, ".quics", "sync", rootDir)
 }
 
 // GetQuicsHistoryPathByRootDir $HOME/.quics/sync/{rootDir}.history
@@ -44,7 +44,7 @@ func GetQuicsHistoryPathByRootDir(rootDir string) string {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]+".history")
+	return filepath.Join(tempDir, ".quics", "sync", rootDir+".history")
 }
 
 // GetQuicsConflictPathByRootDir $HOME/.quics/sync/{rootDir}.conflict
@@ -54,7 +54,7 @@ func GetQuicsConflictPathByRootDir(rootDir string) string {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(tempDir, ".quics", "sync", rootDir[1:]+".conflict")
+	return filepath.Join(tempDir, ".quics", "sync", rootDir+".conflict")
 }
 
 // ReadEnvFile reads .qis.env file if it is existed

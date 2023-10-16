@@ -9,16 +9,22 @@ import (
 
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/registration"
+	"github.com/quic-s/quics/pkg/core/sync"
+	"github.com/quic-s/quics/pkg/fs"
 	"github.com/quic-s/quics/pkg/network/qp"
 	"github.com/quic-s/quics/pkg/network/qp/connection"
 	"github.com/quic-s/quics/pkg/repository/badger"
 	"github.com/quic-s/quics/pkg/types"
+	"github.com/quic-s/quics/pkg/utils"
 )
 
 type App struct {
 	repo     *badger.Badger
 	Proto    *qp.Protocol
 	Password string
+
+	registrationService registration.Service
+	syncService         sync.Service
 }
 
 // New initialize program
@@ -44,37 +50,41 @@ func New(repo *badger.Badger) (*App, error) {
 	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
 	registrationHandler := qp.NewRegistrationHandler(registrationService)
 
-	err = proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
-	if err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-	err = proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, registrationHandler.RegisterRootDir)
-	if err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-	err = proto.RecvTransactionHandleFunc(types.GETROOTDIRS, registrationHandler.GetRemoteDirs)
-	if err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
+	proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
+
+	historyRepository := repo.NewHistoryRepository()
+	syncNetworkAdapter := qp.NewSyncAdapter(pool)
+	syncDirAdapter := fs.NewSyncDir(utils.GetQuicsSyncDirPath())
+
+	syncRepository := repo.NewSyncRepository()
+	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
+	syncHandler := qp.NewSyncHandler(syncService)
+
+	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, syncHandler.RegisterRootDir)
+	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
+	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, syncHandler.GetRemoteDirs)
+	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
+	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
+	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
+	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
 
 	return &App{
-		repo:  repo,
-		Proto: proto,
+		repo:                repo,
+		Proto:               proto,
+		registrationService: registrationService,
+		syncService:         syncService,
 	}, nil
 }
 
-func (a *App) Start() error {
+func (a *App) Start() {
 	// start quics protocol server
 	err := a.Proto.Start()
 	if err != nil {
 		log.Println("quics: ", err)
-		return err
+		return
 	}
 
-	return nil
+	a.syncService.BackgroundFullScan(300)
 }
 
 func (a *App) Close() error {

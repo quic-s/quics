@@ -34,8 +34,8 @@ func (rr *RegistrationRepository) SaveClient(uuid string, client *types.Client) 
 // GetClientByUUID gets client by client uuid
 func (rr *RegistrationRepository) GetClientByUUID(uuid string) (*types.Client, error) {
 	key := []byte(PrefixClient + uuid)
-	var client *types.Client
 
+	client := &types.Client{}
 	err := rr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
@@ -105,36 +105,38 @@ func (rr *RegistrationRepository) GetRootDirByPath(afterPath string) (*types.Roo
 	return rootDir, nil
 }
 
-func (rr *RegistrationRepository) GetAllRootDir() ([]*types.RootDirectory, error) {
-	rootDirs := []*types.RootDirectory{}
+// GetAllClients gets all clients
+func (rr *RegistrationRepository) GetAllClients() ([]types.Client, error) {
+	clients := []types.Client{}
+
 	err := rr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
-		opts.PrefetchSize = 10
+		opts.PrefetchValues = true
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
-		for it.Seek([]byte(PrefixRootDir)); it.ValidForPrefix([]byte(PrefixRootDir)); it.Next() {
+		prefix := []byte(PrefixClient)
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			val, err := item.ValueCopy(nil)
 			if err != nil {
 				return err
 			}
 
-			rootDir := &types.RootDirectory{}
-			if err := rootDir.Decode(val); err != nil {
+			client := types.Client{}
+			if err := client.Decode(val); err != nil {
 				return err
 			}
 
-			rootDirs = append(rootDirs, rootDir)
+			clients = append(clients, client)
 		}
-
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return rootDirs, nil
+	return clients, nil
 }
 
 // GetSequence returns badger sequence by key

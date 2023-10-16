@@ -23,7 +23,7 @@ func GetViperEnvVariables(key string) string {
 
 	_, err = os.Stat(envPath)
 	if os.IsNotExist(err) {
-		sourceEnvPath := "./.env"
+		sourceEnvPath := "../.env"
 		sourceViper := viper.New()
 		sourceViper.SetConfigFile(sourceEnvPath)
 		sourceViper.SetConfigType("env")

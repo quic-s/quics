@@ -9,6 +9,7 @@ require (
 	github.com/quic-s/quics-protocol v0.0.0-20231007080707-81b358ef2f0b
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.17.0
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 )
 
 require (
@@ -32,7 +33,7 @@ require (
 	github.com/klauspost/compress v1.17.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/onsi/ginkgo/v2 v2.12.1 // indirect
+	github.com/onsi/ginkgo/v2 v2.13.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
@@ -48,9 +49,8 @@ require (
 	go.uber.org/mock v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
-	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/mod v0.13.0 // indirect
-	golang.org/x/net v0.16.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/tools v0.14.0 // indirect
