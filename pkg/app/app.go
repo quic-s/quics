@@ -78,13 +78,12 @@ func New(repo *badger.Badger) (*App, error) {
 
 func (a *App) Start() {
 	// start quics protocol server
+	a.syncService.BackgroundFullScan(300)
 	err := a.Proto.Start()
 	if err != nil {
 		log.Println("quics: ", err)
 		return
 	}
-
-	a.syncService.BackgroundFullScan(300)
 }
 
 func (a *App) Close() error {

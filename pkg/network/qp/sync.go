@@ -13,18 +13,18 @@ import (
 )
 
 type SyncHandler struct {
-	psMut       map[byte]*stdsync.Mutex
+	pathMut     map[byte]*stdsync.Mutex
 	syncService sync.Service
 }
 
 func NewSyncHandler(service sync.Service) *SyncHandler {
-	psMut := make(map[byte]*stdsync.Mutex)
+	pathMut := make(map[byte]*stdsync.Mutex)
 
 	for i := uint8(0); i < 16; i++ {
-		psMut[i] = &stdsync.Mutex{}
+		pathMut[i] = &stdsync.Mutex{}
 	}
 	return &SyncHandler{
-		psMut:       psMut,
+		pathMut:     pathMut,
 		syncService: service,
 	}
 }
@@ -66,6 +66,17 @@ func (sh *SyncHandler) RegisterRootDir(conn *qp.Connection, stream *qp.Stream, t
 		log.Println("quics: ", err)
 		return err
 	}
+
+	// do fullscan in goroutine
+	go func() {
+		_, err := sh.syncService.Rescan(&types.RescanReq{
+			UUID: request.UUID,
+		})
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+	}()
 	return nil
 }
 
@@ -108,6 +119,17 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 		log.Println("quics: ", err)
 		return err
 	}
+
+	// do fullscan in goroutine
+	go func() {
+		_, err := sh.syncService.Rescan(&types.RescanReq{
+			UUID: request.UUID,
+		})
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+	}()
 	return nil
 }
 
@@ -185,8 +207,8 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 	h.Write([]byte(pleaseSyncReq.AfterPath))
 	hash := h.Sum(nil)
 
-	sh.psMut[uint8(hash[0]%16)].Lock()
-	defer sh.psMut[uint8(hash[0]%16)].Unlock()
+	sh.pathMut[uint8(hash[0]%16)].Lock()
+	defer sh.pathMut[uint8(hash[0]%16)].Unlock()
 
 	pleaseSyncRes, err := sh.syncService.UpdateFileWithoutContents(pleaseSyncReq)
 	if err != nil {
@@ -301,6 +323,15 @@ func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transac
 		log.Println("quics: ", err)
 		return err
 	}
+
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(request.AfterPath))
+	hash := h.Sum(nil)
+
+	sh.pathMut[uint8(hash[0]%16)].Lock()
+	defer sh.pathMut[uint8(hash[0]%16)].Unlock()
 
 	// get root directory path of requested data
 	pleaseFileRes, err := sh.syncService.ChooseOne(request)

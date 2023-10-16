@@ -79,14 +79,14 @@ func (ss *SyncService) RegisterRootDir(request *types.RootDirRegisterReq) (*type
 		return nil, err
 	}
 
-	// do fullscan in goroutine
-	go func() {
-		err := ss.FullScan(request.UUID)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-	}()
+	// // do fullscan in goroutine
+	// go func() {
+	// 	err := ss.FullScan(request.UUID)
+	// 	if err != nil {
+	// 		log.Println("quics: ", err)
+	// 		return
+	// 	}
+	// }()
 
 	return &types.RootDirRegisterRes{
 		UUID: request.UUID,
@@ -139,15 +139,6 @@ func (ss *SyncService) SyncRootDir(request *types.RootDirRegisterReq) (*types.Ro
 	response := &types.RootDirRegisterRes{
 		UUID: request.UUID,
 	}
-
-	// do fullscan in goroutine
-	go func() {
-		err := ss.FullScan(request.UUID)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-	}()
 
 	return response, nil
 }
