@@ -7,21 +7,30 @@ import (
 )
 
 type Repository interface {
+	SaveRootDir(afterPath string, rootDir *types.RootDirectory) error
+	GetRootDirByPath(afterPath string) (*types.RootDirectory, error)
+	GetAllRootDir() ([]*types.RootDirectory, error)
+
 	IsExistFileByPath(afterPath string) (bool, error)
 	SaveFileByPath(afterPath string, file *types.File) error
 	GetFileByPath(afterPath string) (*types.File, error)
 	UpdateFile(file *types.File) error
+	GetAllFiles(prefix string) ([]types.File, error)
+
 	UpdateConflict(afterpath string, conflict *types.Conflict) error
 	GetConflict(afterpath string) (*types.Conflict, error)
 	GetConflictList(rootDirs []string) ([]types.Conflict, error)
 	DeleteConflict(afterpath string) error
-	GetAllFiles() []*types.File
 
 	ErrKeyNotFound() error
 }
 
 type Service interface {
+	RegisterRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error)
 	SyncRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error)
+	GetRootDirList() (*types.AskRootDirRes, error)
+	GetRootDirByPath(afterPath string) (*types.RootDirectory, error)
+
 	UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error)
 	UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileMetadata *types.FileMetadata, fileContent io.Reader) (*types.PleaseTakeRes, error)
 	CallMustSync(filePath string, UUIDs []string) error
@@ -30,8 +39,11 @@ type Service interface {
 	ChooseOne(request *types.PleaseFileReq) (*types.PleaseFileRes, error)
 	CallForceSync(filePath string, UUIDs []string) error
 
-	GetFilesByRootDir(rootDirPath string) []*types.File
-	GetFiles() []*types.File
+	FullScan(uuid string) error
+	BackgroundFullScan(interval uint64) error
+
+	GetFilesByRootDir(rootDirPath string) []types.File
+	GetFiles() []types.File
 	GetFileByPath(afterPath string) (*types.File, error)
 }
 
@@ -53,5 +65,7 @@ type NetworkAdapter interface {
 type Transaction interface {
 	RequestMustSync(*types.MustSyncReq) (*types.MustSyncRes, error)
 	RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePath string) (*types.GiveYouRes, error)
+	RequestAskAllMeta(askAllMetaReq *types.AskAllMetaReq) (*types.AskAllMetaRes, error)
+	RequestNeedSync(needSyncReq *types.NeedSyncReq) (*types.NeedSyncRes, error)
 	Close() error
 }

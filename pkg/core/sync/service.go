@@ -25,7 +25,7 @@ type SyncService struct {
 	syncDirAdapter         SyncDirAdapter
 }
 
-func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository, networkAdapter NetworkAdapter, syncDirAdpater SyncDirAdapter) *SyncService {
+func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository, networkAdapter NetworkAdapter, syncDirAdpater SyncDirAdapter) Service {
 	cancel := make(map[string]context.CancelFunc)
 	return &SyncService{
 		cancel:                 cancel,
@@ -37,6 +37,61 @@ func NewService(registrationRepository registration.Repository, historyRepositor
 	}
 }
 
+// RegisterRootDir registers initial root directory to client database
+func (ss *SyncService) RegisterRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error) {
+	_, err := ss.syncRepository.GetRootDirByPath(request.AfterPath)
+	if err == nil {
+		return nil, errors.New("root dir is already exists")
+	} else if err != ss.syncRepository.ErrKeyNotFound() && err != nil {
+		return nil, err
+	}
+
+	// get client entity by uuid in request data
+	client, err := ss.registrationRepository.GetClientByUUID(request.UUID)
+	if err != nil {
+		return nil, err
+	}
+
+	UUIDs := make([]string, 0)
+	UUIDs = append(UUIDs, request.UUID)
+
+	// create root directory entity
+	rootDir := &types.RootDirectory{
+		BeforePath: utils.GetQuicsSyncDirPath(),
+		AfterPath:  request.AfterPath,
+		Owner:      client.UUID,
+		Password:   request.RootDirPassword,
+		UUIDs:      UUIDs,
+	}
+	rootDirs := append(client.Root, *rootDir)
+	client.Root = rootDirs
+
+	// save updated client entity
+	err = ss.registrationRepository.SaveClient(client.UUID, client)
+	if err != nil {
+		return nil, err
+	}
+
+	// save requested root directory
+	err = ss.syncRepository.SaveRootDir(request.AfterPath, rootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// do fullscan in goroutine
+	go func() {
+		err := ss.FullScan(request.UUID)
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+	}()
+
+	return &types.RootDirRegisterRes{
+		UUID: request.UUID,
+	}, nil
+}
+
 // SyncRootDir syncs root directory to other client from owner client
 func (ss *SyncService) SyncRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error) {
 	client, err := ss.registrationRepository.GetClientByUUID(request.UUID)
@@ -45,7 +100,7 @@ func (ss *SyncService) SyncRootDir(request *types.RootDirRegisterReq) (*types.Ro
 		return nil, err
 	}
 
-	rootDir, err := ss.registrationRepository.GetRootDirByPath(request.AfterPath)
+	rootDir, err := ss.syncRepository.GetRootDirByPath(request.AfterPath)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
@@ -60,7 +115,7 @@ func (ss *SyncService) SyncRootDir(request *types.RootDirRegisterReq) (*types.Ro
 		// add client UUID to root directory
 		rootDir.UUIDs = append(rootDir.UUIDs, client.UUID)
 	}
-	err = ss.registrationRepository.SaveRootDir(rootDir.AfterPath, rootDir)
+	err = ss.syncRepository.SaveRootDir(rootDir.AfterPath, rootDir)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
@@ -83,7 +138,46 @@ func (ss *SyncService) SyncRootDir(request *types.RootDirRegisterReq) (*types.Ro
 	response := &types.RootDirRegisterRes{
 		UUID: request.UUID,
 	}
+
+	// do fullscan in goroutine
+	go func() {
+		err := ss.FullScan(request.UUID)
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+	}()
+
 	return response, nil
+}
+
+// GetRootDirList gets root directory list of client
+func (ss *SyncService) GetRootDirList() (*types.AskRootDirRes, error) {
+	rootDirs, err := ss.syncRepository.GetAllRootDir()
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	rootDirNames := []string{}
+	for _, rootDir := range rootDirs {
+		rootDirNames = append(rootDirNames, rootDir.AfterPath)
+	}
+	askRootDirRes := &types.AskRootDirRes{
+		RootDirList: rootDirNames,
+	}
+
+	return askRootDirRes, err
+}
+
+// GetRootDirByPath gets root directory by path
+func (ss *SyncService) GetRootDirByPath(path string) (*types.RootDirectory, error) {
+	rootDir, err := ss.syncRepository.GetRootDirByPath(path)
+	if err != nil {
+		log.Println("quics: ", err)
+	}
+
+	return rootDir, err
 }
 
 // GetFileMetadataForPleaseSync returns file metadata by path
@@ -340,7 +434,7 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 
 		go func() {
 			// extract root directory of this file
-			rootDir, err := ss.registrationRepository.GetRootDirByPath(file.RootDirKey)
+			rootDir, err := ss.syncRepository.GetRootDirByPath(file.RootDirKey)
 			if err != nil {
 				log.Println("quics: ", err)
 				return
@@ -648,7 +742,7 @@ func (ss *SyncService) ChooseOne(request *types.PleaseFileReq) (*types.PleaseFil
 
 	go func() {
 		// extract root directory of this file
-		rootDir, err := ss.registrationRepository.GetRootDirByPath(file.RootDirKey)
+		rootDir, err := ss.syncRepository.GetRootDirByPath(file.RootDirKey)
 		if err != nil {
 			log.Println("quics: ", err)
 			return
@@ -775,23 +869,128 @@ func (ss *SyncService) CallForceSync(filePath string, UUIDs []string) error {
 	return nil
 }
 
-// GetFilesByRootDir returns files by root directory path
-func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []*types.File {
-	filesByRootDir := make([]*types.File, 0)
-	files := ss.syncRepository.GetAllFiles()
+func (ss *SyncService) FullScan(uuid string) error {
+	client, err := ss.registrationRepository.GetClientByUUID(uuid)
+	if err != nil {
+		return err
+	}
 
-	for _, file := range files {
-		if file.RootDirKey == rootDirPath {
-			filesByRootDir = append(files, file)
+	transaction, err := ss.networkAdapter.OpenTransaction(types.FULLSCAN, uuid)
+	if err != nil {
+		return err
+	}
+
+	askAllMetaReq := &types.AskAllMetaReq{
+		UUID: uuid,
+	}
+
+	askAllMetaRes, err := transaction.RequestAskAllMeta(askAllMetaReq)
+	if err != nil {
+		return err
+	}
+
+	if askAllMetaRes.UUID != uuid {
+		return errors.New("quics: UUID is not equal")
+	}
+
+	for _, rootDir := range client.Root {
+		allFiles, err := ss.syncRepository.GetAllFiles(rootDir.AfterPath)
+		if err != nil {
+			return err
+		}
+		for _, file := range allFiles {
+			if !reflect.ValueOf(file.Conflict).IsZero() {
+				continue
+			}
+
+			exist := false
+			for _, clientFile := range askAllMetaRes.SyncMetaList {
+				if file.AfterPath == clientFile.AfterPath {
+					exist = true
+					if clientFile.LastUpdateTimestamp == clientFile.LastSyncTimestamp && file.LatestSyncTimestamp > clientFile.LastUpdateTimestamp {
+						// need must synce
+						if file.NeedForceSync {
+							err = ss.CallForceSync(file.AfterPath, []string{uuid})
+							if err != nil {
+								log.Println("quics: ", err)
+								break
+							}
+						} else {
+							err = ss.CallMustSync(file.AfterPath, []string{uuid})
+							if err != nil {
+								log.Println("quics: ", err)
+								break
+							}
+						}
+					}
+					break
+				}
+			}
+			if !exist {
+				// need must sync
+				if file.NeedForceSync {
+					err = ss.CallForceSync(file.AfterPath, []string{uuid})
+					if err != nil {
+						log.Println("quics: ", err)
+						break
+					}
+				} else {
+					err = ss.CallMustSync(file.AfterPath, []string{uuid})
+					if err != nil {
+						log.Println("quics: ", err)
+						break
+					}
+				}
+			}
+
 		}
 	}
 
-	return filesByRootDir
+	return nil
+}
+
+func (ss *SyncService) BackgroundFullScan(secInterval uint64) error {
+	go func() {
+		for {
+			time.Sleep(time.Duration(secInterval) * time.Second)
+			clients, err := ss.registrationRepository.GetAllClients()
+			if err != nil {
+				log.Println("quics: ", err)
+				continue
+			}
+
+			for _, client := range clients {
+				err = ss.FullScan(client.UUID)
+				if err != nil {
+					log.Println("quics: ", err)
+					continue
+				}
+			}
+		}
+	}()
+	return nil
+}
+
+// GetFilesByRootDir returns files by root directory path
+func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []types.File {
+	files, err := ss.syncRepository.GetAllFiles(rootDirPath)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil
+	}
+
+	return files
 }
 
 // GetFiles returns all files in database
-func (ss *SyncService) GetFiles() []*types.File {
-	return ss.syncRepository.GetAllFiles()
+func (ss *SyncService) GetFiles() []types.File {
+
+	files, err := ss.syncRepository.GetAllFiles("")
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil
+	}
+	return files
 }
 
 // GetFileByPath returns file entity by path

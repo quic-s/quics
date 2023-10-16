@@ -165,6 +165,38 @@ type LinkShareRes struct {
 	MaxCount uint
 }
 
+type AskAllMetaReq struct {
+	UUID string
+}
+
+type AskAllMetaRes struct {
+	UUID         string
+	SyncMetaList []SyncMetadata
+}
+
+type SyncMetadata struct { // Per file
+	BeforePath          string
+	AfterPath           string
+	LastUpdateTimestamp uint64 // Local File changed time
+	LastUpdateHash      string
+	LastSyncTimestamp   uint64 // Sync Success Time
+	LastSyncHash        string
+}
+
+type NeedSyncReq struct {
+	UUID        string
+	FileNeedPSs []FileNeedPS
+}
+
+type FileNeedPS struct {
+	AfterPath string
+	Event     string
+}
+
+type NeedSyncRes struct {
+	UUID string
+}
+
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
@@ -571,4 +603,69 @@ func (linkShareRes *LinkShareRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(linkShareRes)
+}
+
+func (askAllMetaReq *AskAllMetaReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askAllMetaReq); err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askAllMetaReq *AskAllMetaReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askAllMetaReq)
+}
+
+func (askAllMetaRes *AskAllMetaRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askAllMetaRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askAllMetaRes *AskAllMetaRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askAllMetaRes)
+}
+
+func (needSyncReq *NeedSyncReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needSyncReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needSyncReq *NeedSyncReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needSyncReq)
+}
+
+func (needSyncRes *NeedSyncRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needSyncRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needSyncRes *NeedSyncRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needSyncRes)
 }
