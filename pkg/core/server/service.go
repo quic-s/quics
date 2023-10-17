@@ -42,13 +42,10 @@ func (ss *ServerService) ListenProtocol() error {
 
 	// listen protocol using goroutine
 	go func() {
-		err := ss.quics.Start()
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
+		// listen quics-protocol
+		ss.quics.Start()
 
-		err = ss.quics.Close()
+		err := ss.quics.Close()
 		if err != nil {
 			log.Println("quics: ", err)
 			return
@@ -149,7 +146,7 @@ func (ss *ServerService) ShowFileLogs(all string, id string) error {
 		}
 
 		for _, file := range files {
-			fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDir.AfterPath, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
+			fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDirKey, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
 		}
 
 		return nil
@@ -162,7 +159,7 @@ func (ss *ServerService) ShowFileLogs(all string, id string) error {
 			return err
 		}
 
-		fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDir.AfterPath, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
+		fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDirKey, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
 
 		return nil
 	}
