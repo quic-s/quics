@@ -138,8 +138,17 @@ func (s *SyncDir) GetFileFromConflictDir(afterPath string, uuid string) (*types.
 	return types.NewFileMetadataFromOSFileInfo(fileInfo), file, nil
 }
 
-func (s *SyncDir) DeleteFilesFromConflictDir(afterpath string) error {
-	rootToFileDir, fileName := filepath.Split(afterpath)
+func (s *SyncDir) DeleteFilesFromConflictDir(afterPath string) error {
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(afterPath))
+	hash := h.Sum(nil)
+
+	s.pathMut[uint8(hash[0]%s.lockNum)].Lock()
+	defer s.pathMut[uint8(hash[0]%s.lockNum)].Unlock()
+
+	rootToFileDir, fileName := filepath.Split(afterPath)
 	// 정규식 객체를 생성합니다.
 	re, err := regexp.Compile("^" + fileName + "_.*")
 	if err != nil {

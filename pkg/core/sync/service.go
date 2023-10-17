@@ -650,22 +650,26 @@ func (ss *SyncService) ChooseOne(request *types.PleaseFileReq) (*types.PleaseFil
 
 	// save file to {rootDir}
 	if request.Side == "server" {
-		fileMetadata, fileContent, err := ss.syncDirAdapter.GetFileFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
-		if err != nil {
-			return nil, err
+		fileMetadata, fileContent := &types.FileMetadata{}, io.Reader(nil)
+		if file.ContentsExisted {
+			fileMetadata, fileContent, err = ss.syncDirAdapter.GetFileFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
+			if err != nil {
+				return nil, err
+			}
 		}
-
 		// when selected side is server
 		// save server file as new file to {rootDir}
 		file.LatestSyncTimestamp = file.LatestSyncTimestamp + 1
 		file.LatestEditClient = request.UUID
-		file.ContentsExisted = true
 		file.NeedForceSync = true
 		file.Conflict = types.Conflict{}
 
-		err = ss.syncDirAdapter.SaveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileMetadata, fileContent)
-		if err != nil {
-			return nil, err
+		// save file as new history when contents existed
+		if file.ContentsExisted {
+			err = ss.syncDirAdapter.SaveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileMetadata, fileContent)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		err = ss.syncDirAdapter.DeleteFilesFromConflictDir(file.AfterPath)
@@ -732,20 +736,22 @@ func (ss *SyncService) ChooseOne(request *types.PleaseFileReq) (*types.PleaseFil
 	// TODO: call force sync
 	// -> force sync transaction with goroutine (and end please transaction)
 
-	go func() {
-		// extract root directory of this file
-		rootDir, err := ss.syncRepository.GetRootDirByPath(file.RootDirKey)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
+	if file.ContentsExisted {
+		go func() {
+			// extract root directory of this file
+			rootDir, err := ss.syncRepository.GetRootDirByPath(file.RootDirKey)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
 
-		err = ss.CallForceSync(file.AfterPath, rootDir.UUIDs)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-	}()
+			err = ss.CallForceSync(file.AfterPath, rootDir.UUIDs)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+		}()
+	}
 
 	response := &types.PleaseFileRes{
 		UUID:      request.UUID,

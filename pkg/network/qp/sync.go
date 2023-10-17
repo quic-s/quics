@@ -13,14 +13,16 @@ import (
 )
 
 type SyncHandler struct {
+	lockNum     uint8
 	pathMut     map[byte]*stdsync.Mutex
 	syncService sync.Service
 }
 
 func NewSyncHandler(service sync.Service) *SyncHandler {
+	lockNum := uint8(32)
 	pathMut := make(map[byte]*stdsync.Mutex)
 
-	for i := uint8(0); i < 16; i++ {
+	for i := uint8(0); i < lockNum; i++ {
 		pathMut[i] = &stdsync.Mutex{}
 	}
 	return &SyncHandler{
@@ -207,8 +209,8 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 	h.Write([]byte(pleaseSyncReq.AfterPath))
 	hash := h.Sum(nil)
 
-	sh.pathMut[uint8(hash[0]%16)].Lock()
-	defer sh.pathMut[uint8(hash[0]%16)].Unlock()
+	sh.pathMut[uint8(hash[0]%sh.lockNum)].Lock()
+	defer sh.pathMut[uint8(hash[0]%sh.lockNum)].Unlock()
 
 	pleaseSyncRes, err := sh.syncService.UpdateFileWithoutContents(pleaseSyncReq)
 	if err != nil {
@@ -330,8 +332,8 @@ func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transac
 	h.Write([]byte(request.AfterPath))
 	hash := h.Sum(nil)
 
-	sh.pathMut[uint8(hash[0]%16)].Lock()
-	defer sh.pathMut[uint8(hash[0]%16)].Unlock()
+	sh.pathMut[uint8(hash[0]%sh.lockNum)].Lock()
+	defer sh.pathMut[uint8(hash[0]%sh.lockNum)].Unlock()
 
 	// get root directory path of requested data
 	pleaseFileRes, err := sh.syncService.ChooseOne(request)
