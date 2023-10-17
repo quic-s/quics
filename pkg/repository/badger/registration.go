@@ -61,6 +61,50 @@ func (rr *RegistrationRepository) GetClientByUUID(uuid string) (*types.Client, e
 	return client, nil
 }
 
+func (rr *RegistrationRepository) SaveRootDir(afterPath string, rootDir *types.RootDirectory) error {
+	key := []byte(PrefixRootDir + afterPath)
+
+	err := rr.db.Update(func(txn *badger.Txn) error {
+		err := txn.Set(key, rootDir.Encode())
+		return err
+	})
+	if err != nil {
+		log.Println("quics: (SaveClient) ", err)
+		return err
+	}
+	return nil
+}
+
+func (rr *RegistrationRepository) GetRootDirByPath(afterPath string) (*types.RootDirectory, error) {
+	key := []byte(PrefixRootDir + afterPath)
+
+	var rootDir *types.RootDirectory
+
+	err := rr.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return err
+		}
+
+		rootDir = &types.RootDirectory{}
+		if err := rootDir.Decode(val); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return rootDir, nil
+}
+
 // GetAllClients gets all clients
 func (rr *RegistrationRepository) GetAllClients() ([]types.Client, error) {
 	clients := []types.Client{}

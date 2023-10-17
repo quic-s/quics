@@ -994,7 +994,7 @@ func (ss *SyncService) Rescan(request *types.RescanReq) (*types.RescanRes, error
 }
 
 // GetFilesByRootDir returns files by root directory path
-func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []types.File {
+func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []*types.File {
 	files, err := ss.syncRepository.GetAllFiles(rootDirPath)
 	if err != nil {
 		log.Println("quics: ", err)
@@ -1005,7 +1005,7 @@ func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []types.File {
 }
 
 // GetFiles returns all files in database
-func (ss *SyncService) GetFiles() []types.File {
+func (ss *SyncService) GetFiles() []*types.File {
 
 	files, err := ss.syncRepository.GetAllFiles("")
 	if err != nil {

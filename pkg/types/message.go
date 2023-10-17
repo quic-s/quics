@@ -6,6 +6,21 @@ import (
 	"log"
 )
 
+const (
+	REGISTERCLIENT  = "REGISTERCLIENT"
+	REGISTERROOTDIR = "REGISTERROOTDIR"
+	SYNCROOTDIR     = "SYNCROOTDIR"
+	GETROOTDIRS     = "GETROOTDIRS"
+	PLEASESYNC      = "PLEASESYNC"
+	MUSTSYNC        = "MUSTSYNC"
+	FORCESYNC       = "FORCESYNC"
+	CONFLICT        = "CONFLICT"
+	CONFLICTLIST    = "CONFLICTLIST"
+	CHOOSEONE       = "CHOOSEONE"
+	FULLSCAN        = "FULLSCAN"
+	RESCAN          = "RESCAN"
+)
+
 type MessageData interface {
 	Encode() ([]byte, error)
 	Decode([]byte) error

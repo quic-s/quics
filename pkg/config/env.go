@@ -29,16 +29,18 @@ func GetViperEnvVariables(key string) string {
 		sourceViper.SetConfigType("env")
 
 		if err := sourceViper.ReadInConfig(); err != nil {
-			log.Fatalf("quics: Error while reading source config file: %s", err)
+			log.Println("quics: ", err)
 			return ""
 		}
 
 		_, err := os.Create(envPath)
 		if err != nil {
-			log.Fatalf("quics: Error while creating config file: %s", err)
+			log.Println("quics: ", err)
+			return ""
 		}
 		if err := sourceViper.WriteConfigAs(envPath); err != nil {
-			log.Fatalf("quics: Error while writing config file: %s", err)
+			log.Println("quics: ", err)
+			return ""
 		}
 	} else if err != nil {
 		log.Panicf("quics: Error while reading config file: %s", err)

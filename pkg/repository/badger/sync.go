@@ -152,9 +152,9 @@ func (sr *SyncRepository) SaveFileByPath(path string, file *types.File) error {
 }
 
 // GetAllFiles gets all files
-func (sr *SyncRepository) GetAllFiles(prefix string) ([]types.File, error) {
+func (sr *SyncRepository) GetAllFiles(prefix string) ([]*types.File, error) {
 	key := []byte(PrefixFile + prefix)
-	files := make([]types.File, 0)
+	files := make([]*types.File, 0)
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -175,7 +175,7 @@ func (sr *SyncRepository) GetAllFiles(prefix string) ([]types.File, error) {
 				return err
 			}
 
-			files = append(files, *file)
+			files = append(files, file)
 		}
 
 		return nil
