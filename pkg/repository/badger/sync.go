@@ -59,8 +59,8 @@ func (sr *SyncRepository) GetRootDirByPath(afterPath string) (*types.RootDirecto
 	return rootDir, nil
 }
 
-func (sr *SyncRepository) GetAllRootDir() ([]*types.RootDirectory, error) {
-	rootDirs := []*types.RootDirectory{}
+func (sr *SyncRepository) GetAllRootDir() ([]types.RootDirectory, error) {
+	rootDirs := []types.RootDirectory{}
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchSize = 10
@@ -74,7 +74,7 @@ func (sr *SyncRepository) GetAllRootDir() ([]*types.RootDirectory, error) {
 				return err
 			}
 
-			rootDir := &types.RootDirectory{}
+			rootDir := types.RootDirectory{}
 			if err := rootDir.Decode(val); err != nil {
 				return err
 			}
@@ -152,9 +152,9 @@ func (sr *SyncRepository) SaveFileByPath(path string, file *types.File) error {
 }
 
 // GetAllFiles gets all files
-func (sr *SyncRepository) GetAllFiles(prefix string) ([]*types.File, error) {
+func (sr *SyncRepository) GetAllFiles(prefix string) ([]types.File, error) {
 	key := []byte(PrefixFile + prefix)
-	files := make([]*types.File, 0)
+	files := []types.File{}
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -170,7 +170,7 @@ func (sr *SyncRepository) GetAllFiles(prefix string) ([]*types.File, error) {
 				return err
 			}
 
-			file := &types.File{}
+			file := types.File{}
 			if err := file.Decode(val); err != nil {
 				return err
 			}

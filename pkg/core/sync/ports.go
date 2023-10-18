@@ -9,13 +9,13 @@ import (
 type Repository interface {
 	SaveRootDir(afterPath string, rootDir *types.RootDirectory) error
 	GetRootDirByPath(afterPath string) (*types.RootDirectory, error)
-	GetAllRootDir() ([]*types.RootDirectory, error)
+	GetAllRootDir() ([]types.RootDirectory, error)
 
 	IsExistFileByPath(afterPath string) (bool, error)
 	SaveFileByPath(afterPath string, file *types.File) error
 	GetFileByPath(afterPath string) (*types.File, error)
 	UpdateFile(file *types.File) error
-	GetAllFiles(prefix string) ([]*types.File, error)
+	GetAllFiles(prefix string) ([]types.File, error)
 
 	UpdateConflict(afterpath string, conflict *types.Conflict) error
 	GetConflict(afterpath string) (*types.Conflict, error)
@@ -43,8 +43,8 @@ type Service interface {
 	BackgroundFullScan(interval uint64) error
 	Rescan(*types.RescanReq) (*types.RescanRes, error)
 
-	GetFilesByRootDir(rootDirPath string) []*types.File
-	GetFiles() []*types.File
+	GetFilesByRootDir(rootDirPath string) []types.File
+	GetFiles() []types.File
 	GetFileByPath(afterPath string) (*types.File, error)
 }
 
