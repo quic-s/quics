@@ -897,6 +897,12 @@ func (ss *SyncService) FullScan(uuid string) error {
 			return err
 		}
 		for _, file := range allFiles {
+			if !file.ContentsExisted {
+				err := ss.CallNeedContent(&file)
+				if err != nil {
+					log.Println("quics: ", err)
+				}
+			}
 			if !reflect.ValueOf(file.Conflict).IsZero() {
 				continue
 			}
@@ -930,13 +936,13 @@ func (ss *SyncService) FullScan(uuid string) error {
 					err = ss.CallForceSync(file.AfterPath, []string{uuid})
 					if err != nil {
 						log.Println("quics: ", err)
-						break
+						continue
 					}
 				} else {
 					err = ss.CallMustSync(file.AfterPath, []string{uuid})
 					if err != nil {
 						log.Println("quics: ", err)
-						break
+						continue
 					}
 				}
 			}
@@ -988,6 +994,74 @@ func (ss *SyncService) Rescan(request *types.RescanReq) (*types.RescanRes, error
 		UUID: request.UUID,
 	}
 	return rescanRes, nil
+}
+
+func (ss *SyncService) CallNeedContent(file *types.File) error {
+	if file.ContentsExisted {
+		return errors.New("quics: file contents is already existed")
+	}
+
+	transaction, err := ss.networkAdapter.OpenTransaction(types.NEEDCONTENT, file.LatestEditClient)
+	if err != nil {
+		return err
+	}
+
+	needContentReq := &types.NeedContentReq{
+		UUID:                file.LatestEditClient,
+		AfterPath:           file.AfterPath,
+		LastUpdateTimestamp: file.LatestSyncTimestamp,
+		LastUpdateHash:      file.LatestHash,
+	}
+
+	res, fileMetadata, fileContent, err := transaction.RequestNeedContent(needContentReq)
+	if err != nil {
+		return err
+	}
+
+	if res.UUID != file.LatestEditClient {
+		return errors.New("quics: UUID is not equal")
+	}
+	if res.AfterPath != file.AfterPath {
+		return errors.New("quics: AfterPath is not equal")
+	}
+	if res.LastUpdateTimestamp != file.LatestSyncTimestamp {
+		return errors.New("quics: LastUpdateTimestamp is not equal")
+	}
+	if res.LastUpdateHash != file.LatestHash {
+		return errors.New("quics: LastUpdateHash is not equal")
+	}
+	if fileMetadata == nil {
+		return errors.New("quics: fileMetadata is nil")
+	}
+	if fileContent == nil {
+		return errors.New("quics: fileContent is nil")
+	}
+
+	// save file to history dir
+	err = ss.syncDirAdapter.SaveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileMetadata, fileContent)
+	if err != nil {
+		return err
+	}
+
+	// copy file to latest dir
+	fileMetadata, fileContent, err = ss.syncDirAdapter.GetFileFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
+	if err != nil {
+		return err
+	}
+
+	err = ss.syncDirAdapter.SaveFileToLatestDir(file.AfterPath, fileMetadata, fileContent)
+	if err != nil {
+		return err
+	}
+
+	// update file
+	file.ContentsExisted = true
+	err = ss.syncRepository.UpdateFile(file)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetFilesByRootDir returns files by root directory path

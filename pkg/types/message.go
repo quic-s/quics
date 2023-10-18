@@ -19,6 +19,7 @@ const (
 	CHOOSEONE       = "CHOOSEONE"
 	FULLSCAN        = "FULLSCAN"
 	RESCAN          = "RESCAN"
+	NEEDCONTENT     = "NEEDCONTENT"
 )
 
 type MessageData interface {

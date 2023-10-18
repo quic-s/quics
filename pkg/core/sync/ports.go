@@ -68,5 +68,6 @@ type Transaction interface {
 	RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePath string) (*types.GiveYouRes, error)
 	RequestAskAllMeta(askAllMetaReq *types.AskAllMetaReq) (*types.AskAllMetaRes, error)
 	RequestNeedSync(needSyncReq *types.NeedSyncReq) (*types.NeedSyncRes, error)
+	RequestNeedContent(needContentReq *types.NeedContentReq) (*types.NeedContentRes, *types.FileMetadata, io.Reader, error)
 	Close() error
 }

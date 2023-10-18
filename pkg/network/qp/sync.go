@@ -2,6 +2,7 @@ package qp
 
 import (
 	"crypto/sha1"
+	"io"
 	"log"
 	stdsync "sync"
 
@@ -550,4 +551,36 @@ func (t *Transaction) RequestNeedSync(needSyncReq *types.NeedSyncReq) (*types.Ne
 func (t *Transaction) Close() error {
 	t.wg.Done()
 	return nil
+}
+
+func (t *Transaction) RequestNeedContent(needContentReq *types.NeedContentReq) (*types.NeedContentRes, *types.FileMetadata, io.Reader, error) {
+	request, err := needContentReq.Encode()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	err = t.stream.SendBMessage(request)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// receive
+	res, fileInfo, content, err := t.stream.RecvFileBMessage()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	needContentRes := &types.NeedContentRes{}
+	if err := needContentRes.Decode(res); err != nil {
+		return nil, nil, nil, err
+	}
+
+	fileMetadata := &types.FileMetadata{
+		Name:    fileInfo.Name,
+		Size:    fileInfo.Size,
+		Mode:    fileInfo.Mode,
+		ModTime: fileInfo.ModTime,
+		IsDir:   fileInfo.IsDir,
+	}
+	return needContentRes, fileMetadata, content, nil
 }
