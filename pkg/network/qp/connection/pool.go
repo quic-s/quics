@@ -38,3 +38,8 @@ func (cp *Pool) GetConnections(uuid []string) ([]*qp.Connection, error) {
 	}
 	return conns, nil
 }
+
+func (cp *Pool) DeleteConnection(uuid string) error {
+	delete(cp.Conns, uuid)
+	return nil
+}

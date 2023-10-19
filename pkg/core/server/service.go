@@ -1,22 +1,81 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 
-	"github.com/quic-s/quics/pkg/app"
+	"github.com/quic-s/quics/pkg/config"
+	"github.com/quic-s/quics/pkg/core/registration"
+	"github.com/quic-s/quics/pkg/core/sync"
+	"github.com/quic-s/quics/pkg/fs"
+	"github.com/quic-s/quics/pkg/network/qp"
+	"github.com/quic-s/quics/pkg/network/qp/connection"
+	"github.com/quic-s/quics/pkg/repository/badger"
+	"github.com/quic-s/quics/pkg/types"
+	"github.com/quic-s/quics/pkg/utils"
 )
 
 type ServerService struct {
-	quics            *app.App
+	port     int
+	password string
+	repo     *badger.Badger
+	Proto    *qp.Protocol
+
+	syncService sync.Service
+
 	serverRepository Repository
 }
 
-func NewService(app *app.App, serverRepository Repository) *ServerService {
-	return &ServerService{
-		quics:            app,
-		serverRepository: serverRepository,
+func NewService(repo *badger.Badger, serverRepository Repository) (Service, error) {
+	// get env variables (server password, port)
+	password := config.GetViperEnvVariables("PASSWORD")
+	port, err := strconv.Atoi(config.GetViperEnvVariables("QUICS_PORT"))
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
 	}
+
+	pool := connection.NewnPool()
+
+	registrationRepository := repo.NewRegistrationRepository()
+	registrationNetworkAdapter := qp.NewRegistrationAdapter(pool)
+	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
+	registrationHandler := qp.NewRegistrationHandler(registrationService)
+
+	historyRepository := repo.NewHistoryRepository()
+	syncNetworkAdapter := qp.NewSyncAdapter(pool)
+	syncDirAdapter := fs.NewSyncDir(utils.GetQuicsSyncDirPath())
+
+	syncRepository := repo.NewSyncRepository()
+	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
+	syncHandler := qp.NewSyncHandler(syncService)
+
+	proto, err := qp.New("0.0.0.0", port, pool)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
+	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, syncHandler.RegisterRootDir)
+	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
+	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, syncHandler.GetRemoteDirs)
+	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
+	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
+	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
+	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
+
+	return &ServerService{
+		port:     port,
+		password: password,
+		repo:     repo,
+
+		syncService:      syncService,
+		serverRepository: serverRepository,
+	}, nil
 }
 
 // StopServer stop quic-s server
@@ -25,11 +84,16 @@ func (ss *ServerService) StopServer() error {
 	fmt.Println("                           Stop                             ")
 	fmt.Println("************************************************************")
 
-	err := ss.quics.Stop()
-	if err != nil {
-		log.Println("quics: ", err)
-		return err
-	}
+	go func() {
+		err := ss.repo.Close()
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+
+		log.Println("quics: Closed")
+		os.Exit(0)
+	}()
 
 	return nil
 }
@@ -40,21 +104,31 @@ func (ss *ServerService) ListenProtocol() error {
 	fmt.Println("                     Listen Protocol                        ")
 	fmt.Println("************************************************************")
 
-	// listen protocol using goroutine
-	go func() {
-		// listen quics-protocol
-		ss.quics.Start()
-
-		err := ss.quics.Close()
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-
-		return
-	}()
+	// start quics protocol server
+	ss.syncService.BackgroundFullScan(300)
+	err := ss.Proto.Start()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
 
 	return nil
+}
+
+func (ss *ServerService) Ping(request *types.Ping) (*types.Ping, error) {
+	client, err := ss.serverRepository.GetClientByUUID(request.UUID)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	if request.UUID != client.UUID {
+		return nil, errors.New("quics: (Ping) UUID is not correct")
+	}
+
+	return &types.Ping{
+		UUID: request.UUID,
+	}, nil
 }
 
 func (ss *ServerService) ShowClientLogs(all string, id string) error {

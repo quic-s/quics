@@ -347,6 +347,7 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 				return nil, err
 			}
 		}
+
 		file.Conflict.StagingFiles[pleaseSyncReq.UUID] = types.FileHistory{
 			Date:      time.Now().String(),
 			UUID:      pleaseSyncReq.UUID,
@@ -460,7 +461,10 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 		// save file to {rootDir}.conflict
 		err = ss.syncDirAdapter.SaveFileToConflictDir(pleaseTakeReq.UUID, file.AfterPath, fileMetadata, fileContent)
 		if err != nil {
-			log.Println("quics: ", err)
+			// delete staging file info from conflict info when error occurred
+			delete(file.Conflict.StagingFiles, pleaseTakeReq.UUID)
+			ss.syncRepository.UpdateFile(file)
+			ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
 			return nil, err
 		}
 

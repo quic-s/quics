@@ -20,6 +20,7 @@ const (
 	FULLSCAN        = "FULLSCAN"
 	RESCAN          = "RESCAN"
 	NEEDCONTENT     = "NEEDCONTENT"
+	PING            = "PING"
 )
 
 type MessageData interface {
@@ -234,6 +235,10 @@ type NeedContentRes struct {
 	AfterPath           string
 	LastUpdateTimestamp uint64
 	LastUpdateHash      string
+}
+
+type Ping struct {
+	UUID string
 }
 
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
@@ -771,4 +776,20 @@ func (needContentRes *NeedContentRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(needContentRes)
+}
+
+func (ping *Ping) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(ping); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (ping *Ping) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(ping)
 }

@@ -20,6 +20,7 @@ type Repository interface {
 type Service interface {
 	StopServer() error
 	ListenProtocol() error
+	Ping(request *types.Ping) (*types.Ping, error)
 	ShowClientLogs(all string, id string) error
 	ShowDirLogs(all string, id string) error
 	ShowFileLogs(all string, id string) error
