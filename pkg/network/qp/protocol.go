@@ -46,6 +46,12 @@ func New(ip string, port int, pool *connection.Pool) (*Protocol, error) {
 		NextProtos:   []string{"quic-s"},
 	}
 
+	err = proto.RecvTransactionHandleFunc(types.PING, ping)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
 	return &Protocol{
 		udpaddr: UDPAddr,
 		tlsConf: tlsConfig,
@@ -81,6 +87,23 @@ func (p *Protocol) RecvTransactionHandleFunc(transactionName string, handleFunc 
 		return nil
 	}
 	err := p.Proto.RecvTransactionHandleFunc(transactionName, handleFunc)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+	return nil
+}
+
+func ping(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: Ping received ", conn.Conn.RemoteAddr().String())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(data)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err

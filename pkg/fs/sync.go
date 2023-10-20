@@ -1,28 +1,50 @@
 package fs
 
 import (
+	"crypto/sha1"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	"github.com/quic-s/quics/pkg/types"
 	"github.com/quic-s/quics/pkg/utils"
 )
 
 type SyncDir struct {
+	lockNum uint8
+	pathMut map[byte]*sync.Mutex
 	SyncDir string
 }
 
 func NewSyncDir(syncDir string) *SyncDir {
+	lockNum := uint8(32)
+	pathMut := make(map[byte]*sync.Mutex)
+
+	for i := uint8(0); i < lockNum; i++ {
+		pathMut[i] = &sync.Mutex{}
+	}
+
 	return &SyncDir{
+		lockNum: uint8(lockNum),
+		pathMut: pathMut,
 		SyncDir: syncDir,
 	}
 }
 
 // SyncFileToLatestDir creates/updates sync file to latest directory
 func (s *SyncDir) SaveFileToLatestDir(afterPath string, fileMetadata *types.FileMetadata, fileContent io.Reader) error {
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(afterPath))
+	hash := h.Sum(nil)
+
+	s.pathMut[uint8(hash[0]%s.lockNum)].Lock()
+	defer s.pathMut[uint8(hash[0]%s.lockNum)].Unlock()
+
 	latestFilePath := filepath.Join(s.SyncDir, afterPath)
 
 	err := fileMetadata.WriteFileWithInfo(latestFilePath, fileContent)
@@ -53,12 +75,38 @@ func (s *SyncDir) GetFileFromLatestDir(afterPath string) (*types.FileMetadata, i
 }
 
 func (s *SyncDir) DeleteFileFromLatestDir(afterPath string) error {
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(afterPath))
+	hash := h.Sum(nil)
+
+	s.pathMut[uint8(hash[0]%s.lockNum)].Lock()
+	defer s.pathMut[uint8(hash[0]%s.lockNum)].Unlock()
+
 	latestFilePath := filepath.Join(s.SyncDir, afterPath)
 
 	err := os.Remove(latestFilePath)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
+	}
+
+	reootToFile, _ := filepath.Split(afterPath)
+	latestFileDir := filepath.Join(s.SyncDir, reootToFile)
+	dir, err := os.Open(latestFileDir)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	// Delete directory when it is empty
+	files, err := dir.Readdir(-1)
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		os.Remove(filepath.Join(latestFileDir))
 	}
 
 	return nil
@@ -90,8 +138,17 @@ func (s *SyncDir) GetFileFromConflictDir(afterPath string, uuid string) (*types.
 	return types.NewFileMetadataFromOSFileInfo(fileInfo), file, nil
 }
 
-func (s *SyncDir) DeleteFilesFromConflictDir(afterpath string) error {
-	rootToFileDir, fileName := filepath.Split(afterpath)
+func (s *SyncDir) DeleteFilesFromConflictDir(afterPath string) error {
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(afterPath))
+	hash := h.Sum(nil)
+
+	s.pathMut[uint8(hash[0]%s.lockNum)].Lock()
+	defer s.pathMut[uint8(hash[0]%s.lockNum)].Unlock()
+
+	rootToFileDir, fileName := filepath.Split(afterPath)
 	// 정규식 객체를 생성합니다.
 	re, err := regexp.Compile("^" + fileName + "_.*")
 	if err != nil {
@@ -121,11 +178,30 @@ func (s *SyncDir) DeleteFilesFromConflictDir(afterpath string) error {
 			}
 		}
 	}
+
+	// Delete directory when it is empty
+	files, err = dir.Readdir(-1)
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		os.Remove(filepath.Join(s.SyncDir, rootDir+".conflict", fileDir))
+	}
+
 	return nil
 }
 
 // SyncFileToHistoryDir creates/updates sync file to history directory
 func (s *SyncDir) SaveFileToHistoryDir(afterPath string, timestamp uint64, fileMetadata *types.FileMetadata, fileContent io.Reader) error {
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(afterPath))
+	hash := h.Sum(nil)
+
+	s.pathMut[uint8(hash[0]%s.lockNum)].Lock()
+	defer s.pathMut[uint8(hash[0]%s.lockNum)].Unlock()
+
 	// create history directory
 	historyFilePath := utils.GetHistoryFileNameByAfterPath(afterPath, timestamp)
 

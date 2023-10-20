@@ -10,10 +10,10 @@ import (
 )
 
 type Repository interface {
-	NewHistoryRepository() *history.Repository
-	NewMetadataRepository() *metadata.Repository
-	NewRegistrationRepository() *registration.Repository
-	NewServerRepository() *server.Repository
-	NewSharingRepository() *sharing.Repository
-	NewSyncRepository() *sync.Repository
+	NewHistoryRepository() history.Repository
+	NewMetadataRepository() metadata.Repository
+	NewRegistrationRepository() registration.Repository
+	NewServerRepository() server.Repository
+	NewSharingRepository() sharing.Repository
+	NewSyncRepository() sync.Repository
 }

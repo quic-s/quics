@@ -19,6 +19,8 @@ const (
 	CHOOSEONE       = "CHOOSEONE"
 	FULLSCAN        = "FULLSCAN"
 	RESCAN          = "RESCAN"
+	NEEDCONTENT     = "NEEDCONTENT"
+	PING            = "PING"
 )
 
 type MessageData interface {
@@ -218,6 +220,24 @@ type FileNeedPS struct {
 }
 
 type NeedSyncRes struct {
+	UUID string
+}
+
+type NeedContentReq struct {
+	UUID                string
+	AfterPath           string
+	LastUpdateTimestamp uint64
+	LastUpdateHash      string
+}
+
+type NeedContentRes struct {
+	UUID                string
+	AfterPath           string
+	LastUpdateTimestamp uint64
+	LastUpdateHash      string
+}
+
+type Ping struct {
 	UUID string
 }
 
@@ -724,4 +744,52 @@ func (needSyncRes *NeedSyncRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(needSyncRes)
+}
+
+func (needContentReq *NeedContentReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needContentReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needContentReq *NeedContentReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needContentReq)
+}
+
+func (needContentRes *NeedContentRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(needContentRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (needContentRes *NeedContentRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(needContentRes)
+}
+
+func (ping *Ping) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(ping); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (ping *Ping) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(ping)
 }

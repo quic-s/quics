@@ -2,6 +2,7 @@ package qp
 
 import (
 	"crypto/sha1"
+	"io"
 	"log"
 	stdsync "sync"
 
@@ -13,18 +14,20 @@ import (
 )
 
 type SyncHandler struct {
-	psMut       map[byte]*stdsync.Mutex
+	lockNum     uint8
+	pathMut     map[byte]*stdsync.Mutex
 	syncService sync.Service
 }
 
 func NewSyncHandler(service sync.Service) *SyncHandler {
-	psMut := make(map[byte]*stdsync.Mutex)
+	lockNum := uint8(32)
+	pathMut := make(map[byte]*stdsync.Mutex)
 
-	for i := uint8(0); i < 16; i++ {
-		psMut[i] = &stdsync.Mutex{}
+	for i := uint8(0); i < lockNum; i++ {
+		pathMut[i] = &stdsync.Mutex{}
 	}
 	return &SyncHandler{
-		psMut:       psMut,
+		pathMut:     pathMut,
 		syncService: service,
 	}
 }
@@ -66,6 +69,17 @@ func (sh *SyncHandler) RegisterRootDir(conn *qp.Connection, stream *qp.Stream, t
 		log.Println("quics: ", err)
 		return err
 	}
+
+	// do fullscan in goroutine
+	go func() {
+		_, err := sh.syncService.Rescan(&types.RescanReq{
+			UUID: request.UUID,
+		})
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+	}()
 	return nil
 }
 
@@ -108,6 +122,17 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 		log.Println("quics: ", err)
 		return err
 	}
+
+	// do fullscan in goroutine
+	go func() {
+		_, err := sh.syncService.Rescan(&types.RescanReq{
+			UUID: request.UUID,
+		})
+		if err != nil {
+			log.Println("quics: ", err)
+			return
+		}
+	}()
 	return nil
 }
 
@@ -185,8 +210,8 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 	h.Write([]byte(pleaseSyncReq.AfterPath))
 	hash := h.Sum(nil)
 
-	sh.psMut[uint8(hash[0]%16)].Lock()
-	defer sh.psMut[uint8(hash[0]%16)].Unlock()
+	sh.pathMut[uint8(hash[0]%sh.lockNum)].Lock()
+	defer sh.pathMut[uint8(hash[0]%sh.lockNum)].Unlock()
 
 	pleaseSyncRes, err := sh.syncService.UpdateFileWithoutContents(pleaseSyncReq)
 	if err != nil {
@@ -301,6 +326,15 @@ func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transac
 		log.Println("quics: ", err)
 		return err
 	}
+
+	// lock mutex by hash value of file path
+	// using hash value is to reduce the number of mutex
+	h := sha1.New()
+	h.Write([]byte(request.AfterPath))
+	hash := h.Sum(nil)
+
+	sh.pathMut[uint8(hash[0]%sh.lockNum)].Lock()
+	defer sh.pathMut[uint8(hash[0]%sh.lockNum)].Unlock()
 
 	// get root directory path of requested data
 	pleaseFileRes, err := sh.syncService.ChooseOne(request)
@@ -517,4 +551,36 @@ func (t *Transaction) RequestNeedSync(needSyncReq *types.NeedSyncReq) (*types.Ne
 func (t *Transaction) Close() error {
 	t.wg.Done()
 	return nil
+}
+
+func (t *Transaction) RequestNeedContent(needContentReq *types.NeedContentReq) (*types.NeedContentRes, *types.FileMetadata, io.Reader, error) {
+	request, err := needContentReq.Encode()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	err = t.stream.SendBMessage(request)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// receive
+	res, fileInfo, content, err := t.stream.RecvFileBMessage()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	needContentRes := &types.NeedContentRes{}
+	if err := needContentRes.Decode(res); err != nil {
+		return nil, nil, nil, err
+	}
+
+	fileMetadata := &types.FileMetadata{
+		Name:    fileInfo.Name,
+		Size:    fileInfo.Size,
+		Mode:    fileInfo.Mode,
+		ModTime: fileInfo.ModTime,
+		IsDir:   fileInfo.IsDir,
+	}
+	return needContentRes, fileMetadata, content, nil
 }

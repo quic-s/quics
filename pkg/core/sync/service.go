@@ -79,14 +79,14 @@ func (ss *SyncService) RegisterRootDir(request *types.RootDirRegisterReq) (*type
 		return nil, err
 	}
 
-	// do fullscan in goroutine
-	go func() {
-		err := ss.FullScan(request.UUID)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-	}()
+	// // do fullscan in goroutine
+	// go func() {
+	// 	err := ss.FullScan(request.UUID)
+	// 	if err != nil {
+	// 		log.Println("quics: ", err)
+	// 		return
+	// 	}
+	// }()
 
 	return &types.RootDirRegisterRes{
 		UUID: request.UUID,
@@ -139,15 +139,6 @@ func (ss *SyncService) SyncRootDir(request *types.RootDirRegisterReq) (*types.Ro
 	response := &types.RootDirRegisterRes{
 		UUID: request.UUID,
 	}
-
-	// do fullscan in goroutine
-	go func() {
-		err := ss.FullScan(request.UUID)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-	}()
 
 	return response, nil
 }
@@ -356,6 +347,7 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 				return nil, err
 			}
 		}
+
 		file.Conflict.StagingFiles[pleaseSyncReq.UUID] = types.FileHistory{
 			Date:      time.Now().String(),
 			UUID:      pleaseSyncReq.UUID,
@@ -469,7 +461,10 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 		// save file to {rootDir}.conflict
 		err = ss.syncDirAdapter.SaveFileToConflictDir(pleaseTakeReq.UUID, file.AfterPath, fileMetadata, fileContent)
 		if err != nil {
-			log.Println("quics: ", err)
+			// delete staging file info from conflict info when error occurred
+			delete(file.Conflict.StagingFiles, pleaseTakeReq.UUID)
+			ss.syncRepository.UpdateFile(file)
+			ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
 			return nil, err
 		}
 
@@ -659,22 +654,26 @@ func (ss *SyncService) ChooseOne(request *types.PleaseFileReq) (*types.PleaseFil
 
 	// save file to {rootDir}
 	if request.Side == "server" {
-		fileMetadata, fileContent, err := ss.syncDirAdapter.GetFileFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
-		if err != nil {
-			return nil, err
+		fileMetadata, fileContent := &types.FileMetadata{}, io.Reader(nil)
+		if file.ContentsExisted {
+			fileMetadata, fileContent, err = ss.syncDirAdapter.GetFileFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
+			if err != nil {
+				return nil, err
+			}
 		}
-
 		// when selected side is server
 		// save server file as new file to {rootDir}
 		file.LatestSyncTimestamp = file.LatestSyncTimestamp + 1
 		file.LatestEditClient = request.UUID
-		file.ContentsExisted = true
 		file.NeedForceSync = true
 		file.Conflict = types.Conflict{}
 
-		err = ss.syncDirAdapter.SaveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileMetadata, fileContent)
-		if err != nil {
-			return nil, err
+		// save file as new history when contents existed
+		if file.ContentsExisted {
+			err = ss.syncDirAdapter.SaveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileMetadata, fileContent)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		err = ss.syncDirAdapter.DeleteFilesFromConflictDir(file.AfterPath)
@@ -741,20 +740,22 @@ func (ss *SyncService) ChooseOne(request *types.PleaseFileReq) (*types.PleaseFil
 	// TODO: call force sync
 	// -> force sync transaction with goroutine (and end please transaction)
 
-	go func() {
-		// extract root directory of this file
-		rootDir, err := ss.syncRepository.GetRootDirByPath(file.RootDirKey)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
+	if file.ContentsExisted {
+		go func() {
+			// extract root directory of this file
+			rootDir, err := ss.syncRepository.GetRootDirByPath(file.RootDirKey)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
 
-		err = ss.CallForceSync(file.AfterPath, rootDir.UUIDs)
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-	}()
+			err = ss.CallForceSync(file.AfterPath, rootDir.UUIDs)
+			if err != nil {
+				log.Println("quics: ", err)
+				return
+			}
+		}()
+	}
 
 	response := &types.PleaseFileRes{
 		UUID:      request.UUID,
@@ -900,6 +901,12 @@ func (ss *SyncService) FullScan(uuid string) error {
 			return err
 		}
 		for _, file := range allFiles {
+			if !file.ContentsExisted {
+				err := ss.CallNeedContent(&file)
+				if err != nil {
+					log.Println("quics: ", err)
+				}
+			}
 			if !reflect.ValueOf(file.Conflict).IsZero() {
 				continue
 			}
@@ -933,13 +940,13 @@ func (ss *SyncService) FullScan(uuid string) error {
 					err = ss.CallForceSync(file.AfterPath, []string{uuid})
 					if err != nil {
 						log.Println("quics: ", err)
-						break
+						continue
 					}
 				} else {
 					err = ss.CallMustSync(file.AfterPath, []string{uuid})
 					if err != nil {
 						log.Println("quics: ", err)
-						break
+						continue
 					}
 				}
 			}
@@ -993,8 +1000,76 @@ func (ss *SyncService) Rescan(request *types.RescanReq) (*types.RescanRes, error
 	return rescanRes, nil
 }
 
+func (ss *SyncService) CallNeedContent(file *types.File) error {
+	if file.ContentsExisted {
+		return errors.New("quics: file contents is already existed")
+	}
+
+	transaction, err := ss.networkAdapter.OpenTransaction(types.NEEDCONTENT, file.LatestEditClient)
+	if err != nil {
+		return err
+	}
+
+	needContentReq := &types.NeedContentReq{
+		UUID:                file.LatestEditClient,
+		AfterPath:           file.AfterPath,
+		LastUpdateTimestamp: file.LatestSyncTimestamp,
+		LastUpdateHash:      file.LatestHash,
+	}
+
+	res, fileMetadata, fileContent, err := transaction.RequestNeedContent(needContentReq)
+	if err != nil {
+		return err
+	}
+
+	if res.UUID != file.LatestEditClient {
+		return errors.New("quics: UUID is not equal")
+	}
+	if res.AfterPath != file.AfterPath {
+		return errors.New("quics: AfterPath is not equal")
+	}
+	if res.LastUpdateTimestamp != file.LatestSyncTimestamp {
+		return errors.New("quics: LastUpdateTimestamp is not equal")
+	}
+	if res.LastUpdateHash != file.LatestHash {
+		return errors.New("quics: LastUpdateHash is not equal")
+	}
+	if fileMetadata == nil {
+		return errors.New("quics: fileMetadata is nil")
+	}
+	if fileContent == nil {
+		return errors.New("quics: fileContent is nil")
+	}
+
+	// save file to history dir
+	err = ss.syncDirAdapter.SaveFileToHistoryDir(file.AfterPath, file.LatestSyncTimestamp, fileMetadata, fileContent)
+	if err != nil {
+		return err
+	}
+
+	// copy file to latest dir
+	fileMetadata, fileContent, err = ss.syncDirAdapter.GetFileFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
+	if err != nil {
+		return err
+	}
+
+	err = ss.syncDirAdapter.SaveFileToLatestDir(file.AfterPath, fileMetadata, fileContent)
+	if err != nil {
+		return err
+	}
+
+	// update file
+	file.ContentsExisted = true
+	err = ss.syncRepository.UpdateFile(file)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetFilesByRootDir returns files by root directory path
-func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []*types.File {
+func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []types.File {
 	files, err := ss.syncRepository.GetAllFiles(rootDirPath)
 	if err != nil {
 		log.Println("quics: ", err)
@@ -1005,7 +1080,7 @@ func (ss *SyncService) GetFilesByRootDir(rootDirPath string) []*types.File {
 }
 
 // GetFiles returns all files in database
-func (ss *SyncService) GetFiles() []*types.File {
+func (ss *SyncService) GetFiles() []types.File {
 
 	files, err := ss.syncRepository.GetAllFiles("")
 	if err != nil {

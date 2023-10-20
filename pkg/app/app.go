@@ -1,106 +1,97 @@
 package app
 
 import (
+	"crypto/tls"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
+	"path/filepath"
 	"syscall"
 
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-s/quics/pkg/config"
-	"github.com/quic-s/quics/pkg/core/registration"
-	"github.com/quic-s/quics/pkg/core/sync"
-	"github.com/quic-s/quics/pkg/fs"
-	"github.com/quic-s/quics/pkg/network/qp"
-	"github.com/quic-s/quics/pkg/network/qp/connection"
+	"github.com/quic-s/quics/pkg/core/server"
+	quicshttp3 "github.com/quic-s/quics/pkg/network/http3"
 	"github.com/quic-s/quics/pkg/repository/badger"
-	"github.com/quic-s/quics/pkg/types"
 	"github.com/quic-s/quics/pkg/utils"
 )
 
 type App struct {
-	repo     *badger.Badger
-	Proto    *qp.Protocol
-	Password string
-
-	registrationService registration.Service
-	syncService         sync.Service
+	certFileDir string
+	keyFileDir  string
+	restServer  *http3.Server
 }
 
 // New initialize program
-func New(repo *badger.Badger) (*App, error) {
-	// get env variables (server password, port)
-	password := config.GetViperEnvVariables("PASSWORD")
-	port, err := strconv.Atoi(config.GetViperEnvVariables("QUICS_PORT"))
+func New() (*App, error) {
+
+	repo, err := badger.NewBadgerRepository()
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
 	}
 
-	pool := connection.NewnPool()
-
-	proto, err := qp.New("0.0.0.0", port, pool)
+	serverRepository := repo.NewServerRepository()
+	serverService, err := server.NewService(repo, serverRepository)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
 	}
+	serverHandler := quicshttp3.NewServerHandler(serverService)
 
-	registrationRepository := repo.NewRegistrationRepository()
-	registrationNetworkAdapter := qp.NewRegistrationAdapter(pool)
-	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
-	registrationHandler := qp.NewRegistrationHandler(registrationService)
+	handler := serverHandler.SetupRoutes()
 
-	proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
+	restServer := &http3.Server{
+		Addr:       "0.0.0.0:" + config.GetViperEnvVariables("REST_SERVER_PORT"),
+		QuicConfig: &quic.Config{},
+		Handler:    handler,
+	}
 
-	historyRepository := repo.NewHistoryRepository()
-	syncNetworkAdapter := qp.NewSyncAdapter(pool)
-	syncDirAdapter := fs.NewSyncDir(utils.GetQuicsSyncDirPath())
+	// get directory path for certification
+	quicsDir := utils.GetQuicsDirPath()
+	certFileDir := filepath.Join(quicsDir, config.GetViperEnvVariables("QUICS_CERT_NAME"))
+	keyFileDir := filepath.Join(quicsDir, config.GetViperEnvVariables("QUICS_KEY_NAME"))
 
-	syncRepository := repo.NewSyncRepository()
-	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
-	syncHandler := qp.NewSyncHandler(syncService)
+	// load the certificate and the key from the files
+	_, err = tls.LoadX509KeyPair(certFileDir, keyFileDir)
+	if err != nil {
+		err = config.CreateSecurityFiles()
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+	}
 
-	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, syncHandler.RegisterRootDir)
-	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
-	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, syncHandler.GetRemoteDirs)
-	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
-	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
-	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
-	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
+	fmt.Println("************************************************************")
+	fmt.Println("                           Start                            ")
+	fmt.Println("************************************************************")
 
 	return &App{
-		repo:                repo,
-		Proto:               proto,
-		registrationService: registrationService,
-		syncService:         syncService,
+		certFileDir: certFileDir,
+		keyFileDir:  keyFileDir,
+		restServer:  restServer,
 	}, nil
 }
 
-func (a *App) Start() {
-	// start quics protocol server
-	err := a.Proto.Start()
+func (a *App) Start() error {
+	err := a.restServer.ListenAndServeTLS(a.certFileDir, a.keyFileDir)
 	if err != nil {
 		log.Println("quics: ", err)
-		return
+		return err
 	}
-
-	a.syncService.BackgroundFullScan(300)
+	return nil
 }
 
 func (a *App) Close() error {
 	// define system call actions
-	interruptCh := make(chan os.Signal)
+	interruptCh := make(chan os.Signal, 1) // buffered channel
 	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
 
 	// if pressed ctrl + c, then stop server with closing database
 	go func() {
 		<-interruptCh
-
-		err := a.repo.Close()
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
 
 		os.Exit(0)
 	}()
@@ -109,17 +100,5 @@ func (a *App) Close() error {
 }
 
 func (a *App) Stop() error {
-
-	go func() {
-		err := a.repo.Close()
-		if err != nil {
-			log.Println("quics: ", err)
-			return
-		}
-
-		log.Println("quics: Closed")
-		os.Exit(0)
-	}()
-
 	return nil
 }
