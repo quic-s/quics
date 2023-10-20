@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"path/filepath"
 
@@ -13,49 +12,31 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"time"
 )
 
 // SecurityFiles generates a certificate file and key pair
-func SecurityFiles() {
+func CreateSecurityFiles() error {
 
-	// generate a new RSA key pair
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-
-	// create a template for the certificate
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			CommonName:   "localhost",
-			Organization: []string{"test"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		DNSNames:              []string{"localhost"},
-	}
-
-	// create a self-signed certificate
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	template := x509.Certificate{SerialNumber: big.NewInt(1)}
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// encode the certificate, key to PEM format
-	certOut := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	keyOut := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	certOut := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyOut := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 
 	// write the certificate and key to disk
 	quicsDir := utils.GetQuicsDirPath()
 	certFile, err := os.Create(filepath.Join(quicsDir, GetViperEnvVariables("QUICS_CERT_NAME")))
 	if err != nil {
 		log.Fatal(err)
+		return err
 	}
 	defer func(certFile *os.File) {
 		err := certFile.Close()
@@ -67,6 +48,7 @@ func SecurityFiles() {
 	keyFile, err := os.Create(filepath.Join(quicsDir, GetViperEnvVariables("QUICS_KEY_NAME")))
 	if err != nil {
 		log.Fatal(err)
+		return err
 	}
 	defer func(keyFile *os.File) {
 		err := keyFile.Close()
@@ -77,9 +59,12 @@ func SecurityFiles() {
 
 	if _, err := certFile.Write(certOut); err != nil {
 		log.Fatal(err)
+		return err
 	}
 
 	if _, err := keyFile.Write(keyOut); err != nil {
 		log.Fatal(err)
+		return err
 	}
+	return nil
 }

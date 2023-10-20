@@ -57,7 +57,11 @@ func New() (*App, error) {
 	// load the certificate and the key from the files
 	_, err = tls.LoadX509KeyPair(certFileDir, keyFileDir)
 	if err != nil {
-		config.SecurityFiles()
+		err = config.CreateSecurityFiles()
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
 	}
 
 	fmt.Println("************************************************************")
