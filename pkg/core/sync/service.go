@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"time"
 
@@ -1122,4 +1123,83 @@ func validateGiveYouTransaction(file *types.File, giveYouRes *types.GiveYouRes) 
 	}
 
 	return nil
+}
+
+func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types.RollBackRes, error) {
+	// get file history data
+	historyData, err := ss.historyRepository.GetFileHistory(request.AfterPath, request.Version)
+	if err != nil {
+		return nil, err
+	}
+
+	// get file contents by history
+	historyFilePath := filepath.Join(historyData.BeforePath, historyData.AfterPath)
+	historyFile, err := os.Open(historyFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer historyFile.Close()
+
+	// save new file history
+	newHistoryData := &types.FileHistory{
+		Date:       time.Now().String(),
+		UUID:       request.UUID,
+		BeforePath: historyData.BeforePath,
+		AfterPath:  historyData.AfterPath,
+		Timestamp:  historyData.Timestamp,
+		Hash:       historyData.Hash,
+		File:       historyData.File,
+	}
+	err = ss.historyRepository.SaveNewFileHistory(request.AfterPath, newHistoryData)
+	if err != nil {
+		return nil, err
+	}
+
+	// rollback/overwrite latest file to history
+	fileData, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	// first, data
+	newFileData := &types.File{
+		BeforePath:          fileData.BeforePath,
+		AfterPath:           fileData.AfterPath,
+		RootDirKey:          fileData.RootDirKey,
+		LatestHash:          newHistoryData.Hash,
+		LatestSyncTimestamp: newHistoryData.Timestamp + 1,
+		LatestEditClient:    request.UUID,
+		ContentsExisted:     true,
+		NeedForceSync:       false,
+		Metadata:            newHistoryData.File,
+	}
+	err = ss.syncRepository.SaveFileByPath(newFileData.AfterPath, newFileData)
+	if err != nil {
+		return nil, err
+	}
+
+	// second, content
+	file, err := os.Create(newFileData.BeforePath + newFileData.AfterPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, historyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	// call must sync
+	rootDir, err := ss.syncRepository.GetRootDirByPath(newFileData.RootDirKey)
+	if err != nil {
+		return nil, err
+	}
+	UUIDs := rootDir.UUIDs
+	for i, UUID := range UUIDs {
+		if UUID == request.UUID {
+			UUIDs = append(UUIDs[:i], UUIDs[i+1:]...)
+		}
+	}
+	ss.CallMustSync(newFileData.AfterPath, UUIDs)
+
+	return &types.RollBackRes{
+		UUID: request.UUID,
+	}, nil
 }

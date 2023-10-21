@@ -59,3 +59,38 @@ func (hr *HistoryRepository) GetFileHistory(afterPath string, timestamp uint64) 
 
 	return fileHistory, nil
 }
+
+func (hr *HistoryRepository) GetFileHistoriesForClient(afterPath string, cntFromHead uint64) ([]types.FileHistory, error) {
+	var fileHistories []types.FileHistory
+
+	err := hr.db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchSize = int(cntFromHead)
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		prefix := []byte(PrefixHistory + afterPath + "_")
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			val, err := item.ValueCopy(nil)
+			if err != nil {
+				return err
+			}
+
+			fileHistory := &types.FileHistory{}
+			err = fileHistory.Decode(val)
+			if err != nil {
+				return err
+			}
+
+			fileHistories = append(fileHistories, *fileHistory)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return fileHistories, nil
+}

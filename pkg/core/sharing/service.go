@@ -1,11 +1,19 @@
 package sharing
 
 type SharingService struct {
-	sharingService Repository
+	sharingRepository Repository
 }
 
-func NewService(sharingService Repository) *SharingService {
+const (
+	PrefixLink = "http://"
+)
+
+func NewService(sharingRepository Repository) *SharingService {
 	return &SharingService{
-		sharingService: sharingService,
+		sharingRepository: sharingRepository,
 	}
+}
+
+func (ss *SharingService) CreateLink(UUID string, afterPath string, count uint64) (string, error) {
+	return "", nil
 }

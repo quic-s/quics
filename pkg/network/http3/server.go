@@ -24,9 +24,12 @@ func (sh *ServerHandler) SetupRoutes() http.Handler {
 	mux.HandleFunc("/api/v1/server/logs/clients", sh.ShowClientLogs)
 	mux.HandleFunc("/api/v1/server/logs/directories", sh.ShowDirLogs)
 	mux.HandleFunc("/api/v1/server/logs/files", sh.ShowFileLogs)
-	mux.HandleFunc("/api/v1/server/disconnections/clients", sh.DisconnectClient)
-	mux.HandleFunc("/api/v1/server/disconnections/directories", sh.DisconnectDir)
-	mux.HandleFunc("/api/v1/server/disconnections/files", sh.DisconnectFile)
+	mux.HandleFunc("/api/v1/server/logs/histories", sh.ShowHistoryLogs)
+	mux.HandleFunc("/api/v1/server/remove/clients", sh.RemoveClient)
+	mux.HandleFunc("/api/v1/server/remove/directories", sh.RemoveDir)
+	mux.HandleFunc("/api/v1/server/remove/files", sh.RemoveFile)
+	mux.HandleFunc("/api/v1/server/rollback/files", sh.RollbackFile)
+	mux.HandleFunc("/api/v1/server/download/files", sh.DownloadFile)
 
 	return mux
 }
@@ -95,13 +98,13 @@ func (sh *ServerHandler) ShowFileLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (sh *ServerHandler) DisconnectClient(w http.ResponseWriter, r *http.Request) {
+func (sh *ServerHandler) ShowHistoryLogs(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case "POST":
+	case "GET":
 		all := r.URL.Query().Get("all")
 		id := r.URL.Query().Get("id")
 
-		err := sh.ServerService.DisconnectClient(all, id)
+		err := sh.ServerService.ShowHistoryLogs(all, id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -109,13 +112,13 @@ func (sh *ServerHandler) DisconnectClient(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (sh *ServerHandler) DisconnectDir(w http.ResponseWriter, r *http.Request) {
+func (sh *ServerHandler) RemoveClient(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		all := r.URL.Query().Get("all")
 		id := r.URL.Query().Get("id")
 
-		err := sh.ServerService.DisconnectDir(all, id)
+		err := sh.ServerService.RemoveClient(all, id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -123,16 +126,58 @@ func (sh *ServerHandler) DisconnectDir(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (sh *ServerHandler) DisconnectFile(w http.ResponseWriter, r *http.Request) {
+func (sh *ServerHandler) RemoveDir(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		all := r.URL.Query().Get("all")
 		id := r.URL.Query().Get("id")
 
-		err := sh.ServerService.DisconnectFile(all, id)
+		err := sh.ServerService.RemoveDir(all, id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
+}
+
+func (sh *ServerHandler) RemoveFile(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		all := r.URL.Query().Get("all")
+		id := r.URL.Query().Get("id")
+
+		err := sh.ServerService.RemoveFile(all, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func (sh *ServerHandler) RollbackFile(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		// path := r.URL.Query().Get("path")
+		// version := r.URL.Query().Get("version")
+
+		// err := sh.ServerService.RollbackFile(path, version)
+		// if err != nil {
+		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+		// 	return
+		// }
+	}
+}
+
+func (sh *ServerHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	// switch r.Method {
+	// case "GET":
+	// 	path := r.URL.Query().Get("id")
+	// 	version := r.URL.Query().Get("version")
+
+	// 	err := sh.ServerService.DownloadFile(path, version)
+	// 	if err != nil {
+	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// }
 }

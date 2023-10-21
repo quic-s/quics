@@ -352,3 +352,71 @@ func (sr *ServerRepository) DeleteFileByAfterPath(afterPath string) error {
 
 	return nil
 }
+
+func (sr *ServerRepository) GetAllHistories() ([]*types.FileHistory, error) {
+	histories := []*types.FileHistory{}
+
+	err := sr.db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchSize = 10
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek([]byte(PrefixHistory)); it.ValidForPrefix([]byte(PrefixHistory)); it.Next() {
+			item := it.Item()
+			val, err := item.ValueCopy(nil)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			history := &types.FileHistory{}
+			if err := history.Decode(val); err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			histories = append(histories, history)
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return histories, nil
+}
+
+func (sr *ServerRepository) GetHistoryByAfterPath(afterPath string) (*types.FileHistory, error) {
+	key := []byte(PrefixHistory + afterPath)
+	history := &types.FileHistory{}
+
+	err := sr.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		if err := history.Decode(val); err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return history, nil
+}

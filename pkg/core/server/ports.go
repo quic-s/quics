@@ -15,6 +15,8 @@ type Repository interface {
 	DeleteClientByUUID(uuid string) error
 	DeleteRootDirectoryByAfterPath(afterPath string) error
 	DeleteFileByAfterPath(afterPath string) error
+	GetAllHistories() ([]*types.FileHistory, error)
+	GetHistoryByAfterPath(afterPath string) (*types.FileHistory, error)
 }
 
 type Service interface {
@@ -24,7 +26,8 @@ type Service interface {
 	ShowClientLogs(all string, id string) error
 	ShowDirLogs(all string, id string) error
 	ShowFileLogs(all string, id string) error
-	DisconnectClient(all string, id string) error
-	DisconnectDir(all string, id string) error
-	DisconnectFile(all string, id string) error
+	ShowHistoryLogs(all string, id string) error
+	RemoveClient(all string, id string) error
+	RemoveDir(all string, id string) error
+	RemoveFile(all string, id string) error
 }

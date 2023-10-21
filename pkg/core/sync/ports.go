@@ -46,6 +46,8 @@ type Service interface {
 	GetFilesByRootDir(rootDirPath string) []types.File
 	GetFiles() []types.File
 	GetFileByPath(afterPath string) (*types.File, error)
+
+	RollbackFileByHistory(request *types.RollBackReq) (*types.RollBackRes, error)
 }
 
 type SyncDirAdapter interface {

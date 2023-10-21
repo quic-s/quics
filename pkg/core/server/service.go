@@ -8,7 +8,9 @@ import (
 	"strconv"
 
 	"github.com/quic-s/quics/pkg/config"
+	"github.com/quic-s/quics/pkg/core/history"
 	"github.com/quic-s/quics/pkg/core/registration"
+	"github.com/quic-s/quics/pkg/core/sharing"
 	"github.com/quic-s/quics/pkg/core/sync"
 	"github.com/quic-s/quics/pkg/fs"
 	"github.com/quic-s/quics/pkg/network/qp"
@@ -41,17 +43,22 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	pool := connection.NewnPool()
 
 	registrationRepository := repo.NewRegistrationRepository()
-	registrationNetworkAdapter := qp.NewRegistrationAdapter(pool)
-	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
-	registrationHandler := qp.NewRegistrationHandler(registrationService)
-
 	historyRepository := repo.NewHistoryRepository()
+	syncRepository := repo.NewSyncRepository()
+	sharingRepository := repo.NewSharingRepository()
+
+	registrationNetworkAdapter := qp.NewRegistrationAdapter(pool)
 	syncNetworkAdapter := qp.NewSyncAdapter(pool)
 	syncDirAdapter := fs.NewSyncDir(utils.GetQuicsSyncDirPath())
 
-	syncRepository := repo.NewSyncRepository()
+	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
+	historyService := history.NewService(historyRepository)
 	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
+	sharingService := sharing.NewService(sharingRepository)
+
+	registrationHandler := qp.NewRegistrationHandler(registrationService)
 	syncHandler := qp.NewSyncHandler(syncService)
+	historyHandler := qp.NewHistoryHandler(historyService, sharingService)
 
 	proto, err := qp.New("0.0.0.0", port, pool)
 	if err != nil {
@@ -67,6 +74,9 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
 	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
 	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
+	proto.RecvTransactionHandleFunc(types.SHOWHISTORY, historyHandler.ShowHistory)
+	proto.RecvTransactionHandleFunc(types.ROLLBACK, syncHandler.RollbackFileByHistory)
+	proto.RecvTransactionHandleFunc(types.DOWNLOADHISTORY, historyHandler.DownloadHistory)
 
 	return &ServerService{
 		port:     port,
@@ -241,9 +251,43 @@ func (ss *ServerService) ShowFileLogs(all string, id string) error {
 	return nil
 }
 
-func (ss *ServerService) DisconnectClient(all string, id string) error {
+func (ss *ServerService) ShowHistoryLogs(all string, id string) error {
 	fmt.Println("************************************************************")
-	fmt.Println("                    Disconnect Client                       ")
+	fmt.Println("                       History Log                          ")
+	fmt.Println("************************************************************")
+
+	if all != "" {
+		histories, err := ss.serverRepository.GetAllHistories()
+		if err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		for _, history := range histories {
+			fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
+		}
+
+		return nil
+	}
+
+	if id != "" {
+		history, err := ss.serverRepository.GetHistoryByAfterPath(id)
+		if err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
+
+		return nil
+	}
+
+	return nil
+}
+
+func (ss *ServerService) RemoveClient(all string, id string) error {
+	fmt.Println("************************************************************")
+	fmt.Println("                       Remove Client                        ")
 	fmt.Println("************************************************************")
 
 	if all != "" {
@@ -269,9 +313,9 @@ func (ss *ServerService) DisconnectClient(all string, id string) error {
 	return nil
 }
 
-func (ss *ServerService) DisconnectDir(all string, id string) error {
+func (ss *ServerService) RemoveDir(all string, id string) error {
 	fmt.Println("************************************************************")
-	fmt.Println("                  Disconnect Directory                      ")
+	fmt.Println("                      Remove Directory                      ")
 	fmt.Println("************************************************************")
 
 	if all != "" {
@@ -297,9 +341,9 @@ func (ss *ServerService) DisconnectDir(all string, id string) error {
 	return nil
 }
 
-func (ss *ServerService) DisconnectFile(all string, id string) error {
+func (ss *ServerService) RemoveFile(all string, id string) error {
 	fmt.Println("************************************************************")
-	fmt.Println("                     Disconnect File                        ")
+	fmt.Println("                        Remove File                         ")
 	fmt.Println("************************************************************")
 
 	if all != "" {
