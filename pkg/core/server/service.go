@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/history"
@@ -378,6 +379,10 @@ func (ss *ServerService) DownloadFile(path string, version string, target string
 	fmt.Println("************************************************************")
 	fmt.Println("                      Download File                         ")
 	fmt.Println("************************************************************")
+
+	if strings.Contains(target, utils.GetQuicsDirPath()) {
+		return errors.New("quics: target path should not be in .quics directory")
+	}
 
 	sourceFile, err := os.Open(path)
 	if err != nil {
