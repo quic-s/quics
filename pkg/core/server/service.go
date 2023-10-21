@@ -72,6 +72,7 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, syncHandler.GetRemoteDirs)
 	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
 	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
+	proto.RecvTransactionHandleFunc(types.CONFLICTDOWNLOAD, syncHandler.ConflictDownload)
 	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
 	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
 	proto.RecvTransactionHandleFunc(types.SHOWHISTORY, historyHandler.ShowHistory)

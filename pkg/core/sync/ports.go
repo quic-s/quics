@@ -48,6 +48,9 @@ type Service interface {
 	GetFileByPath(afterPath string) (*types.File, error)
 
 	RollbackFileByHistory(request *types.RollBackReq) (*types.RollBackRes, error)
+
+	GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, []string, error)
+	GetConflictFiles(request *types.AskStagingNumReq, conflictFilePaths []string) ([]*types.ConflictDownloadReq, []string, error)
 }
 
 type SyncDirAdapter interface {

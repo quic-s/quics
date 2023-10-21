@@ -7,25 +7,26 @@ import (
 )
 
 const (
-	REGISTERCLIENT  = "REGISTERCLIENT"
-	REGISTERROOTDIR = "REGISTERROOTDIR"
-	SYNCROOTDIR     = "SYNCROOTDIR"
-	GETROOTDIRS     = "GETROOTDIRS"
-	PLEASESYNC      = "PLEASESYNC"
-	MUSTSYNC        = "MUSTSYNC"
-	FORCESYNC       = "FORCESYNC"
-	CONFLICT        = "CONFLICT"
-	CONFLICTLIST    = "CONFLICTLIST"
-	CHOOSEONE       = "CHOOSEONE"
-	FULLSCAN        = "FULLSCAN"
-	RESCAN          = "RESCAN"
-	NEEDCONTENT     = "NEEDCONTENT"
-	PING            = "PING"
-	ROLLBACK        = "ROLLBACK"
-	SHOWHISTORY     = "SHOWHISTORY"
-	DOWNLOAD        = "DOWNLOAD"
-	DOWNLOADHISTORY = "DOWNLOADHISTORY"
-	SHARING         = "SHARING"
+	REGISTERCLIENT   = "REGISTERCLIENT"
+	REGISTERROOTDIR  = "REGISTERROOTDIR"
+	SYNCROOTDIR      = "SYNCROOTDIR"
+	GETROOTDIRS      = "GETROOTDIRS"
+	PLEASESYNC       = "PLEASESYNC"
+	MUSTSYNC         = "MUSTSYNC"
+	FORCESYNC        = "FORCESYNC"
+	CONFLICT         = "CONFLICT"
+	CONFLICTLIST     = "CONFLICTLIST"
+	CONFLICTDOWNLOAD = "CONFLICTDOWNLOAD"
+	CHOOSEONE        = "CHOOSEONE"
+	FULLSCAN         = "FULLSCAN"
+	RESCAN           = "RESCAN"
+	NEEDCONTENT      = "NEEDCONTENT"
+	PING             = "PING"
+	ROLLBACK         = "ROLLBACK"
+	SHOWHISTORY      = "SHOWHISTORY"
+	DOWNLOAD         = "DOWNLOAD"
+	DOWNLOADHISTORY  = "DOWNLOADHISTORY"
+	SHARING          = "SHARING"
 )
 
 type MessageData interface {
@@ -284,6 +285,22 @@ type ShareReq struct {
 
 type ShareRes struct {
 	Link string
+}
+
+type AskStagingNumReq struct {
+	UUID      string
+	AfterPath string
+}
+
+type AskStagingNumRes struct {
+	UUID        string
+	ConflictNum uint64
+}
+
+type ConflictDownloadReq struct {
+	UUID      string // client UUID who want to download
+	Candidate string // coflict file's UUID from FileHistory (stagingFile)
+	AfterPath string // conflict file's AfterPath
 }
 
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
@@ -965,4 +982,52 @@ func (shareRes *ShareRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(shareRes)
+}
+
+func (askStagingNumReq *AskStagingNumReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askStagingNumReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askStagingNumReq *AskStagingNumReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askStagingNumReq)
+}
+
+func (askStagingNumRes *AskStagingNumRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askStagingNumRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askStagingNumRes *AskStagingNumRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askStagingNumRes)
+}
+
+func (conflictDownloadReq *ConflictDownloadReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(conflictDownloadReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (conflictDownloadReq *ConflictDownloadReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(conflictDownloadReq)
 }
