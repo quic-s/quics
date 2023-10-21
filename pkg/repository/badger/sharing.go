@@ -73,3 +73,17 @@ func (sr *SharingRepository) DeleteLink(link string) error {
 
 	return nil
 }
+
+func (sr *SharingRepository) UpdateLink(sharing *types.Sharing) error {
+	key := []byte(PrefixSharing + sharing.Link)
+
+	err := sr.db.Update(func(txn *badger.Txn) error {
+		err := txn.Set(key, sharing.Encode())
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -30,3 +30,11 @@ func GetConflictFileNameByAfterPath(afterPath string, uuid string) string {
 	conflictFilePath := filepath.Join(conflictDirPath, fileName+"_"+uuid)
 	return conflictFilePath
 }
+
+func ExtractFileNameFromHistoryFile(historyFilePath string) string {
+	// e.g., fileName_timestamp
+	paths := strings.Split(historyFilePath, "/")
+	file := paths[len(paths)-1]
+	fileNames := strings.Split(file, "_")
+	return fileNames[0]
+}

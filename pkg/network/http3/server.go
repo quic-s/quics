@@ -16,9 +16,7 @@ func NewServerHandler(serverService server.Service) *ServerHandler {
 	}
 }
 
-func (sh *ServerHandler) SetupRoutes() http.Handler {
-	mux := http.NewServeMux()
-
+func (sh *ServerHandler) SetupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/server/stop", sh.StopRestServer)
 	mux.HandleFunc("/api/v1/server/listen", sh.ListenProtocol)
 	mux.HandleFunc("/api/v1/server/logs/clients", sh.ShowClientLogs)
@@ -30,8 +28,6 @@ func (sh *ServerHandler) SetupRoutes() http.Handler {
 	mux.HandleFunc("/api/v1/server/remove/files", sh.RemoveFile)
 	mux.HandleFunc("/api/v1/server/rollback/files", sh.RollbackFile)
 	mux.HandleFunc("/api/v1/server/download/files", sh.DownloadFile)
-
-	return mux
 }
 
 func (sh *ServerHandler) StopRestServer(w http.ResponseWriter, r *http.Request) {

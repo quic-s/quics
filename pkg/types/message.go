@@ -281,6 +281,7 @@ type DownloadHistoryRes struct {
 type ShareReq struct {
 	UUID      string
 	AfterPath string
+	Version   uint64
 	MaxCnt    uint64
 }
 
