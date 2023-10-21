@@ -131,6 +131,7 @@ func Run() int {
 	showClientCmd = initShowClientCmd()
 	showDirCmd = initShowDirCmd()
 	showFileCmd = initShowFileCmd()
+	showHistoryCmd = initShowHistoryCmd()
 	removeCmd = initRemoveCmd()
 	removeClientCmd = initRemoveClientCmd()
 	removeDirCmd = initRemoveDirCmd()
@@ -354,6 +355,35 @@ func initShowFileCmd() *cobra.Command {
 			restClient := NewRestClient()
 
 			_, err := restClient.GetRequest(url) // /files
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			err = restClient.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			return nil
+		},
+	}
+}
+
+func initShowHistoryCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   HistoryCommand,
+		Short: "show history information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			validateOptionByCommand(showHistoryCmd)
+
+			url := "/api/v1/server/logs/history"
+			url = getUrlWithQueryString(url)
+
+			restClient := NewRestClient()
+
+			_, err := restClient.GetRequest(url) // /history
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
