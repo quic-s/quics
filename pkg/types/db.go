@@ -77,12 +77,11 @@ type Conflict struct {
 
 // Sharing is used to store the file download information
 type Sharing struct {
-	Id       uint // key
+	Link     string // key
 	Count    uint
 	MaxCount uint
-	Link     string
 	Owner    string
-	File     FileHistory // to share file at point that client wanted in time
+	File     FileHistory // to share file at point that client wanted
 }
 
 func (client *Client) Encode() []byte {

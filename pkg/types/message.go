@@ -26,7 +26,8 @@ const (
 	SHOWHISTORY      = "SHOWHISTORY"
 	DOWNLOAD         = "DOWNLOAD"
 	DOWNLOADHISTORY  = "DOWNLOADHISTORY"
-	SHARING          = "SHARING"
+	STARTSHARING     = "STARTSHARING"
+	STOPSHARING      = "STOPSHARING"
 )
 
 type MessageData interface {
@@ -285,6 +286,15 @@ type ShareReq struct {
 
 type ShareRes struct {
 	Link string
+}
+
+type StopShareReq struct {
+	UUID string
+	Link string
+}
+
+type StopShareRes struct {
+	UUID string
 }
 
 type AskStagingNumReq struct {
@@ -982,6 +992,38 @@ func (shareRes *ShareRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(shareRes)
+}
+
+func (stopShareReq *StopShareReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(stopShareReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (stopShareReq *StopShareReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(stopShareReq)
+}
+
+func (stopShareRes *StopShareRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(stopShareRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (stopShareRes *StopShareRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(stopShareRes)
 }
 
 func (askStagingNumReq *AskStagingNumReq) Encode() ([]byte, error) {

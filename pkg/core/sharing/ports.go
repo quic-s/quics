@@ -1,9 +1,14 @@
 package sharing
 
+import "github.com/quic-s/quics/pkg/types"
+
 type Repository interface {
-	SaveNewDownloadLink(link string) error
+	SaveLink(sharing *types.Sharing) error
+	GetLink(link string) (*types.Sharing, error)
+	DeleteLink(link string) error
 }
 
 type Service interface {
-	CreateLink(UUID string, afterPath string, count uint64) (string, error)
+	CreateLink(request *types.ShareReq) (*types.ShareRes, error)
+	DeleteLink(request *types.StopShareReq) (*types.StopShareRes, error)
 }

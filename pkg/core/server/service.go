@@ -54,11 +54,12 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
 	historyService := history.NewService(historyRepository)
 	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
-	sharingService := sharing.NewService(sharingRepository)
+	sharingService := sharing.NewService(historyRepository, syncRepository, sharingRepository)
 
 	registrationHandler := qp.NewRegistrationHandler(registrationService)
 	syncHandler := qp.NewSyncHandler(syncService)
 	historyHandler := qp.NewHistoryHandler(historyService, sharingService)
+	sharingHandler := qp.NewSharingHandler(sharingService)
 
 	proto, err := qp.New("0.0.0.0", port, pool)
 	if err != nil {
@@ -78,6 +79,8 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	proto.RecvTransactionHandleFunc(types.SHOWHISTORY, historyHandler.ShowHistory)
 	proto.RecvTransactionHandleFunc(types.ROLLBACK, syncHandler.RollbackFileByHistory)
 	proto.RecvTransactionHandleFunc(types.DOWNLOADHISTORY, historyHandler.DownloadHistory)
+	proto.RecvTransactionHandleFunc(types.STARTSHARING, sharingHandler.StartSharing)
+	proto.RecvTransactionHandleFunc(types.STOPSHARING, sharingHandler.StopSharing)
 
 	return &ServerService{
 		port:     port,

@@ -1,7 +1,8 @@
 package http
 
 import (
-	"github.com/gorilla/mux"
+	"net/http"
+
 	"github.com/quic-s/quics/pkg/core/sharing"
 )
 
@@ -15,6 +16,6 @@ func NewSharingHandler(sharingService sharing.Service) *SharingHandler {
 	}
 }
 
-func (handler *SharingHandler) SetupRoutes(r *mux.Router) {
-
+func (sh *SharingHandler) SetupRoutes(mux *http.ServeMux) http.Handler {
+	return mux
 }
