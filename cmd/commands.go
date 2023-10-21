@@ -19,18 +19,25 @@ import (
 * `qis show`: Show quic-s server information (needed options)
 * `qis show client --id <client-UUID>`: Show client information
 * `qis show client --all`: Show all clients information
-* `qis show dir <directory-path>`: Show directory information
+* `qis show dir --id <directory-path>`: Show directory information
 * `qis show dir --all`: Show all directories information
-* `qis show file <file-path>`: Show file information
+* `qis show file --id <file-path>`: Show file information
 * `qis show file --all`: Show all files information
+* `qis show history --id <file-history-key>`: Show history information
+* `qis show history --all`: Show all history information
 *
-* `qis disconnect`: Initialize quic-s server (needed options)
-* `qis disconnect client --id <client-UUID>`: Initialize client
-* `qis disconnect client --all`: Initialize all clients
-* `qis disconnect dir <directory-path>`: Initialize directory
-* `qis disconnect dir --all`: Initialize all directories
-* `qis disconnect file <file-path>`: Initialize file
-* `qis disconnect file --all`: Initialize all files
+* `qis remove`: Initialize quic-s server (needed options)
+* `qis remove client --id <client-UUID>`: Initialize client
+* `qis remove client --all`: Initialize all clients
+* `qis remove dir --id <directory-path>`: Initialize directory
+* `qis remove dir --all`: Initialize all directories
+* `qis remove file --id <file-path>`: Initialize file
+* `qis remove file --all`: Initialize all files
+*
+* `qis rollback`: Rollback certain file
+* `qis rollback file --path --version`: Rollback certain file
+*
+* `qis download file --path --version`: Download certain file
  */
 
 /**
@@ -41,22 +48,28 @@ import (
 *
 * `--id`: ID option
 * `-i`: ID short option
+*
+* `--path`: Path option
+* `-p`: Path short option
+*
+* `--version`: Version option
+* `-v`: Version short option
  */
 
 const (
-	// root
-	RootCommand = "qis"
+	RootCommand     = "qis"
+	StartCommand    = "start"
+	StopCommand     = "stop"
+	ListenCommand   = "listen"
+	ShowCommand     = "show"
+	RemoveCommand   = "remove"
+	RollbackCommand = "rollback"
+	DownloadCommand = "download"
 
-	// server
-	StartCommand      = "start"
-	StopCommand       = "stop"
-	ListenCommand     = "listen"
-	ShowCommand       = "show"
-	DisconnectCommand = "disconnect"
-
-	ClientCommand = "client"
-	DirCommand    = "dir"
-	FileCommand   = "file"
+	ClientCommand  = "client"
+	DirCommand     = "dir"
+	FileCommand    = "file"
+	HistoryCommand = "history"
 )
 
 const (
@@ -67,11 +80,21 @@ const (
 	// --id, -i
 	IDOption       = "id"
 	IDShortCommand = "i"
+
+	// --path, -p
+	PathOption       = "path"
+	PathShortCommand = "p"
+
+	// --version, -v
+	VersionOption       = "version"
+	VersionShortCommand = "v"
 )
 
 var (
-	all bool   = false
-	id  string = ""
+	all     bool   = false
+	id      string = ""
+	path    string = ""
+	version uint64 = 0
 )
 
 var rootCmd = &cobra.Command{
@@ -80,17 +103,22 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	startServerCmd      *cobra.Command
-	stopServerCmd       *cobra.Command
-	listenCmd           *cobra.Command
-	showCmd             *cobra.Command
-	showClientCmd       *cobra.Command
-	showDirCmd          *cobra.Command
-	showFileCmd         *cobra.Command
-	disconnectCmd       *cobra.Command
-	disconnectClientCmd *cobra.Command
-	disconnectDirCmd    *cobra.Command
-	disconnectFileCmd   *cobra.Command
+	startServerCmd  *cobra.Command
+	stopServerCmd   *cobra.Command
+	listenCmd       *cobra.Command
+	showCmd         *cobra.Command
+	showClientCmd   *cobra.Command
+	showDirCmd      *cobra.Command
+	showFileCmd     *cobra.Command
+	showHistoryCmd  *cobra.Command
+	removeCmd       *cobra.Command
+	removeClientCmd *cobra.Command
+	removeDirCmd    *cobra.Command
+	removeFileCmd   *cobra.Command
+	rollbackCmd     *cobra.Command
+	rollbackFileCmd *cobra.Command
+	downloadCmd     *cobra.Command
+	downloadFileCmd *cobra.Command
 )
 
 // Run initializes and executes commands using cobra library
@@ -99,46 +127,73 @@ func Run() int {
 	startServerCmd = initStartServerCmd()
 	stopServerCmd = initStopServerCmd()
 	listenCmd = initListenCmd()
-
 	showCmd = initShowCmd()
 	showClientCmd = initShowClientCmd()
 	showDirCmd = initShowDirCmd()
 	showFileCmd = initShowFileCmd()
-
-	disconnectCmd = initDisconnectCmd()
-	disconnectClientCmd = initDisconnectClientCmd()
-	disconnectDirCmd = initDisconnectDirCmd()
-	disconnectFileCmd = initDisconnectFileCmd()
+	removeCmd = initRemoveCmd()
+	removeClientCmd = initRemoveClientCmd()
+	removeDirCmd = initRemoveDirCmd()
+	removeFileCmd = initRemoveFileCmd()
+	rollbackCmd = initRollbackCmd()
+	rollbackFileCmd = initRollbackFileCmd()
+	downloadCmd = initDownloadCmd()
+	downloadFileCmd = initDownloadFileCmd()
 
 	// set flags (= options)
+	// qis show client --id, qis show client --all
 	showClientCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Show all status")
 	showClientCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Show status by ID")
+	// qis show dir --id, qis show dir --all
 	showDirCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Show all status")
 	showDirCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Show status by ID")
+	// qis show file --id, qis show file --all
 	showFileCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Show all status")
 	showFileCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Show status by ID")
+	// qis show history --id, qis show history --all
+	showHistoryCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Show all status")
+	showHistoryCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Show status by ID")
+	// qis remove client --id, qis remove client --all
+	removeClientCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Initialize all data")
+	removeClientCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Initialize by ID")
+	// qis remove dir --id, qis remove dir --all
+	removeDirCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Initialize all data")
+	removeDirCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Initialize by ID")
+	// qis remove file --id, qis remove file --all
+	removeFileCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Initialize all data")
+	removeFileCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Initialize by ID")
+	// qis rollback file --path --version
+	rollbackFileCmd.Flags().StringVarP(&path, PathOption, PathShortCommand, "", "Rollback a file by path")
+	rollbackFileCmd.Flags().Uint64VarP(&version, VersionOption, VersionShortCommand, 0, "Rollback a file by version")
+	// qis download file --path --version
+	downloadFileCmd.Flags().StringVarP(&path, PathOption, PathShortCommand, "", "Download a file by path")
+	downloadFileCmd.Flags().Uint64VarP(&version, VersionOption, VersionShortCommand, 0, "Download a file by version")
 
-	disconnectClientCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Initialize all data")
-	disconnectClientCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Initialize by ID")
-	disconnectDirCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Initialize all data")
-	disconnectDirCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Initialize by ID")
-	disconnectFileCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Initialize all data")
-	disconnectFileCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Initialize by ID")
-
-	// add command
+	// add command to root command
 	rootCmd.AddCommand(startServerCmd)
 	rootCmd.AddCommand(stopServerCmd)
 	rootCmd.AddCommand(listenCmd)
 	rootCmd.AddCommand(showCmd)
-	rootCmd.AddCommand(disconnectCmd)
+	rootCmd.AddCommand(removeCmd)
+	rootCmd.AddCommand(rollbackCmd)
+	rootCmd.AddCommand(downloadCmd)
 
+	// add command to show command
 	showCmd.AddCommand(showClientCmd)
 	showCmd.AddCommand(showDirCmd)
 	showCmd.AddCommand(showFileCmd)
+	showCmd.AddCommand(showHistoryCmd)
 
-	disconnectCmd.AddCommand(disconnectClientCmd)
-	disconnectCmd.AddCommand(disconnectDirCmd)
-	disconnectCmd.AddCommand(disconnectFileCmd)
+	// add command to remove command
+	removeCmd.AddCommand(removeClientCmd)
+	removeCmd.AddCommand(removeDirCmd)
+	removeCmd.AddCommand(removeFileCmd)
+
+	// add command to rollback command
+	rollbackCmd.AddCommand(rollbackFileCmd)
+
+	// add command to download command
+	downloadCmd.AddCommand(downloadFileCmd)
 
 	// execute command
 	if err := rootCmd.Execute(); err != nil {
@@ -225,13 +280,6 @@ func initShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   ShowCommand,
 		Short: "show quic-s server data",
-	}
-}
-
-func initDisconnectCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   DisconnectCommand,
-		Short: "initialize quic-s server",
 	}
 }
 
@@ -322,19 +370,26 @@ func initShowFileCmd() *cobra.Command {
 	}
 }
 
-func initDisconnectClientCmd() *cobra.Command {
+func initRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   RemoveCommand,
+		Short: "initialize quic-s server",
+	}
+}
+
+func initRemoveClientCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   ClientCommand,
-		Short: "disconnect client",
+		Short: "remove client",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			validateOptionByCommand(disconnectClientCmd)
+			validateOptionByCommand(removeClientCmd)
 
-			url := "/api/v1/server/disconnections/clients"
+			url := "/api/v1/server/remove/clients"
 			url = getUrlWithQueryString(url)
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil) // /server/init/client
+			_, err := restClient.PostRequest(url, "application/json", nil)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -351,19 +406,19 @@ func initDisconnectClientCmd() *cobra.Command {
 	}
 }
 
-func initDisconnectDirCmd() *cobra.Command {
+func initRemoveDirCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   DirCommand,
 		Short: "initialize directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			validateOptionByCommand(disconnectDirCmd)
+			validateOptionByCommand(removeDirCmd)
 
-			url := "/api/v1/server/disconnections/directories"
+			url := "/api/v1/server/remove/directories"
 			url = getUrlWithQueryString(url)
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil) // /server/init/directory
+			_, err := restClient.PostRequest(url, "application/json", nil)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -380,19 +435,19 @@ func initDisconnectDirCmd() *cobra.Command {
 	}
 }
 
-func initDisconnectFileCmd() *cobra.Command {
+func initRemoveFileCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   FileCommand,
 		Short: "initialize file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			validateOptionByCommand(disconnectFileCmd)
+			validateOptionByCommand(removeFileCmd)
 
-			url := "/api/v1/server/disconnections/files"
+			url := "/api/v1/server/remove/files"
 			url = getUrlWithQueryString(url)
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil) // /server/init/file
+			_, err := restClient.PostRequest(url, "application/json", nil)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -408,6 +463,90 @@ func initDisconnectFileCmd() *cobra.Command {
 		},
 	}
 }
+
+func initRollbackCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   RollbackCommand,
+		Short: "rollback certain file",
+	}
+}
+
+func initRollbackFileCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   FileCommand,
+		Short: "rollback certain file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if path == "" || version == 0 {
+				log.Println("quics: ", "Please enter both path and version")
+				cmd.Help()
+				return nil
+			}
+
+			url := "/api/v1/server/rollback/files"
+			url = getUrlWithQueryString(url)
+
+			restClient := NewRestClient()
+
+			_, err := restClient.PostRequest(url, "application/json", nil)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			err = restClient.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			return nil
+		},
+	}
+}
+
+func initDownloadCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   DownloadCommand,
+		Short: "download certain file",
+	}
+}
+
+func initDownloadFileCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   FileCommand,
+		Short: "download certain file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if path == "" || version == 0 {
+				log.Println("quics: ", "Please enter both path and version")
+				cmd.Help()
+				return nil
+			}
+
+			url := "/api/v1/server/download/files"
+			url = getUrlWithQueryString(url)
+
+			restClient := NewRestClient()
+
+			_, err := restClient.PostRequest(url, "application/json", nil)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			err = restClient.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			return nil
+		},
+	}
+}
+
+// ********************************************************************************
+//                                  Private Logic
+// ********************************************************************************
 
 func validateOptionByCommand(command *cobra.Command) {
 	if !all && id == "" {

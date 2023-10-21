@@ -584,3 +584,39 @@ func (t *Transaction) RequestNeedContent(needContentReq *types.NeedContentReq) (
 	}
 	return needContentRes, fileMetadata, content, nil
 }
+
+func (sh *SyncHandler) RollbackFileByHistory(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: message received: ", conn.Conn.RemoteAddr())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.RollBackReq{}
+	if err = request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, err := sh.syncService.RollbackFileByHistory(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	data, err = response.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(data)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
+}

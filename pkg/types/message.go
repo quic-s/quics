@@ -21,6 +21,11 @@ const (
 	RESCAN          = "RESCAN"
 	NEEDCONTENT     = "NEEDCONTENT"
 	PING            = "PING"
+	ROLLBACK        = "ROLLBACK"
+	SHOWHISTORY     = "SHOWHISTORY"
+	DOWNLOAD        = "DOWNLOAD"
+	DOWNLOADHISTORY = "DOWNLOADHISTORY"
+	SHARING         = "SHARING"
 )
 
 type MessageData interface {
@@ -239,6 +244,46 @@ type NeedContentRes struct {
 
 type Ping struct {
 	UUID string
+}
+
+type RollBackReq struct {
+	UUID      string
+	AfterPath string
+	Version   uint64
+}
+
+type RollBackRes struct {
+	UUID string
+}
+
+type ShowHistoryReq struct {
+	UUID        string
+	AfterPath   string
+	CntFromHead uint64
+}
+
+type ShowHistoryRes struct {
+	History []FileHistory
+}
+
+type DownloadHistoryReq struct {
+	UUID      string
+	AfterPath string
+	Version   uint64
+}
+
+type DownloadHistoryRes struct {
+	UUID string
+}
+
+type ShareReq struct {
+	UUID      string
+	AfterPath string
+	MaxCnt    uint64
+}
+
+type ShareRes struct {
+	Link string
 }
 
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
@@ -792,4 +837,132 @@ func (ping *Ping) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(ping)
+}
+
+func (rollBackReq *RollBackReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(rollBackReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (rollBackReq *RollBackReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(rollBackReq)
+}
+
+func (rollBackRes *RollBackRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(rollBackRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (rollBackRes *RollBackRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(rollBackRes)
+}
+
+func (showHistoryReq *ShowHistoryReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(showHistoryReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (showHistoryReq *ShowHistoryReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(showHistoryReq)
+}
+
+func (showHistoryRes *ShowHistoryRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(showHistoryRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (showHistoryRes *ShowHistoryRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(showHistoryRes)
+}
+
+func (downloadHistoryReq *DownloadHistoryReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(downloadHistoryReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (downloadHistoryReq *DownloadHistoryReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(downloadHistoryReq)
+}
+
+func (downloadHistoryRes *DownloadHistoryRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(downloadHistoryRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (downloadHistoryRes *DownloadHistoryRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(downloadHistoryRes)
+}
+
+func (shareReq *ShareReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(shareReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (shareReq *ShareReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(shareReq)
+}
+
+func (shareRes *ShareRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(shareRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (shareRes *ShareRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(shareRes)
 }

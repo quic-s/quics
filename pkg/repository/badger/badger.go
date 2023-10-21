@@ -60,7 +60,7 @@ func (b *Badger) NewServerRepository() *ServerRepository {
 	}
 }
 
-func (b *Badger) NewShareRepository() *SharingRepository {
+func (b *Badger) NewSharingRepository() *SharingRepository {
 	return &SharingRepository{
 		db: b.db,
 	}
