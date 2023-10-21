@@ -88,6 +88,7 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 		port:     port,
 		password: password,
 		repo:     repo,
+		Proto:    proto,
 
 		syncService:      syncService,
 		serverRepository: serverRepository,
