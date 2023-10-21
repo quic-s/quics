@@ -30,4 +30,6 @@ type Service interface {
 	RemoveClient(all string, id string) error
 	RemoveDir(all string, id string) error
 	RemoveFile(all string, id string) error
+	RollbackFile(path string, version string) error
+	DownloadFile(path string, version string, target string) error
 }

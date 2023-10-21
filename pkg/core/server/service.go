@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -368,6 +369,32 @@ func (ss *ServerService) RemoveFile(all string, id string) error {
 		}
 
 		return nil
+	}
+
+	return nil
+}
+
+func (ss *ServerService) DownloadFile(path string, version string, target string) error {
+	fmt.Println("************************************************************")
+	fmt.Println("                      Download File                         ")
+	fmt.Println("************************************************************")
+
+	sourceFile, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	// copy contents
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
 	}
 
 	return nil

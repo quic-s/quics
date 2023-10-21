@@ -153,27 +153,28 @@ func (sh *ServerHandler) RemoveFile(w http.ResponseWriter, r *http.Request) {
 func (sh *ServerHandler) RollbackFile(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		// path := r.URL.Query().Get("path")
-		// version := r.URL.Query().Get("version")
+		path := r.URL.Query().Get("path")
+		version := r.URL.Query().Get("version")
 
-		// err := sh.ServerService.RollbackFile(path, version)
-		// if err != nil {
-		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-		// 	return
-		// }
+		err := sh.ServerService.RollbackFile(path, version)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
 func (sh *ServerHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
-	// switch r.Method {
-	// case "GET":
-	// 	path := r.URL.Query().Get("id")
-	// 	version := r.URL.Query().Get("version")
+	switch r.Method {
+	case "GET":
+		path := r.URL.Query().Get("path")
+		version := r.URL.Query().Get("version")
+		target := r.URL.Query().Get("target")
 
-	// 	err := sh.ServerService.DownloadFile(path, version)
-	// 	if err != nil {
-	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// }
+		err := sh.ServerService.DownloadFile(path, version, target)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 }

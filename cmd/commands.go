@@ -88,6 +88,10 @@ const (
 	// --version, -v
 	VersionOption       = "version"
 	VersionShortCommand = "v"
+
+	// --target, -t
+	TargetOption       = "target"
+	TargetShortCommand = "t"
 )
 
 var (
@@ -95,6 +99,7 @@ var (
 	id      string = ""
 	path    string = ""
 	version uint64 = 0
+	target  string = ""
 )
 
 var rootCmd = &cobra.Command{
@@ -169,6 +174,7 @@ func Run() int {
 	// qis download file --path --version
 	downloadFileCmd.Flags().StringVarP(&path, PathOption, PathShortCommand, "", "Download a file by path")
 	downloadFileCmd.Flags().Uint64VarP(&version, VersionOption, VersionShortCommand, 0, "Download a file by version")
+	downloadFileCmd.Flags().StringVarP(&target, TargetOption, TargetShortCommand, "", "Download location")
 
 	// add command to root command
 	rootCmd.AddCommand(startServerCmd)
@@ -378,7 +384,7 @@ func initShowHistoryCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(showHistoryCmd)
 
-			url := "/api/v1/server/logs/history"
+			url := "/api/v1/server/logs/histories"
 			url = getUrlWithQueryString(url)
 
 			restClient := NewRestClient()
@@ -546,7 +552,7 @@ func initDownloadFileCmd() *cobra.Command {
 		Use:   FileCommand,
 		Short: "download certain file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if path == "" || version == 0 {
+			if path == "" || version == 0 || target == "" {
 				log.Println("quics: ", "Please enter both path and version")
 				cmd.Help()
 				return nil
@@ -557,7 +563,7 @@ func initDownloadFileCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil)
+			_, err := restClient.GetRequest(url)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
