@@ -59,9 +59,11 @@ type SyncDirAdapter interface {
 	DeleteFileFromLatestDir(afterPath string) error
 	SaveFileToConflictDir(uuid string, afterPath string, fileMetadata *types.FileMetadata, fileContent io.Reader) error
 	GetFileFromConflictDir(afterPath string, uuid string) (*types.FileMetadata, io.Reader, error)
+	GetFileInfoFromConflictDir(afterPath string, uuid string) (*types.FileMetadata, error)
 	DeleteFilesFromConflictDir(afterPath string) error
 	SaveFileToHistoryDir(afterPath string, timestamp uint64, fileMetadata *types.FileMetadata, fileContent io.Reader) error
 	GetFileFromHistoryDir(afterPath string, timestamp uint64) (*types.FileMetadata, io.Reader, error)
+	GetFileInfoFromHistoryDir(afterPath string, timestamp uint64) (*types.FileMetadata, error)
 }
 
 type NetworkAdapter interface {
