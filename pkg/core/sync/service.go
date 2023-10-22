@@ -1178,27 +1178,22 @@ func validateGiveYouTransaction(file *types.File, giveYouRes *types.GiveYouRes) 
 }
 
 func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types.RollBackRes, error) {
-	// get file history data
+	fileData, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	if err != nil {
+		return nil, err
+	}
+
 	historyData, err := ss.historyRepository.GetFileHistory(request.AfterPath, request.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	// get file contents by history
-	historyFilePath := filepath.Join(historyData.BeforePath, historyData.AfterPath)
-	historyFile, err := os.Open(historyFilePath)
-	if err != nil {
-		return nil, err
-	}
-	defer historyFile.Close()
-
-	// save new file history
 	newHistoryData := &types.FileHistory{
 		Date:       time.Now().String(),
 		UUID:       request.UUID,
 		BeforePath: historyData.BeforePath,
 		AfterPath:  historyData.AfterPath,
-		Timestamp:  historyData.Timestamp,
+		Timestamp:  fileData.LatestSyncTimestamp + 1,
 		Hash:       historyData.Hash,
 		File:       historyData.File,
 	}
@@ -1207,18 +1202,12 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 		return nil, err
 	}
 
-	// rollback/overwrite latest file to history
-	fileData, err := ss.syncRepository.GetFileByPath(request.AfterPath)
-	if err != nil {
-		return nil, err
-	}
-	// first, data
 	newFileData := &types.File{
-		BeforePath:          fileData.BeforePath,
+		BeforePath:          utils.GetQuicsSyncDirPath(),
 		AfterPath:           fileData.AfterPath,
 		RootDirKey:          fileData.RootDirKey,
 		LatestHash:          newHistoryData.Hash,
-		LatestSyncTimestamp: newHistoryData.Timestamp + 1,
+		LatestSyncTimestamp: newHistoryData.Timestamp,
 		LatestEditClient:    request.UUID,
 		ContentsExisted:     true,
 		NeedForceSync:       false,
@@ -1229,14 +1218,22 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 		return nil, err
 	}
 
-	// second, content
-	file, err := os.Create(newFileData.BeforePath + newFileData.AfterPath)
+	historyFileMetadata, historyFileInfo, err := ss.syncDirAdapter.GetFileFromHistoryDir(historyData.AfterPath, historyData.Timestamp)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
 
-	_, err = io.Copy(file, historyFile)
+	err = ss.syncDirAdapter.SaveFileToHistoryDir(newHistoryData.AfterPath, newHistoryData.Timestamp, historyFileMetadata, historyFileInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	fileMetadata, fileInfo, err := ss.syncDirAdapter.GetFileFromHistoryDir(newHistoryData.AfterPath, newHistoryData.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ss.syncDirAdapter.SaveFileToLatestDir(newFileData.AfterPath, fileMetadata, fileInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -1246,13 +1243,13 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 	if err != nil {
 		return nil, err
 	}
+
 	UUIDs := rootDir.UUIDs
-	for i, UUID := range UUIDs {
-		if UUID == request.UUID {
-			UUIDs = append(UUIDs[:i], UUIDs[i+1:]...)
-		}
+
+	err = ss.CallMustSync(newFileData.AfterPath, UUIDs)
+	if err != nil {
+		return nil, err
 	}
-	ss.CallMustSync(newFileData.AfterPath, UUIDs)
 
 	return &types.RollBackRes{
 		UUID: request.UUID,

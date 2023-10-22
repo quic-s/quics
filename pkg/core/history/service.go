@@ -1,6 +1,8 @@
 package history
 
 import (
+	"errors"
+
 	"github.com/quic-s/quics/pkg/types"
 )
 
@@ -19,6 +21,14 @@ func (hs *HistoryService) ShowHistory(request *types.ShowHistoryReq) (*types.Sho
 	if err != nil {
 		return nil, err
 	}
+
+	// request.CntFromHead만큼 뒤에서 세서 개수를 보낸다.
+	length := len(histories)
+	if request.CntFromHead > uint64(length) {
+		return nil, errors.New("index out of bound")
+	}
+
+	histories = histories[length-1-int(request.CntFromHead):]
 
 	return &types.ShowHistoryRes{
 		History: histories,
