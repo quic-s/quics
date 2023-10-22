@@ -2,6 +2,7 @@ package fs
 
 import (
 	"crypto/sha1"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -163,6 +164,9 @@ func (s *SyncDir) DeleteFilesFromConflictDir(afterPath string) error {
 	re, err := regexp.Compile("^" + fileName + "_.*")
 	if err != nil {
 		return err
+	}
+	if rootToFileDir == "" {
+		return errors.New("rootToFileDir is empty")
 	}
 
 	rootDir, fileDir := utils.GetNamesByAfterPath(rootToFileDir)
