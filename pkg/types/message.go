@@ -7,25 +7,27 @@ import (
 )
 
 const (
-	REGISTERCLIENT  = "REGISTERCLIENT"
-	REGISTERROOTDIR = "REGISTERROOTDIR"
-	SYNCROOTDIR     = "SYNCROOTDIR"
-	GETROOTDIRS     = "GETROOTDIRS"
-	PLEASESYNC      = "PLEASESYNC"
-	MUSTSYNC        = "MUSTSYNC"
-	FORCESYNC       = "FORCESYNC"
-	CONFLICT        = "CONFLICT"
-	CONFLICTLIST    = "CONFLICTLIST"
-	CHOOSEONE       = "CHOOSEONE"
-	FULLSCAN        = "FULLSCAN"
-	RESCAN          = "RESCAN"
-	NEEDCONTENT     = "NEEDCONTENT"
-	PING            = "PING"
-	ROLLBACK        = "ROLLBACK"
-	SHOWHISTORY     = "SHOWHISTORY"
-	DOWNLOAD        = "DOWNLOAD"
-	DOWNLOADHISTORY = "DOWNLOADHISTORY"
-	SHARING         = "SHARING"
+	REGISTERCLIENT   = "REGISTERCLIENT"
+	REGISTERROOTDIR  = "REGISTERROOTDIR"
+	SYNCROOTDIR      = "SYNCROOTDIR"
+	GETROOTDIRS      = "GETROOTDIRS"
+	PLEASESYNC       = "PLEASESYNC"
+	MUSTSYNC         = "MUSTSYNC"
+	FORCESYNC        = "FORCESYNC"
+	CONFLICT         = "CONFLICT"
+	CONFLICTLIST     = "CONFLICTLIST"
+	CONFLICTDOWNLOAD = "CONFLICTDOWNLOAD"
+	CHOOSEONE        = "CHOOSEONE"
+	FULLSCAN         = "FULLSCAN"
+	RESCAN           = "RESCAN"
+	NEEDCONTENT      = "NEEDCONTENT"
+	PING             = "PING"
+	ROLLBACK         = "ROLLBACK"
+	SHOWHISTORY      = "SHOWHISTORY"
+	DOWNLOAD         = "DOWNLOAD"
+	DOWNLOADHISTORY  = "DOWNLOADHISTORY"
+	STARTSHARING     = "STARTSHARING"
+	STOPSHARING      = "STOPSHARING"
 )
 
 type MessageData interface {
@@ -173,20 +175,6 @@ type PleaseFileRes struct {
 	AfterPath string
 }
 
-// LinkShareReq is used when creating file download link
-type LinkShareReq struct {
-	UUID      string
-	AfterPath string
-	MaxCount  uint
-}
-
-// LinkShareRes is used when returning created file download link
-type LinkShareRes struct {
-	Link     string
-	Count    uint
-	MaxCount uint
-}
-
 type AskAllMetaReq struct {
 	UUID string
 }
@@ -284,6 +272,31 @@ type ShareReq struct {
 
 type ShareRes struct {
 	Link string
+}
+
+type StopShareReq struct {
+	UUID string
+	Link string
+}
+
+type StopShareRes struct {
+	UUID string
+}
+
+type AskStagingNumReq struct {
+	UUID      string
+	AfterPath string
+}
+
+type AskStagingNumRes struct {
+	UUID        string
+	ConflictNum uint64
+}
+
+type ConflictDownloadReq struct {
+	UUID      string // client UUID who want to download
+	Candidate string // coflict file's UUID from FileHistory (stagingFile)
+	AfterPath string // conflict file's AfterPath
 }
 
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
@@ -660,40 +673,6 @@ func (pleaseFileRes *PleaseFileRes) Decode(data []byte) error {
 	return decoder.Decode(pleaseFileRes)
 }
 
-func (linkShareReq *LinkShareReq) Encode() ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(linkShareReq); err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
-func (linkShareReq *LinkShareReq) Decode(data []byte) error {
-	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(linkShareReq)
-}
-
-func (linkShareRes *LinkShareRes) Encode() ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(linkShareRes); err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
-func (linkShareRes *LinkShareRes) Decode(data []byte) error {
-	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(linkShareRes)
-}
-
 func (askAllMetaReq *AskAllMetaReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
@@ -965,4 +944,84 @@ func (shareRes *ShareRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(shareRes)
+}
+
+func (stopShareReq *StopShareReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(stopShareReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (stopShareReq *StopShareReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(stopShareReq)
+}
+
+func (stopShareRes *StopShareRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(stopShareRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (stopShareRes *StopShareRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(stopShareRes)
+}
+
+func (askStagingNumReq *AskStagingNumReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askStagingNumReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askStagingNumReq *AskStagingNumReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askStagingNumReq)
+}
+
+func (askStagingNumRes *AskStagingNumRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(askStagingNumRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (askStagingNumRes *AskStagingNumRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(askStagingNumRes)
+}
+
+func (conflictDownloadReq *ConflictDownloadReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(conflictDownloadReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (conflictDownloadReq *ConflictDownloadReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(conflictDownloadReq)
 }

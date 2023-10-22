@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/server"
+	"github.com/quic-s/quics/pkg/core/sharing"
+	quicshttp "github.com/quic-s/quics/pkg/network/http"
 	quicshttp3 "github.com/quic-s/quics/pkg/network/http3"
 	"github.com/quic-s/quics/pkg/repository/badger"
 	"github.com/quic-s/quics/pkg/utils"
@@ -34,19 +37,28 @@ func New() (*App, error) {
 	}
 
 	serverRepository := repo.NewServerRepository()
+	historyRepository := repo.NewHistoryRepository()
+	syncRepository := repo.NewSyncRepository()
+	sharingRepository := repo.NewSharingRepository()
+
 	serverService, err := server.NewService(repo, serverRepository)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
 	}
-	serverHandler := quicshttp3.NewServerHandler(serverService)
+	sharingService := sharing.NewService(historyRepository, syncRepository, sharingRepository)
 
-	handler := serverHandler.SetupRoutes()
+	serverHandler := quicshttp3.NewServerHandler(serverService)
+	sharingHandler := quicshttp.NewSharingHandler(sharingService)
+
+	mux := http.NewServeMux()
+	serverHandler.SetupRoutes(mux)
+	sharingHandler.SetupRoutes(mux)
 
 	restServer := &http3.Server{
 		Addr:       "0.0.0.0:" + config.GetViperEnvVariables("REST_SERVER_PORT"),
 		QuicConfig: &quic.Config{},
-		Handler:    handler,
+		Handler:    mux,
 	}
 
 	// get directory path for certification

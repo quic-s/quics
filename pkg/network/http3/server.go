@@ -16,9 +16,7 @@ func NewServerHandler(serverService server.Service) *ServerHandler {
 	}
 }
 
-func (sh *ServerHandler) SetupRoutes() http.Handler {
-	mux := http.NewServeMux()
-
+func (sh *ServerHandler) SetupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/server/stop", sh.StopRestServer)
 	mux.HandleFunc("/api/v1/server/listen", sh.ListenProtocol)
 	mux.HandleFunc("/api/v1/server/logs/clients", sh.ShowClientLogs)
@@ -28,10 +26,7 @@ func (sh *ServerHandler) SetupRoutes() http.Handler {
 	mux.HandleFunc("/api/v1/server/remove/clients", sh.RemoveClient)
 	mux.HandleFunc("/api/v1/server/remove/directories", sh.RemoveDir)
 	mux.HandleFunc("/api/v1/server/remove/files", sh.RemoveFile)
-	mux.HandleFunc("/api/v1/server/rollback/files", sh.RollbackFile)
 	mux.HandleFunc("/api/v1/server/download/files", sh.DownloadFile)
-
-	return mux
 }
 
 func (sh *ServerHandler) StopRestServer(w http.ResponseWriter, r *http.Request) {
@@ -154,30 +149,17 @@ func (sh *ServerHandler) RemoveFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (sh *ServerHandler) RollbackFile(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
-		// path := r.URL.Query().Get("path")
-		// version := r.URL.Query().Get("version")
-
-		// err := sh.ServerService.RollbackFile(path, version)
-		// if err != nil {
-		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-		// 	return
-		// }
-	}
-}
-
 func (sh *ServerHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
-	// switch r.Method {
-	// case "GET":
-	// 	path := r.URL.Query().Get("id")
-	// 	version := r.URL.Query().Get("version")
+	switch r.Method {
+	case "GET":
+		path := r.URL.Query().Get("path")
+		version := r.URL.Query().Get("version")
+		target := r.URL.Query().Get("target")
 
-	// 	err := sh.ServerService.DownloadFile(path, version)
-	// 	if err != nil {
-	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// }
+		err := sh.ServerService.DownloadFile(path, version, target)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 }

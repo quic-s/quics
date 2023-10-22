@@ -3,9 +3,11 @@ package server
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/history"
@@ -54,11 +56,12 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
 	historyService := history.NewService(historyRepository)
 	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
-	sharingService := sharing.NewService(sharingRepository)
+	sharingService := sharing.NewService(historyRepository, syncRepository, sharingRepository)
 
 	registrationHandler := qp.NewRegistrationHandler(registrationService)
 	syncHandler := qp.NewSyncHandler(syncService)
 	historyHandler := qp.NewHistoryHandler(historyService, sharingService)
+	sharingHandler := qp.NewSharingHandler(sharingService)
 
 	proto, err := qp.New("0.0.0.0", port, pool)
 	if err != nil {
@@ -72,11 +75,14 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, syncHandler.GetRemoteDirs)
 	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
 	proto.RecvTransactionHandleFunc(types.CONFLICTLIST, syncHandler.AskConflictList)
+	proto.RecvTransactionHandleFunc(types.CONFLICTDOWNLOAD, syncHandler.ConflictDownload)
 	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
 	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
 	proto.RecvTransactionHandleFunc(types.SHOWHISTORY, historyHandler.ShowHistory)
 	proto.RecvTransactionHandleFunc(types.ROLLBACK, syncHandler.RollbackFileByHistory)
 	proto.RecvTransactionHandleFunc(types.DOWNLOADHISTORY, historyHandler.DownloadHistory)
+	proto.RecvTransactionHandleFunc(types.STARTSHARING, sharingHandler.StartSharing)
+	proto.RecvTransactionHandleFunc(types.STOPSHARING, sharingHandler.StopSharing)
 
 	return &ServerService{
 		port:     port,
@@ -364,6 +370,36 @@ func (ss *ServerService) RemoveFile(all string, id string) error {
 		}
 
 		return nil
+	}
+
+	return nil
+}
+
+func (ss *ServerService) DownloadFile(path string, version string, target string) error {
+	fmt.Println("************************************************************")
+	fmt.Println("                      Download File                         ")
+	fmt.Println("************************************************************")
+
+	if strings.Contains(target, utils.GetQuicsDirPath()) {
+		return errors.New("quics: target path should not be in .quics directory")
+	}
+
+	sourceFile, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	// copy contents
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
 	}
 
 	return nil

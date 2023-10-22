@@ -34,10 +34,7 @@ import (
 * `qis remove file --id <file-path>`: Initialize file
 * `qis remove file --all`: Initialize all files
 *
-* `qis rollback`: Rollback certain file
-* `qis rollback file --path --version`: Rollback certain file
-*
-* `qis download file --path --version`: Download certain file
+* `qis download file --path --version --target`: Download certain file
  */
 
 /**
@@ -54,6 +51,9 @@ import (
 *
 * `--version`: Version option
 * `-v`: Version short option
+*
+* `--target`: Target(=destination directory) option
+* `--t`: Target short option
  */
 
 const (
@@ -63,7 +63,6 @@ const (
 	ListenCommand   = "listen"
 	ShowCommand     = "show"
 	RemoveCommand   = "remove"
-	RollbackCommand = "rollback"
 	DownloadCommand = "download"
 
 	ClientCommand  = "client"
@@ -88,6 +87,10 @@ const (
 	// --version, -v
 	VersionOption       = "version"
 	VersionShortCommand = "v"
+
+	// --target, -t
+	TargetOption       = "target"
+	TargetShortCommand = "t"
 )
 
 var (
@@ -95,6 +98,7 @@ var (
 	id      string = ""
 	path    string = ""
 	version uint64 = 0
+	target  string = ""
 )
 
 var rootCmd = &cobra.Command{
@@ -115,8 +119,6 @@ var (
 	removeClientCmd *cobra.Command
 	removeDirCmd    *cobra.Command
 	removeFileCmd   *cobra.Command
-	rollbackCmd     *cobra.Command
-	rollbackFileCmd *cobra.Command
 	downloadCmd     *cobra.Command
 	downloadFileCmd *cobra.Command
 )
@@ -136,8 +138,6 @@ func Run() int {
 	removeClientCmd = initRemoveClientCmd()
 	removeDirCmd = initRemoveDirCmd()
 	removeFileCmd = initRemoveFileCmd()
-	rollbackCmd = initRollbackCmd()
-	rollbackFileCmd = initRollbackFileCmd()
 	downloadCmd = initDownloadCmd()
 	downloadFileCmd = initDownloadFileCmd()
 
@@ -163,12 +163,10 @@ func Run() int {
 	// qis remove file --id, qis remove file --all
 	removeFileCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Initialize all data")
 	removeFileCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Initialize by ID")
-	// qis rollback file --path --version
-	rollbackFileCmd.Flags().StringVarP(&path, PathOption, PathShortCommand, "", "Rollback a file by path")
-	rollbackFileCmd.Flags().Uint64VarP(&version, VersionOption, VersionShortCommand, 0, "Rollback a file by version")
 	// qis download file --path --version
 	downloadFileCmd.Flags().StringVarP(&path, PathOption, PathShortCommand, "", "Download a file by path")
 	downloadFileCmd.Flags().Uint64VarP(&version, VersionOption, VersionShortCommand, 0, "Download a file by version")
+	downloadFileCmd.Flags().StringVarP(&target, TargetOption, TargetShortCommand, "", "Download location")
 
 	// add command to root command
 	rootCmd.AddCommand(startServerCmd)
@@ -176,7 +174,6 @@ func Run() int {
 	rootCmd.AddCommand(listenCmd)
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(removeCmd)
-	rootCmd.AddCommand(rollbackCmd)
 	rootCmd.AddCommand(downloadCmd)
 
 	// add command to show command
@@ -189,9 +186,6 @@ func Run() int {
 	removeCmd.AddCommand(removeClientCmd)
 	removeCmd.AddCommand(removeDirCmd)
 	removeCmd.AddCommand(removeFileCmd)
-
-	// add command to rollback command
-	rollbackCmd.AddCommand(rollbackFileCmd)
 
 	// add command to download command
 	downloadCmd.AddCommand(downloadFileCmd)
@@ -378,7 +372,7 @@ func initShowHistoryCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(showHistoryCmd)
 
-			url := "/api/v1/server/logs/history"
+			url := "/api/v1/server/logs/histories"
 			url = getUrlWithQueryString(url)
 
 			restClient := NewRestClient()
@@ -494,46 +488,6 @@ func initRemoveFileCmd() *cobra.Command {
 	}
 }
 
-func initRollbackCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   RollbackCommand,
-		Short: "rollback certain file",
-	}
-}
-
-func initRollbackFileCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   FileCommand,
-		Short: "rollback certain file",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if path == "" || version == 0 {
-				log.Println("quics: ", "Please enter both path and version")
-				cmd.Help()
-				return nil
-			}
-
-			url := "/api/v1/server/rollback/files"
-			url = getUrlWithQueryString(url)
-
-			restClient := NewRestClient()
-
-			_, err := restClient.PostRequest(url, "application/json", nil)
-			if err != nil {
-				log.Println("quics: ", err)
-				return err
-			}
-
-			err = restClient.Close()
-			if err != nil {
-				log.Println("quics: ", err)
-				return err
-			}
-
-			return nil
-		},
-	}
-}
-
 func initDownloadCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   DownloadCommand,
@@ -546,7 +500,7 @@ func initDownloadFileCmd() *cobra.Command {
 		Use:   FileCommand,
 		Short: "download certain file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if path == "" || version == 0 {
+			if path == "" || version == 0 || target == "" {
 				log.Println("quics: ", "Please enter both path and version")
 				cmd.Help()
 				return nil
@@ -557,7 +511,7 @@ func initDownloadFileCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil)
+			_, err := restClient.GetRequest(url)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err

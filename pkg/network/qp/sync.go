@@ -620,3 +620,64 @@ func (sh *SyncHandler) RollbackFileByHistory(conn *qp.Connection, stream *qp.Str
 
 	return nil
 }
+
+func (sh *SyncHandler) ConflictDownload(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: message received: ", conn.Conn.RemoteAddr())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.AskStagingNumReq{}
+	if err = request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, filePaths, err := sh.syncService.GetStagingNum(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	data, err = response.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(data)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	// if count is zero, then close transaction
+	if response.ConflictNum == 0 {
+		return nil
+	}
+
+	requests, filePaths, err := sh.syncService.GetConflictFiles(request, filePaths)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	for i, request := range requests {
+		data, err = request.Encode()
+		if err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		err = stream.SendFileBMessage(data, filePaths[i])
+		if err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+	}
+
+	return nil
+}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/quic-s/quics/pkg/core/history"
@@ -1202,4 +1203,81 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 	return &types.RollBackRes{
 		UUID: request.UUID,
 	}, nil
+}
+
+func (ss *SyncService) GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, []string, error) {
+	// get file by afterPath
+	file, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// get file name for detecting conflict files
+	// TODO: Check whether is it right to use fileNamePrefix below
+	_, fileNamePrefix := utils.GetNamesByAfterPath(file.AfterPath)
+	// fileNamePrefix := strings.Split(file.AfterPath, "/")[len(strings.Split(file.AfterPath, "/"))-1]
+
+	// get conflict directory of this file's root directory
+	directoryPath := utils.GetQuicsConflictPathByRootDir(file.RootDirKey)
+
+	matchingFiles := []string{}
+
+	// detect conflict files of this file
+	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		fileName := filepath.Base(path)
+
+		if strings.HasPrefix(fileName, fileNamePrefix) {
+			matchingFiles = append(matchingFiles, fileName)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// check if the count is correct
+	conflict, err := ss.syncRepository.GetConflict(file.AfterPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(matchingFiles) != len(conflict.StagingFiles) {
+		return nil, nil, errors.New("quics: conflict file count is not correct")
+	}
+
+	// return the count of conflict files
+	conflictNum := uint64(len(matchingFiles))
+
+	return &types.AskStagingNumRes{
+		UUID:        request.UUID,
+		ConflictNum: conflictNum,
+	}, matchingFiles, nil
+}
+
+func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq, conflictFilePaths []string) ([]*types.ConflictDownloadReq, []string, error) {
+	// get file by afterPath
+	conflict, err := ss.syncRepository.GetConflict(request.AfterPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	response := []*types.ConflictDownloadReq{}
+
+	for _, stagingFile := range conflict.StagingFiles {
+
+		conflictDownloadReq := &types.ConflictDownloadReq{
+			UUID:      request.UUID,
+			Candidate: stagingFile.UUID,
+			AfterPath: request.AfterPath,
+		}
+
+		response = append(response, conflictDownloadReq)
+	}
+
+	return response, conflictFilePaths, nil
 }
