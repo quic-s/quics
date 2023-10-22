@@ -25,6 +25,10 @@ type DatabaseData[T DatabaseDataTypes] interface {
 	Decode(data []byte) error
 }
 
+type Server struct {
+	Password string
+}
+
 // Client is used to save connected client information
 type Client struct {
 	UUID string // key
@@ -82,6 +86,22 @@ type Sharing struct {
 	MaxCount uint
 	Owner    string
 	File     File
+}
+
+func (server *Server) Encode() []byte {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(server); err != nil {
+		log.Println("quics: (Server.Encode) ", err)
+	}
+
+	return buffer.Bytes()
+}
+
+func (server *Server) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(server)
 }
 
 func (client *Client) Encode() []byte {

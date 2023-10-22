@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/quic-s/quics/pkg/app"
+	"github.com/quic-s/quics/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +18,9 @@ import (
 * `qis start --ip <server-ip> --port <server-port>`: Start quic-s server (run with custom IP)
 * `qis stop`: Stop quic-s server
 * `qis listen`: Listen quic-s protocol
-* `qis set --password <password>`: Change password for quic-s server
+*
+* `qis password set --pw <password>`: Change password for quic-s server
+* `qis password reset`: Reset password for quic-s server
 *
 * `qis show`: Show quic-s server information (needed options)
 * `qis show client --id <client-UUID>`: Show client information
@@ -68,10 +72,13 @@ const (
 	StartCommand    = "start"
 	StopCommand     = "stop"
 	ListenCommand   = "listen"
-	SetCommand      = "set"
+	PasswordCommand = "password"
 	ShowCommand     = "show"
 	RemoveCommand   = "remove"
 	DownloadCommand = "download"
+
+	SetCommand   = "set"
+	ResetCommand = "reset"
 
 	ClientCommand  = "client"
 	DirCommand     = "dir"
@@ -106,8 +113,8 @@ const (
 	// --port (not exist short option)
 	PortOption = "port"
 
-	// --password (not exist short option)
-	PasswordOption = "password"
+	// --pw (not exist short option)
+	PasswordOption = "pw"
 )
 
 var (
@@ -127,21 +134,23 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	startServerCmd  *cobra.Command
-	stopServerCmd   *cobra.Command
-	listenCmd       *cobra.Command
-	setCmd          *cobra.Command
-	showCmd         *cobra.Command
-	showClientCmd   *cobra.Command
-	showDirCmd      *cobra.Command
-	showFileCmd     *cobra.Command
-	showHistoryCmd  *cobra.Command
-	removeCmd       *cobra.Command
-	removeClientCmd *cobra.Command
-	removeDirCmd    *cobra.Command
-	removeFileCmd   *cobra.Command
-	downloadCmd     *cobra.Command
-	downloadFileCmd *cobra.Command
+	startServerCmd   *cobra.Command
+	stopServerCmd    *cobra.Command
+	listenCmd        *cobra.Command
+	passwordCmd      *cobra.Command
+	passwordSetCmd   *cobra.Command
+	passwordResetCmd *cobra.Command
+	showCmd          *cobra.Command
+	showClientCmd    *cobra.Command
+	showDirCmd       *cobra.Command
+	showFileCmd      *cobra.Command
+	showHistoryCmd   *cobra.Command
+	removeCmd        *cobra.Command
+	removeClientCmd  *cobra.Command
+	removeDirCmd     *cobra.Command
+	removeFileCmd    *cobra.Command
+	downloadCmd      *cobra.Command
+	downloadFileCmd  *cobra.Command
 )
 
 // Run initializes and executes commands using cobra library
@@ -150,7 +159,9 @@ func Run() int {
 	startServerCmd = initStartServerCmd()
 	stopServerCmd = initStopServerCmd()
 	listenCmd = initListenCmd()
-	setCmd = initSetCmd()
+	passwordCmd = initPasswordCmd()
+	passwordSetCmd = initPasswordSetCmd()
+	passwordResetCmd = initPasswordResetCmd()
 	showCmd = initShowCmd()
 	showClientCmd = initShowClientCmd()
 	showDirCmd = initShowDirCmd()
@@ -167,8 +178,8 @@ func Run() int {
 	// qis start --ip <server-ip> --port <server-port>
 	startServerCmd.Flags().StringVarP(&ip, IPOption, "", "", "Start server with custom IP")
 	startServerCmd.Flags().StringVarP(&port, PortOption, "", "", "Start server with custom port")
-	// qis set --password <password>
-	setCmd.Flags().StringVarP(&password, PasswordOption, "", "", "Change password for quic-s server")
+	// qis password set --pw <password>
+	passwordSetCmd.Flags().StringVarP(&password, PasswordOption, "", "", "Change password for quic-s server")
 	// qis show client --id, qis show client --all
 	showClientCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Show all status")
 	showClientCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Show status by ID")
@@ -199,10 +210,14 @@ func Run() int {
 	rootCmd.AddCommand(startServerCmd)
 	rootCmd.AddCommand(stopServerCmd)
 	rootCmd.AddCommand(listenCmd)
-	rootCmd.AddCommand(setCmd)
+	rootCmd.AddCommand(passwordCmd)
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(downloadCmd)
+
+	// add command to password command
+	passwordCmd.AddCommand(passwordSetCmd)
+	passwordCmd.AddCommand(passwordResetCmd)
 
 	// add command to show command
 	showCmd.AddCommand(showClientCmd)
@@ -299,8 +314,14 @@ func initListenCmd() *cobra.Command {
 	}
 }
 
-// initSetCmd change password for quic-s server (`qis set --password <password>`)
-func initSetCmd() *cobra.Command {
+func initPasswordCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   PasswordCommand,
+		Short: "change password for quic-s server",
+	}
+}
+
+func initPasswordSetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   SetCommand,
 		Short: "change password for quic-s server",
@@ -311,12 +332,21 @@ func initSetCmd() *cobra.Command {
 				return nil
 			}
 
-			url := "/api/v1/server/password"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/password/set"
+
+			server := &types.Server{
+				Password: password,
+			}
+
+			body, err := json.Marshal(server)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(ip, port, url, "application/json", nil) // /server/set/password
+			_, err = restClient.PostRequest(ip, port, url, "application/json", body)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -328,6 +358,31 @@ func initSetCmd() *cobra.Command {
 				return err
 			}
 
+			return nil
+		},
+	}
+}
+
+func initPasswordResetCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   ResetCommand,
+		Short: "reset password for quic-s server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			url := "/api/v1/server/password/reset"
+
+			restClient := NewRestClient()
+
+			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			err = restClient.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
 			return nil
 		},
 	}

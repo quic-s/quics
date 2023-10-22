@@ -3,6 +3,9 @@ package server
 import "github.com/quic-s/quics/pkg/types"
 
 type Repository interface {
+	UpdatePassword(server *types.Server) error
+	DeletePassword() error
+	GetPassword() (*types.Server, error)
 	GetAllClients() ([]*types.Client, error)
 	GetAllRootDirectories() ([]*types.RootDirectory, error)
 	GetAllFiles() ([]*types.File, error)
@@ -22,6 +25,8 @@ type Repository interface {
 type Service interface {
 	StopServer() error
 	ListenProtocol() error
+	SetPassword(request *types.Server) error
+	ResetPassword() error
 	Ping(request *types.Ping) (*types.Ping, error)
 	ShowClientLogs(all string, id string) error
 	ShowDirLogs(all string, id string) error
