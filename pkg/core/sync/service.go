@@ -398,6 +398,20 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 			return nil, err
 		}
 
+		// check file hash is correct
+		fileInfo, err := ss.syncDirAdapter.GetFileInfoFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+		downloadedHash := utils.MakeHashFromFileMetadata(file.AfterPath, fileInfo)
+
+		if downloadedHash != file.LatestHash {
+			// if file hash is not correct then return error
+			log.Println("quics: ", err)
+			return nil, errors.New("quics: file hash is not correct")
+		}
+
 		// check file is deleted
 		if file.LatestHash == "" {
 			// if file is deleted then remove file from {rootDir}
@@ -468,6 +482,21 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 			ss.syncRepository.UpdateFile(file)
 			ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
 			return nil, err
+		}
+
+		// check file hash is correct
+		fileInfo, err := ss.syncDirAdapter.GetFileInfoFromConflictDir(file.AfterPath, pleaseTakeReq.UUID)
+		if err != nil {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+		downloadedHash := utils.MakeHashFromFileMetadata(file.AfterPath, fileInfo)
+		if downloadedHash != file.LatestHash {
+			// delete staging file info from conflict info when error occurred
+			delete(file.Conflict.StagingFiles, pleaseTakeReq.UUID)
+			ss.syncRepository.UpdateFile(file)
+			ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
+			return nil, errors.New("quics: file hash is not correct")
 		}
 
 		// moved to pleaseSyncReq

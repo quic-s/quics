@@ -138,6 +138,16 @@ func (s *SyncDir) GetFileFromConflictDir(afterPath string, uuid string) (*types.
 	return types.NewFileMetadataFromOSFileInfo(fileInfo), file, nil
 }
 
+func (s *SyncDir) GetFileInfoFromConflictDir(afterPath string, uuid string) (*types.FileMetadata, error) {
+	fileInfo, err := os.Stat(utils.GetConflictFileNameByAfterPath(afterPath, uuid))
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return types.NewFileMetadataFromOSFileInfo(fileInfo), nil
+}
+
 func (s *SyncDir) DeleteFilesFromConflictDir(afterPath string) error {
 	// lock mutex by hash value of file path
 	// using hash value is to reduce the number of mutex
@@ -228,4 +238,14 @@ func (s *SyncDir) GetFileFromHistoryDir(afterPath string, timestamp uint64) (*ty
 	}
 
 	return types.NewFileMetadataFromOSFileInfo(fileInfo), file, nil
+}
+
+func (s *SyncDir) GetFileInfoFromHistoryDir(afterPath string, timestamp uint64) (*types.FileMetadata, error) {
+	fileInfo, err := os.Stat(utils.GetHistoryFileNameByAfterPath(afterPath, timestamp))
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return types.NewFileMetadataFromOSFileInfo(fileInfo), nil
 }

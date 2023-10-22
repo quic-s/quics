@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/history"
@@ -88,6 +89,7 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 		port:     port,
 		password: password,
 		repo:     repo,
+		Proto:    proto,
 
 		syncService:      syncService,
 		serverRepository: serverRepository,
@@ -122,12 +124,23 @@ func (ss *ServerService) ListenProtocol() error {
 
 	// start quics protocol server
 	ss.syncService.BackgroundFullScan(300)
-	err := ss.Proto.Start()
+	errChan := make(chan error)
+	go func() {
+		go func() {
+			time.Sleep(3 * time.Second)
+			errChan <- nil
+		}()
+		err := ss.Proto.Start()
+		if err != nil {
+			log.Println("quics: ", err)
+			errChan <- err
+		}
+	}()
+
+	err := <-errChan
 	if err != nil {
-		log.Println("quics: ", err)
 		return err
 	}
-
 	return nil
 }
 
