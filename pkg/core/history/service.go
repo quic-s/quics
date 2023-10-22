@@ -34,16 +34,3 @@ func (hs *HistoryService) ShowHistory(request *types.ShowHistoryReq) (*types.Sho
 		History: histories,
 	}, nil
 }
-
-func (hs *HistoryService) DownloadHistory(request *types.DownloadHistoryReq) (*types.DownloadHistoryRes, string, error) {
-	history, err := hs.historyRepository.GetFileHistory(request.AfterPath, request.Version)
-	if err != nil {
-		return nil, "", err
-	}
-
-	filePath := history.BeforePath + "/" + history.AfterPath
-
-	return &types.DownloadHistoryRes{
-		UUID: request.UUID,
-	}, filePath, nil
-}

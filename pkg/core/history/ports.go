@@ -10,5 +10,4 @@ type Repository interface {
 
 type Service interface {
 	ShowHistory(request *types.ShowHistoryReq) (*types.ShowHistoryRes, error)
-	DownloadHistory(request *types.DownloadHistoryReq) (*types.DownloadHistoryRes, string, error)
 }

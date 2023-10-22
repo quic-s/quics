@@ -682,3 +682,39 @@ func (sh *SyncHandler) ConflictDownload(conn *qp.Connection, stream *qp.Stream, 
 
 	return nil
 }
+
+func (sh *SyncHandler) DownloadHistory(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: message received: ", conn.Conn.RemoteAddr())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.DownloadHistoryReq{}
+	if err = request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, filePath, err := sh.syncService.DownloadHistory(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	data, err = response.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendFileBMessage(data, filePath)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
+}

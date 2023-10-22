@@ -56,39 +56,3 @@ func (hh *HistoryHandler) ShowHistory(conn *qp.Connection, stream *qp.Stream, tr
 
 	return nil
 }
-
-func (hh *HistoryHandler) DownloadHistory(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: message received: ", conn.Conn.RemoteAddr())
-
-	data, err := stream.RecvBMessage()
-	if err != nil {
-		log.Println("quics: ", err)
-		return err
-	}
-
-	request := &types.DownloadHistoryReq{}
-	if err = request.Decode(data); err != nil {
-		log.Println("quics: ", err)
-		return err
-	}
-
-	response, filePath, err := hh.historyService.DownloadHistory(request)
-	if err != nil {
-		log.Println("quics: ", err)
-		return err
-	}
-
-	data, err = response.Encode()
-	if err != nil {
-		log.Println("quics: ", err)
-		return err
-	}
-
-	err = stream.SendFileBMessage(data, filePath)
-	if err != nil {
-		log.Println("quics: ", err)
-		return err
-	}
-
-	return nil
-}

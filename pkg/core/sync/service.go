@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -1331,4 +1332,23 @@ func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq, conflic
 	}
 
 	return response, conflictFilePaths, nil
+}
+
+func (ss *SyncService) DownloadHistory(request *types.DownloadHistoryReq) (*types.DownloadHistoryRes, string, error) {
+	history, err := ss.historyRepository.GetFileHistory(request.AfterPath, request.Version)
+	if err != nil {
+		return nil, "", err
+	}
+
+	file, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	historyFileName := utils.ExtractFileNameFromHistoryFile(history.AfterPath)
+	filePath := utils.GetQuicsHistoryPathByRootDir(file.RootDirKey) + "/" + historyFileName + "_" + fmt.Sprint(request.Version)
+
+	return &types.DownloadHistoryRes{
+		UUID: request.UUID,
+	}, filePath, nil
 }
