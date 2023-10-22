@@ -41,8 +41,8 @@ func NewRestClient() *RestClient {
 	return restClient
 }
 
-func (r *RestClient) GetRequest(path string) (*bytes.Buffer, error) {
-	url := "https://" + config.GetViperEnvVariables("REST_SERVER_ADDR") + path
+func (r *RestClient) GetRequest(IP string, port string, path string) (*bytes.Buffer, error) {
+	url := "https://" + config.GetRestServerAddress() + path
 
 	rsp, err := r.hclient.Get(url)
 	if err != nil {
@@ -60,8 +60,8 @@ func (r *RestClient) GetRequest(path string) (*bytes.Buffer, error) {
 	return body, nil
 }
 
-func (r *RestClient) PostRequest(path string, contentType string, content []byte) (*bytes.Buffer, error) {
-	url := "https://" + config.GetViperEnvVariables("REST_SERVER_ADDR") + path
+func (r *RestClient) PostRequest(IP string, port string, path string, contentType string, content []byte) (*bytes.Buffer, error) {
+	url := "https://" + config.GetRestServerAddress() + path
 
 	contentReader := bytes.NewReader(content)
 	rsp, err := r.hclient.Post(url, contentType, contentReader)
