@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/quic-s/quics/pkg/core/server"
+	"github.com/quic-s/quics/pkg/types"
+	"github.com/quic-s/quics/pkg/utils"
 )
 
 type ServerHandler struct {
@@ -19,6 +21,8 @@ func NewServerHandler(serverService server.Service) *ServerHandler {
 func (sh *ServerHandler) SetupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/server/stop", sh.StopRestServer)
 	mux.HandleFunc("/api/v1/server/listen", sh.ListenProtocol)
+	mux.HandleFunc("/api/v1/server/password/set", sh.SetPassword)
+	mux.HandleFunc("/api/v1/server/password/reset", sh.ResetPassword)
 	mux.HandleFunc("/api/v1/server/logs/clients", sh.ShowClientLogs)
 	mux.HandleFunc("/api/v1/server/logs/directories", sh.ShowDirLogs)
 	mux.HandleFunc("/api/v1/server/logs/files", sh.ShowFileLogs)
@@ -44,6 +48,36 @@ func (sh *ServerHandler) ListenProtocol(w http.ResponseWriter, r *http.Request) 
 	switch r.Method {
 	case "POST":
 		err := sh.ServerService.ListenProtocol()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func (sh *ServerHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		body := &types.Server{}
+
+		err := utils.UnmarshalRequestBody(r, body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		err = sh.ServerService.SetPassword(body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func (sh *ServerHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		err := sh.ServerService.ResetPassword()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

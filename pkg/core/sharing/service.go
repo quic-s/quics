@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/history"
 	"github.com/quic-s/quics/pkg/core/sync"
 	"github.com/quic-s/quics/pkg/types"
@@ -17,10 +18,7 @@ type SharingService struct {
 	sharingRepository Repository
 }
 
-const (
-	// FIXME: this link is for testing purposes only
-	PrefixLink = "http://localhost:6121/api/v1/download/files"
-)
+var prefixLink = "http://" + config.GetRestServerAddress()
 
 func NewService(historyRepository history.Repository, syncRepository sync.Repository, sharingRepository Repository) *SharingService {
 	return &SharingService{
@@ -46,7 +44,7 @@ func (ss *SharingService) CreateLink(request *types.ShareReq) (*types.ShareRes, 
 	// make link
 	paramUUID := "?uuid=" + strings.ToLower(fileHistory.UUID)
 	paramFile := "&file=" + strings.ToLower(file.AfterPath)
-	link := PrefixLink + paramUUID + paramFile
+	link := prefixLink + paramUUID + paramFile
 
 	// save link to database
 	sharing := &types.Sharing{
@@ -93,7 +91,7 @@ func (ss *SharingService) DeleteLink(request *types.StopShareReq) (*types.StopSh
 func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*os.File, fs.FileInfo, error) {
 	paramUUID := "?uuid=" + strings.ToLower(uuid)
 	paramFile := "&file=" + strings.ToLower(afterPath)
-	link := PrefixLink + paramUUID + paramFile
+	link := prefixLink + paramUUID + paramFile
 
 	// get sharing data using link
 	sharing, err := ss.sharingRepository.GetLink(link)

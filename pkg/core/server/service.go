@@ -35,8 +35,16 @@ type ServerService struct {
 }
 
 func NewService(repo *badger.Badger, serverRepository Repository) (Service, error) {
+	password := ""
+
+	server, err := repo.NewServerRepository().GetPassword()
+	if err != nil {
+		password = config.GetViperEnvVariables("PASSWORD")
+	} else {
+		password = server.Password
+	}
+
 	// get env variables (server password, port)
-	password := config.GetViperEnvVariables("PASSWORD")
 	port, err := strconv.Atoi(config.GetViperEnvVariables("QUICS_PORT"))
 	if err != nil {
 		log.Println("quics: ", err)
@@ -141,6 +149,34 @@ func (ss *ServerService) ListenProtocol() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (ss *ServerService) SetPassword(request *types.Server) error {
+	fmt.Println("************************************************************")
+	fmt.Println("                       Set Password                         ")
+	fmt.Println("************************************************************")
+
+	err := ss.serverRepository.UpdatePassword(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (ss *ServerService) ResetPassword() error {
+	fmt.Println("************************************************************")
+	fmt.Println("                      Reset Password                        ")
+	fmt.Println("************************************************************")
+
+	err := ss.serverRepository.DeletePassword()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
 	return nil
 }
 

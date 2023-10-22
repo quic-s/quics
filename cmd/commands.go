@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/quic-s/quics/pkg/app"
+	"github.com/quic-s/quics/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -12,9 +14,13 @@ import (
 *
 * `qis`: Root command (meaning quic-s)
 *
-* `qis start`: Start quic-s server
+* `qis start`: Start quic-s server (run with default IP)
+* `qis start --ip <server-ip> --port <server-port>`: Start quic-s server (run with custom IP)
 * `qis stop`: Stop quic-s server
 * `qis listen`: Listen quic-s protocol
+*
+* `qis password set --pw <password>`: Change password for quic-s server
+* `qis password reset`: Reset password for quic-s server
 *
 * `qis show`: Show quic-s server information (needed options)
 * `qis show client --id <client-UUID>`: Show client information
@@ -54,6 +60,11 @@ import (
 *
 * `--target`: Target(=destination directory) option
 * `--t`: Target short option
+*
+* `--ip`: IP option
+* `--port`: Port option
+*
+* `--password`: Password option
  */
 
 const (
@@ -61,9 +72,13 @@ const (
 	StartCommand    = "start"
 	StopCommand     = "stop"
 	ListenCommand   = "listen"
+	PasswordCommand = "password"
 	ShowCommand     = "show"
 	RemoveCommand   = "remove"
 	DownloadCommand = "download"
+
+	SetCommand   = "set"
+	ResetCommand = "reset"
 
 	ClientCommand  = "client"
 	DirCommand     = "dir"
@@ -91,14 +106,26 @@ const (
 	// --target, -t
 	TargetOption       = "target"
 	TargetShortCommand = "t"
+
+	// --ip (not exist short option)
+	IPOption = "ip"
+
+	// --port (not exist short option)
+	PortOption = "port"
+
+	// --pw (not exist short option)
+	PasswordOption = "pw"
 )
 
 var (
-	all     bool   = false
-	id      string = ""
-	path    string = ""
-	version uint64 = 0
-	target  string = ""
+	all      bool   = false
+	id       string = ""
+	path     string = ""
+	version  uint64 = 0
+	target   string = ""
+	ip       string = ""
+	port     string = ""
+	password string = ""
 )
 
 var rootCmd = &cobra.Command{
@@ -107,20 +134,23 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	startServerCmd  *cobra.Command
-	stopServerCmd   *cobra.Command
-	listenCmd       *cobra.Command
-	showCmd         *cobra.Command
-	showClientCmd   *cobra.Command
-	showDirCmd      *cobra.Command
-	showFileCmd     *cobra.Command
-	showHistoryCmd  *cobra.Command
-	removeCmd       *cobra.Command
-	removeClientCmd *cobra.Command
-	removeDirCmd    *cobra.Command
-	removeFileCmd   *cobra.Command
-	downloadCmd     *cobra.Command
-	downloadFileCmd *cobra.Command
+	startServerCmd   *cobra.Command
+	stopServerCmd    *cobra.Command
+	listenCmd        *cobra.Command
+	passwordCmd      *cobra.Command
+	passwordSetCmd   *cobra.Command
+	passwordResetCmd *cobra.Command
+	showCmd          *cobra.Command
+	showClientCmd    *cobra.Command
+	showDirCmd       *cobra.Command
+	showFileCmd      *cobra.Command
+	showHistoryCmd   *cobra.Command
+	removeCmd        *cobra.Command
+	removeClientCmd  *cobra.Command
+	removeDirCmd     *cobra.Command
+	removeFileCmd    *cobra.Command
+	downloadCmd      *cobra.Command
+	downloadFileCmd  *cobra.Command
 )
 
 // Run initializes and executes commands using cobra library
@@ -129,6 +159,9 @@ func Run() int {
 	startServerCmd = initStartServerCmd()
 	stopServerCmd = initStopServerCmd()
 	listenCmd = initListenCmd()
+	passwordCmd = initPasswordCmd()
+	passwordSetCmd = initPasswordSetCmd()
+	passwordResetCmd = initPasswordResetCmd()
 	showCmd = initShowCmd()
 	showClientCmd = initShowClientCmd()
 	showDirCmd = initShowDirCmd()
@@ -142,6 +175,11 @@ func Run() int {
 	downloadFileCmd = initDownloadFileCmd()
 
 	// set flags (= options)
+	// qis start --ip <server-ip> --port <server-port>
+	startServerCmd.Flags().StringVarP(&ip, IPOption, "", "", "Start server with custom IP")
+	startServerCmd.Flags().StringVarP(&port, PortOption, "", "", "Start server with custom port")
+	// qis password set --pw <password>
+	passwordSetCmd.Flags().StringVarP(&password, PasswordOption, "", "", "Change password for quic-s server")
 	// qis show client --id, qis show client --all
 	showClientCmd.Flags().BoolVarP(&all, AllOption, AllShortOption, false, "Show all status")
 	showClientCmd.Flags().StringVarP(&id, IDOption, IDShortCommand, "", "Show status by ID")
@@ -172,9 +210,14 @@ func Run() int {
 	rootCmd.AddCommand(startServerCmd)
 	rootCmd.AddCommand(stopServerCmd)
 	rootCmd.AddCommand(listenCmd)
+	rootCmd.AddCommand(passwordCmd)
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(downloadCmd)
+
+	// add command to password command
+	passwordCmd.AddCommand(passwordSetCmd)
+	passwordCmd.AddCommand(passwordResetCmd)
 
 	// add command to show command
 	showCmd.AddCommand(showClientCmd)
@@ -203,7 +246,7 @@ func initStartServerCmd() *cobra.Command {
 		Use:   StartCommand,
 		Short: "start quic-s server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			quicsApp, err := app.New()
+			quicsApp, err := app.New(ip, port)
 			if err != nil {
 				return err
 			}
@@ -227,7 +270,7 @@ func initStopServerCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil) // /server/stop
+			_, err := restClient.PostRequest(ip, port, url, "application/json", nil) // /server/stop
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -254,7 +297,7 @@ func initListenCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil) // /server/listen
+			_, err := restClient.PostRequest(ip, port, url, "application/json", nil) // /server/listen
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -266,6 +309,80 @@ func initListenCmd() *cobra.Command {
 				return err
 			}
 
+			return nil
+		},
+	}
+}
+
+func initPasswordCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   PasswordCommand,
+		Short: "change password for quic-s server",
+	}
+}
+
+func initPasswordSetCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   SetCommand,
+		Short: "change password for quic-s server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if password == "" {
+				log.Println("quics: ", "Please enter password")
+				cmd.Help()
+				return nil
+			}
+
+			url := "/api/v1/server/password/set"
+
+			server := &types.Server{
+				Password: password,
+			}
+
+			body, err := json.Marshal(server)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			restClient := NewRestClient()
+
+			_, err = restClient.PostRequest(ip, port, url, "application/json", body)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			err = restClient.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			return nil
+		},
+	}
+}
+
+func initPasswordResetCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   ResetCommand,
+		Short: "reset password for quic-s server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			url := "/api/v1/server/password/reset"
+
+			restClient := NewRestClient()
+
+			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
+
+			err = restClient.Close()
+			if err != nil {
+				log.Println("quics: ", err)
+				return err
+			}
 			return nil
 		},
 	}
@@ -290,7 +407,7 @@ func initShowClientCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /clients
+			_, err := restClient.GetRequest(ip, port, url) // /clients
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -319,7 +436,7 @@ func initShowDirCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /directories
+			_, err := restClient.GetRequest(ip, port, url) // /directories
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -348,7 +465,7 @@ func initShowFileCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /files
+			_, err := restClient.GetRequest(ip, port, url) // /files
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -377,7 +494,7 @@ func initShowHistoryCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /history
+			_, err := restClient.GetRequest(ip, port, url) // /history
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -413,7 +530,7 @@ func initRemoveClientCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil)
+			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -442,7 +559,7 @@ func initRemoveDirCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil)
+			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -471,7 +588,7 @@ func initRemoveFileCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.PostRequest(url, "application/json", nil)
+			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err
@@ -511,7 +628,7 @@ func initDownloadFileCmd() *cobra.Command {
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url)
+			_, err := restClient.GetRequest(ip, port, url)
 			if err != nil {
 				log.Println("quics: ", err)
 				return err

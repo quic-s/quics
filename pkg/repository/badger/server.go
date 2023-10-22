@@ -7,8 +7,78 @@ import (
 	"github.com/quic-s/quics/pkg/types"
 )
 
+const (
+	PrefixServerPassword = "password_"
+)
+
 type ServerRepository struct {
 	db *badger.DB
+}
+
+func (sr *ServerRepository) UpdatePassword(server *types.Server) error {
+	key := []byte(PrefixServerPassword)
+
+	err := sr.db.Update(func(txn *badger.Txn) error {
+		if err := txn.Set(key, server.Encode()); err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (sr *ServerRepository) DeletePassword() error {
+	key := []byte(PrefixServerPassword)
+
+	err := sr.db.Update(func(txn *badger.Txn) error {
+		if err := txn.Delete(key); err != nil {
+			log.Println("quics: ", err)
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (sr *ServerRepository) GetPassword() (*types.Server, error) {
+	key := []byte(PrefixServerPassword)
+	server := &types.Server{}
+
+	err := sr.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return err
+		}
+
+		if err := server.Decode(val); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return server, nil
 }
 
 func (sr *ServerRepository) GetAllClients() ([]*types.Client, error) {

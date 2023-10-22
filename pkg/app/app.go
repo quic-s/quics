@@ -28,8 +28,7 @@ type App struct {
 }
 
 // New initialize program
-func New() (*App, error) {
-
+func New(ip string, port string) (*App, error) {
 	repo, err := badger.NewBadgerRepository()
 	if err != nil {
 		log.Println("quics: ", err)
@@ -56,7 +55,7 @@ func New() (*App, error) {
 	sharingHandler.SetupRoutes(mux)
 
 	restServer := &http3.Server{
-		Addr:       "0.0.0.0:" + config.GetViperEnvVariables("REST_SERVER_PORT"),
+		Addr:       config.GetHttp3ServerAddress(ip, port),
 		QuicConfig: &quic.Config{},
 		Handler:    mux,
 	}

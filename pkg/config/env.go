@@ -66,28 +66,10 @@ func GetViperEnvVariables(key string) string {
 
 // WriteViperEnvVariables writes env variables to env file using viper
 func WriteViperEnvVariables(key string, value string) {
-	envPath := filepath.Join(utils.GetQuicsDirPath(), ".qis.env")
-	_, err := os.Stat(envPath)
-	if os.IsNotExist(err) {
-		viper.SetConfigFile(".env")
-		viper.SetConfigType("env")
-
-		err = viper.WriteConfigAs(envPath)
-		if err != nil {
-			log.Fatalf("quics: Error while writing config file: %s", err)
-		}
-	} else {
-		viper.SetConfigFile(envPath)
-		viper.SetConfigType("env")
-	}
-
-	err = viper.ReadInConfig()
-	if err != nil {
-		log.Println("quics: Error while reading config file: ", err)
-	}
+	envPath := filepath.Join(utils.GetQuicsDirPath(), "qis.env")
 
 	viper.Set(key, value)
-	err = viper.WriteConfigAs(envPath)
+	err := viper.WriteConfigAs(envPath)
 	if err != nil {
 		log.Fatalf("quics: Error while writing config file: %s", err)
 	}
