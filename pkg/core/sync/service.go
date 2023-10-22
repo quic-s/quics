@@ -254,12 +254,6 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 			Conflict:            types.Conflict{},
 			Metadata:            fileMetadata,
 		}
-
-		err := ss.syncRepository.SaveFileByPath(pleaseSyncReq.AfterPath, file)
-		if err != nil {
-			log.Println("quics: ", err)
-			return nil, err
-		}
 	} else if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
@@ -268,6 +262,22 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 	log.Println("quics: pleaseSyncReq: ", pleaseSyncReq)
 
 	switch {
+	// check request type is remove and file is not exist
+	case pleaseSyncReq.LastUpdateHash == "" && file.LatestSyncTimestamp == 0:
+		// if file is deleted then remove file from {rootDir}
+		err = ss.syncDirAdapter.DeleteFileFromLatestDir(file.AfterPath)
+		if err != nil && !os.IsNotExist(err) {
+			log.Println("quics: ", err)
+			return nil, err
+		}
+		// update sync file
+		pleaseSyncRes := &types.PleaseSyncRes{
+			UUID:      pleaseSyncReq.UUID,
+			AfterPath: pleaseSyncReq.AfterPath,
+		}
+
+		return pleaseSyncRes, nil
+
 	// check file has been updated
 	case file.LatestHash == pleaseSyncReq.LastUpdateHash:
 		log.Println("quics: file is already updated")
@@ -398,25 +408,29 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 			return nil, err
 		}
 
-		// check file hash is correct
-		fileInfo, err := ss.syncDirAdapter.GetFileInfoFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
-		if err != nil {
-			log.Println("quics: ", err)
-			return nil, err
-		}
-		downloadedHash := utils.MakeHashFromFileMetadata(file.AfterPath, fileInfo)
-
-		if downloadedHash != file.LatestHash {
-			// if file hash is not correct then return error
-			log.Println("quics: ", err)
-			return nil, errors.New("quics: file hash is not correct")
-		}
-
 		// check file is deleted
 		if file.LatestHash == "" {
 			// if file is deleted then remove file from {rootDir}
-			ss.syncDirAdapter.DeleteFileFromLatestDir(file.AfterPath)
+			err = ss.syncDirAdapter.DeleteFileFromLatestDir(file.AfterPath)
+			if err != nil && !os.IsNotExist(err) {
+				log.Println("quics: ", err)
+				return nil, err
+			}
 		} else {
+			// check file hash is correct
+			fileInfo, err := ss.syncDirAdapter.GetFileInfoFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
+			if err != nil {
+				log.Println("quics: ", err)
+				return nil, err
+			}
+			downloadedHash := utils.MakeHashFromFileMetadata(file.AfterPath, fileInfo)
+
+			if downloadedHash != file.LatestHash {
+				// if file hash is not correct then return error
+				log.Println("quics: ", err)
+				return nil, errors.New("quics: file hash is not correct")
+			}
+
 			// if file is not deleted then save file to {rootDir}
 			fileMetadata, fileContent, err = ss.syncDirAdapter.GetFileFromHistoryDir(file.AfterPath, file.LatestSyncTimestamp)
 			if err != nil {
@@ -603,6 +617,10 @@ func (ss *SyncService) CallMustSync(filePath string, UUIDs []string) error {
 			}
 			if ctx.Err() != nil {
 				log.Println("quics: ", err)
+				return
+			}
+			if mustSyncRes.AfterPath == "" {
+				log.Println("quics: ", errors.New("quics: mustSyncRes.AfterPath is empty"))
 				return
 			}
 
@@ -867,6 +885,10 @@ func (ss *SyncService) CallForceSync(filePath string, UUIDs []string) error {
 			}
 			if ctx.Err() != nil {
 				log.Println("quics: ", err)
+				return
+			}
+			if mustSyncRes.AfterPath == "" {
+				log.Println("quics: ", errors.New("quics: mustSyncRes.AfterPath is empty"))
 				return
 			}
 
@@ -1187,6 +1209,9 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 
 	// rollback/overwrite latest file to history
 	fileData, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	if err != nil {
+		return nil, err
+	}
 	// first, data
 	newFileData := &types.File{
 		BeforePath:          fileData.BeforePath,

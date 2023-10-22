@@ -27,6 +27,7 @@ func NewSyncHandler(service sync.Service) *SyncHandler {
 		pathMut[i] = &stdsync.Mutex{}
 	}
 	return &SyncHandler{
+		lockNum:     lockNum,
 		pathMut:     pathMut,
 		syncService: service,
 	}
