@@ -78,9 +78,9 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	proto.RecvTransactionHandleFunc(types.CONFLICTDOWNLOAD, syncHandler.ConflictDownload)
 	proto.RecvTransactionHandleFunc(types.CHOOSEONE, syncHandler.ChooseOne)
 	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
-	proto.RecvTransactionHandleFunc(types.SHOWHISTORY, historyHandler.ShowHistory)
+	proto.RecvTransactionHandleFunc(types.HISTORYSHOW, historyHandler.ShowHistory)
 	proto.RecvTransactionHandleFunc(types.ROLLBACK, syncHandler.RollbackFileByHistory)
-	proto.RecvTransactionHandleFunc(types.DOWNLOADHISTORY, historyHandler.DownloadHistory)
+	proto.RecvTransactionHandleFunc(types.HISTORYDOWNLOAD, historyHandler.DownloadHistory)
 	proto.RecvTransactionHandleFunc(types.STARTSHARING, sharingHandler.StartSharing)
 	proto.RecvTransactionHandleFunc(types.STOPSHARING, sharingHandler.StopSharing)
 
