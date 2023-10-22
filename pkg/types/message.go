@@ -175,20 +175,6 @@ type PleaseFileRes struct {
 	AfterPath string
 }
 
-// LinkShareReq is used when creating file download link
-type LinkShareReq struct {
-	UUID      string
-	AfterPath string
-	MaxCount  uint
-}
-
-// LinkShareRes is used when returning created file download link
-type LinkShareRes struct {
-	Link     string
-	Count    uint
-	MaxCount uint
-}
-
 type AskAllMetaReq struct {
 	UUID string
 }
@@ -281,7 +267,6 @@ type DownloadHistoryRes struct {
 type ShareReq struct {
 	UUID      string
 	AfterPath string
-	Version   uint64
 	MaxCnt    uint64
 }
 
@@ -686,40 +671,6 @@ func (pleaseFileRes *PleaseFileRes) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(pleaseFileRes)
-}
-
-func (linkShareReq *LinkShareReq) Encode() ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(linkShareReq); err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
-func (linkShareReq *LinkShareReq) Decode(data []byte) error {
-	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(linkShareReq)
-}
-
-func (linkShareRes *LinkShareRes) Encode() ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(linkShareRes); err != nil {
-		log.Println("quics: ", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
-func (linkShareRes *LinkShareRes) Decode(data []byte) error {
-	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(linkShareRes)
 }
 
 func (askAllMetaReq *AskAllMetaReq) Encode() ([]byte, error) {

@@ -27,9 +27,8 @@ func (sh *SharingHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		uuid := r.URL.Query().Get("id")
 		afterPath := r.URL.Query().Get("file")
-		timestamp := r.URL.Query().Get("version")
 
-		file, fileInfo, err := sh.sharingService.DownloadFile(uuid, afterPath, timestamp)
+		file, fileInfo, err := sh.sharingService.DownloadFile(uuid, afterPath)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

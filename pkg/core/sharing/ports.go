@@ -17,5 +17,5 @@ type Repository interface {
 type Service interface {
 	CreateLink(request *types.ShareReq) (*types.ShareRes, error)
 	DeleteLink(request *types.StopShareReq) (*types.StopShareRes, error)
-	DownloadFile(uuid string, afterPath string, timestamp string) (*os.File, fs.FileInfo, error)
+	DownloadFile(uuid string, afterPath string) (*os.File, fs.FileInfo, error)
 }

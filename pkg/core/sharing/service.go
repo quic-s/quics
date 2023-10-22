@@ -2,8 +2,6 @@ package sharing
 
 import (
 	"errors"
-	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"strings"
@@ -11,7 +9,6 @@ import (
 	"github.com/quic-s/quics/pkg/core/history"
 	"github.com/quic-s/quics/pkg/core/sync"
 	"github.com/quic-s/quics/pkg/types"
-	"github.com/quic-s/quics/pkg/utils"
 )
 
 type SharingService struct {
@@ -34,16 +31,22 @@ func NewService(historyRepository history.Repository, syncRepository sync.Reposi
 }
 
 func (ss *SharingService) CreateLink(request *types.ShareReq) (*types.ShareRes, error) {
-	fileHistory, err := ss.historyRepository.GetFileHistory(request.AfterPath, request.Version)
+	// get file for creating link
+	file, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// get file history for UUID to find last edited person
+	fileHistory, err := ss.historyRepository.GetFileHistory(request.AfterPath, file.LatestSyncTimestamp)
 	if err != nil {
 		return nil, err
 	}
 
 	// make link
 	paramUUID := "?uuid=" + strings.ToLower(fileHistory.UUID)
-	paramFile := "&file=" + strings.ToLower(utils.ExtractFileNameFromHistoryFile(fileHistory.AfterPath))
-	paramVersion := "&version=" + fmt.Sprint(fileHistory.Timestamp)
-	link := PrefixLink + paramUUID + paramFile + paramVersion
+	paramFile := "&file=" + strings.ToLower(file.AfterPath)
+	link := PrefixLink + paramUUID + paramFile
 
 	// save link to database
 	sharing := &types.Sharing{
@@ -51,7 +54,7 @@ func (ss *SharingService) CreateLink(request *types.ShareReq) (*types.ShareRes, 
 		Count:    0,
 		MaxCount: uint(request.MaxCnt),
 		Owner:    request.UUID,
-		File:     *fileHistory,
+		File:     *file,
 	}
 
 	err = ss.sharingRepository.SaveLink(sharing)
@@ -87,11 +90,10 @@ func (ss *SharingService) DeleteLink(request *types.StopShareReq) (*types.StopSh
 	}, nil
 }
 
-func (ss *SharingService) DownloadFile(uuid string, afterPath string, timestamp string) (*os.File, fs.FileInfo, error) {
+func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*os.File, fs.FileInfo, error) {
 	paramUUID := "?uuid=" + strings.ToLower(uuid)
 	paramFile := "&file=" + strings.ToLower(afterPath)
-	paramVersion := "&version=" + strings.ToLower(timestamp)
-	link := PrefixLink + paramUUID + paramFile + paramVersion
+	link := PrefixLink + paramUUID + paramFile
 
 	// get sharing data using link
 	sharing, err := ss.sharingRepository.GetLink(link)
@@ -110,31 +112,17 @@ func (ss *SharingService) DownloadFile(uuid string, afterPath string, timestamp 
 	}
 
 	// get file
-	historyFileName := sharing.File.BeforePath + utils.GetHistoryFileNameByAfterPath(sharing.File.AfterPath, sharing.File.Timestamp)
-	downloadFileName := sharing.File.BeforePath + strings.ReplaceAll(afterPath, "-", "/")
+	fileName := sharing.File.BeforePath + sharing.File.AfterPath
 
 	// open original history file
-	historyFile, err := os.Open(historyFileName)
+	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer historyFile.Close()
-
-	// create file for download (not history file)
-	downloadFile, err := os.Create(downloadFileName)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer os.Remove(downloadFileName)
-
-	// copy history file to download file
-	_, err = io.Copy(downloadFile, historyFile)
-	if err != nil {
-		return nil, nil, err
-	}
+	defer file.Close()
 
 	// get file information
-	downloadFileInfo, err := downloadFile.Stat()
+	fileInfo, err := file.Stat()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -148,5 +136,5 @@ func (ss *SharingService) DownloadFile(uuid string, afterPath string, timestamp 
 		return nil, nil, err
 	}
 
-	return downloadFile, downloadFileInfo, nil
+	return file, fileInfo, nil
 }

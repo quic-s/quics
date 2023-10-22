@@ -81,7 +81,7 @@ type Sharing struct {
 	Count    uint
 	MaxCount uint
 	Owner    string
-	File     FileHistory // to share file at point that client wanted
+	File     File
 }
 
 func (client *Client) Encode() []byte {

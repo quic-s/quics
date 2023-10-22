@@ -26,7 +26,6 @@ func (sh *ServerHandler) SetupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/server/remove/clients", sh.RemoveClient)
 	mux.HandleFunc("/api/v1/server/remove/directories", sh.RemoveDir)
 	mux.HandleFunc("/api/v1/server/remove/files", sh.RemoveFile)
-	mux.HandleFunc("/api/v1/server/rollback/files", sh.RollbackFile)
 	mux.HandleFunc("/api/v1/server/download/files", sh.DownloadFile)
 }
 
@@ -148,20 +147,6 @@ func (sh *ServerHandler) RemoveFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-}
-
-func (sh *ServerHandler) RollbackFile(w http.ResponseWriter, r *http.Request) {
-	// switch r.Method {
-	// case "POST":
-	// 	path := r.URL.Query().Get("path")
-	// 	version := r.URL.Query().Get("version")
-
-	// 	err := sh.ServerService.RollbackFile(path, version)
-	// 	if err != nil {
-	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// }
 }
 
 func (sh *ServerHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
