@@ -34,6 +34,7 @@ func (sh *ServerHandler) SetupRoutes(mux *http.ServeMux) {
 }
 
 func (sh *ServerHandler) StopRestServer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":6121\"")
 	switch r.Method {
 	case "POST":
 		err := sh.ServerService.StopServer()
@@ -45,6 +46,7 @@ func (sh *ServerHandler) StopRestServer(w http.ResponseWriter, r *http.Request) 
 }
 
 func (sh *ServerHandler) ListenProtocol(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":6121\"")
 	switch r.Method {
 	case "POST":
 		err := sh.ServerService.ListenProtocol()
@@ -56,6 +58,7 @@ func (sh *ServerHandler) ListenProtocol(w http.ResponseWriter, r *http.Request) 
 }
 
 func (sh *ServerHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":6121\"")
 	switch r.Method {
 	case "POST":
 		body := &types.Server{}
@@ -75,6 +78,7 @@ func (sh *ServerHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":6121\"")
 	switch r.Method {
 	case "POST":
 		err := sh.ServerService.ResetPassword()
@@ -86,6 +90,7 @@ func (sh *ServerHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) ShowClientLogs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":6121\"")
 	switch r.Method {
 	case "GET":
 		all := r.URL.Query().Get("all")

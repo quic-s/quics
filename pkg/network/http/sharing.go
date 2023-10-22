@@ -25,7 +25,7 @@ func (sh *SharingHandler) SetupRoutes(mux *http.ServeMux) {
 func (sh *SharingHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		uuid := r.URL.Query().Get("id")
+		uuid := r.URL.Query().Get("uuid")
 		afterPath := r.URL.Query().Get("file")
 
 		file, fileInfo, err := sh.sharingService.DownloadFile(uuid, afterPath)
@@ -34,6 +34,7 @@ func (sh *SharingHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		w.Header().Set("Alt-Svc", "h3=\":6121\"")
 		w.Header().Set("Content-Disposition", "attachment; filename=")
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size()))

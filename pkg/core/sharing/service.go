@@ -18,7 +18,7 @@ type SharingService struct {
 	sharingRepository Repository
 }
 
-var prefixLink = "http://" + config.GetRestServerAddress()
+var prefixLink = "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
 
 func NewService(historyRepository history.Repository, syncRepository sync.Repository, sharingRepository Repository) *SharingService {
 	return &SharingService{

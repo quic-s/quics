@@ -24,6 +24,7 @@ import (
 type App struct {
 	certFileDir string
 	keyFileDir  string
+	entryServer *http.Server
 	restServer  *http3.Server
 }
 
@@ -75,6 +76,12 @@ func New(ip string, port string) (*App, error) {
 		}
 	}
 
+	// set legacy http for first connection
+	entryServer := &http.Server{
+		Addr:    "0.0.0.0:6120",
+		Handler: mux,
+	}
+
 	fmt.Println("************************************************************")
 	fmt.Println("                           Start                            ")
 	fmt.Println("************************************************************")
@@ -82,11 +89,15 @@ func New(ip string, port string) (*App, error) {
 	return &App{
 		certFileDir: certFileDir,
 		keyFileDir:  keyFileDir,
+		entryServer: entryServer,
 		restServer:  restServer,
 	}, nil
 }
 
 func (a *App) Start() error {
+	go func() {
+		a.entryServer.ListenAndServeTLS(a.certFileDir, a.keyFileDir)
+	}()
 	err := a.restServer.ListenAndServeTLS(a.certFileDir, a.keyFileDir)
 	if err != nil {
 		log.Println("quics: ", err)

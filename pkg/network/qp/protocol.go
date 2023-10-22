@@ -21,7 +21,7 @@ type Protocol struct {
 
 func New(ip string, port int, pool *connection.Pool) (*Protocol, error) {
 	// initialize protocol server
-	proto, err := qp.New(qp.LOG_LEVEL_DEBUG)
+	proto, err := qp.New(qp.LOG_LEVEL_ERROR)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
