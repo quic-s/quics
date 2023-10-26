@@ -499,7 +499,7 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 			return nil, err
 		}
 		downloadedHash := utils.MakeHashFromFileMetadata(file.AfterPath, fileInfo)
-		if file.LatestHash != "" && downloadedHash != file.LatestHash {
+		if file.LatestHash != "" && downloadedHash != file.Conflict.StagingFiles[pleaseTakeReq.UUID].Hash {
 			// delete staging file info from conflict info when error occurred
 			delete(file.Conflict.StagingFiles, pleaseTakeReq.UUID)
 			ss.syncRepository.UpdateFile(file)
@@ -1242,46 +1242,11 @@ func (ss *SyncService) GetStagingNum(request *types.AskStagingNumReq) (*types.As
 		return nil, err
 	}
 
-	// // get file name for detecting conflict files
-	// // TODO: Check whether is it right to use fileNamePrefix below
-	// _, fileNamePrefix := utils.GetNamesByAfterPath(file.AfterPath)
-	// // fileNamePrefix := strings.Split(file.AfterPath, "/")[len(strings.Split(file.AfterPath, "/"))-1]
-
-	// // get conflict directory of this file's root directory
-	// directoryPath := utils.GetQuicsConflictPathByRootDir(file.RootDirKey)
-
-	// matchingFiles := []string{}
-
-	// // detect conflict files of this file
-	// err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	fileName := filepath.Base(path)
-
-	// 	if strings.HasPrefix(fileName, fileNamePrefix) {
-	// 		matchingFiles = append(matchingFiles, fileName)
-	// 	}
-
-	// 	return nil
-	// })
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
 	// check if the count is correct
 	conflict, err := ss.syncRepository.GetConflict(file.AfterPath)
 	if err != nil {
 		return nil, err
 	}
-
-	// if len(matchingFiles) != len(conflict.StagingFiles) {
-	// 	return nil, nil, errors.New("quics: conflict file count is not correct")
-	// }
-
-	// // return the count of conflict files
-	// conflictNum := uint64(len(matchingFiles))
 
 	return &types.AskStagingNumRes{
 		UUID:        request.UUID,
