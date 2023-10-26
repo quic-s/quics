@@ -3,12 +3,12 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"reflect"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/quic-s/quics/pkg/core/history"
@@ -19,6 +19,7 @@ import (
 )
 
 type SyncService struct {
+	cancelMut              sync.RWMutex
 	cancel                 map[string]context.CancelFunc
 	FSTrigger              chan string
 	registrationRepository registration.Repository
@@ -30,7 +31,8 @@ type SyncService struct {
 
 func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository, networkAdapter NetworkAdapter, syncDirAdpater SyncDirAdapter) Service {
 	return &SyncService{
-		cancel:                 make(map[string]context.CancelFunc),
+		cancelMut:              sync.RWMutex{},
+		cancel:                 map[string]context.CancelFunc{},
 		FSTrigger:              make(chan string),
 		registrationRepository: registrationRepository,
 		historyRepository:      historyRepository,
@@ -337,11 +339,11 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 
 	// otherwise, file is conflicted
 	default:
-		// TODO: handle conflict
+		// handle conflict
 		if reflect.ValueOf(file.Conflict).IsZero() {
 			file.Conflict = types.Conflict{
 				AfterPath:    file.AfterPath,
-				StagingFiles: make(map[string]types.FileHistory),
+				StagingFiles: map[string]types.FileHistory{},
 			}
 			latestFileHistory, err := ss.historyRepository.GetFileHistory(file.AfterPath, file.LatestSyncTimestamp)
 			if err != nil {
@@ -350,14 +352,6 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 			}
 
 			file.Conflict.StagingFiles["server"] = *latestFileHistory
-			err = ss.syncRepository.UpdateFile(file)
-			if err != nil {
-				return nil, err
-			}
-			err = ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		file.Conflict.StagingFiles[pleaseSyncReq.UUID] = types.FileHistory{
@@ -505,35 +499,13 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 			return nil, err
 		}
 		downloadedHash := utils.MakeHashFromFileMetadata(file.AfterPath, fileInfo)
-		if downloadedHash != file.LatestHash {
+		if file.LatestHash != "" && downloadedHash != file.LatestHash {
 			// delete staging file info from conflict info when error occurred
 			delete(file.Conflict.StagingFiles, pleaseTakeReq.UUID)
 			ss.syncRepository.UpdateFile(file)
 			ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
 			return nil, errors.New("quics: file hash is not correct")
 		}
-
-		// moved to pleaseSyncReq
-		// file.Conflict.StagingFiles[pleaseTakeReq.UUID] = types.FileHistory{
-		// 	Date:       time.Now().String(),
-		// 	UUID:       pleaseTakeReq.UUID,
-		// 	BeforePath: file.BeforePath,
-		// 	AfterPath:  file.AfterPath,
-		// 	Timestamp:  file.LatestSyncTimestamp,
-		// 	Hash:       file.LatestHash,
-		// 	File:       *fileMetadata,
-		// }
-
-		// err = ss.syncRepository.UpdateFile(file)
-		// if err != nil {
-		// 	log.Println("quics: ", err)
-		// 	return nil, err
-		// }
-
-		// err = ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
-		// if err != nil {
-		// 	return nil, err
-		// }
 
 		// update sync file
 		pleaseTakeRes := &types.PleaseTakeRes{
@@ -553,11 +525,18 @@ func (ss *SyncService) CallMustSync(filePath string, UUIDs []string) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// use cancelMut mutex for atomic to cancel map
+	ss.cancelMut.Lock()
 	ss.cancel[filePath] = cancel
+	ss.cancelMut.Unlock()
 
 	defer func() {
+		ss.cancelMut.Lock()
 		delete(ss.cancel, filePath)
+		ss.cancelMut.Unlock()
 	}()
+
 	for _, UUID := range UUIDs {
 		transaction, err := ss.networkAdapter.OpenTransaction(types.MUSTSYNC, UUID)
 		if err != nil {
@@ -1178,27 +1157,22 @@ func validateGiveYouTransaction(file *types.File, giveYouRes *types.GiveYouRes) 
 }
 
 func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types.RollBackRes, error) {
-	// get file history data
+	fileData, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	if err != nil {
+		return nil, err
+	}
+
 	historyData, err := ss.historyRepository.GetFileHistory(request.AfterPath, request.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	// get file contents by history
-	historyFilePath := filepath.Join(historyData.BeforePath, historyData.AfterPath)
-	historyFile, err := os.Open(historyFilePath)
-	if err != nil {
-		return nil, err
-	}
-	defer historyFile.Close()
-
-	// save new file history
 	newHistoryData := &types.FileHistory{
 		Date:       time.Now().String(),
 		UUID:       request.UUID,
 		BeforePath: historyData.BeforePath,
 		AfterPath:  historyData.AfterPath,
-		Timestamp:  historyData.Timestamp,
+		Timestamp:  fileData.LatestSyncTimestamp + 1,
 		Hash:       historyData.Hash,
 		File:       historyData.File,
 	}
@@ -1207,18 +1181,12 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 		return nil, err
 	}
 
-	// rollback/overwrite latest file to history
-	fileData, err := ss.syncRepository.GetFileByPath(request.AfterPath)
-	if err != nil {
-		return nil, err
-	}
-	// first, data
 	newFileData := &types.File{
-		BeforePath:          fileData.BeforePath,
+		BeforePath:          utils.GetQuicsSyncDirPath(),
 		AfterPath:           fileData.AfterPath,
 		RootDirKey:          fileData.RootDirKey,
 		LatestHash:          newHistoryData.Hash,
-		LatestSyncTimestamp: newHistoryData.Timestamp + 1,
+		LatestSyncTimestamp: newHistoryData.Timestamp,
 		LatestEditClient:    request.UUID,
 		ContentsExisted:     true,
 		NeedForceSync:       false,
@@ -1229,14 +1197,22 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 		return nil, err
 	}
 
-	// second, content
-	file, err := os.Create(newFileData.BeforePath + newFileData.AfterPath)
+	historyFileMetadata, historyFileInfo, err := ss.syncDirAdapter.GetFileFromHistoryDir(historyData.AfterPath, historyData.Timestamp)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
 
-	_, err = io.Copy(file, historyFile)
+	err = ss.syncDirAdapter.SaveFileToHistoryDir(newHistoryData.AfterPath, newHistoryData.Timestamp, historyFileMetadata, historyFileInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	fileMetadata, fileInfo, err := ss.syncDirAdapter.GetFileFromHistoryDir(newHistoryData.AfterPath, newHistoryData.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ss.syncDirAdapter.SaveFileToLatestDir(newFileData.AfterPath, fileMetadata, fileInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -1246,85 +1222,85 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 	if err != nil {
 		return nil, err
 	}
+
 	UUIDs := rootDir.UUIDs
-	for i, UUID := range UUIDs {
-		if UUID == request.UUID {
-			UUIDs = append(UUIDs[:i], UUIDs[i+1:]...)
-		}
+
+	err = ss.CallMustSync(newFileData.AfterPath, UUIDs)
+	if err != nil {
+		return nil, err
 	}
-	ss.CallMustSync(newFileData.AfterPath, UUIDs)
 
 	return &types.RollBackRes{
 		UUID: request.UUID,
 	}, nil
 }
 
-func (ss *SyncService) GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, []string, error) {
+func (ss *SyncService) GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, error) {
 	// get file by afterPath
 	file, err := ss.syncRepository.GetFileByPath(request.AfterPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// get file name for detecting conflict files
-	// TODO: Check whether is it right to use fileNamePrefix below
-	_, fileNamePrefix := utils.GetNamesByAfterPath(file.AfterPath)
-	// fileNamePrefix := strings.Split(file.AfterPath, "/")[len(strings.Split(file.AfterPath, "/"))-1]
+	// // get file name for detecting conflict files
+	// // TODO: Check whether is it right to use fileNamePrefix below
+	// _, fileNamePrefix := utils.GetNamesByAfterPath(file.AfterPath)
+	// // fileNamePrefix := strings.Split(file.AfterPath, "/")[len(strings.Split(file.AfterPath, "/"))-1]
 
-	// get conflict directory of this file's root directory
-	directoryPath := utils.GetQuicsConflictPathByRootDir(file.RootDirKey)
+	// // get conflict directory of this file's root directory
+	// directoryPath := utils.GetQuicsConflictPathByRootDir(file.RootDirKey)
 
-	matchingFiles := []string{}
+	// matchingFiles := []string{}
 
-	// detect conflict files of this file
-	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+	// // detect conflict files of this file
+	// err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		fileName := filepath.Base(path)
+	// 	fileName := filepath.Base(path)
 
-		if strings.HasPrefix(fileName, fileNamePrefix) {
-			matchingFiles = append(matchingFiles, fileName)
-		}
+	// 	if strings.HasPrefix(fileName, fileNamePrefix) {
+	// 		matchingFiles = append(matchingFiles, fileName)
+	// 	}
 
-		return nil
-	})
-	if err != nil {
-		return nil, nil, err
-	}
+	// 	return nil
+	// })
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
 
 	// check if the count is correct
 	conflict, err := ss.syncRepository.GetConflict(file.AfterPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	if len(matchingFiles) != len(conflict.StagingFiles) {
-		return nil, nil, errors.New("quics: conflict file count is not correct")
-	}
+	// if len(matchingFiles) != len(conflict.StagingFiles) {
+	// 	return nil, nil, errors.New("quics: conflict file count is not correct")
+	// }
 
-	// return the count of conflict files
-	conflictNum := uint64(len(matchingFiles))
+	// // return the count of conflict files
+	// conflictNum := uint64(len(matchingFiles))
 
 	return &types.AskStagingNumRes{
 		UUID:        request.UUID,
-		ConflictNum: conflictNum,
-	}, matchingFiles, nil
+		ConflictNum: uint64(len(conflict.StagingFiles)),
+	}, nil
 }
 
-func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq, conflictFilePaths []string) ([]*types.ConflictDownloadReq, []string, error) {
+func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq) ([]types.ConflictDownloadReq, error) {
 	// get file by afterPath
 	conflict, err := ss.syncRepository.GetConflict(request.AfterPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	response := []*types.ConflictDownloadReq{}
+	response := []types.ConflictDownloadReq{}
 
 	for _, stagingFile := range conflict.StagingFiles {
 
-		conflictDownloadReq := &types.ConflictDownloadReq{
+		conflictDownloadReq := types.ConflictDownloadReq{
 			UUID:      request.UUID,
 			Candidate: stagingFile.UUID,
 			AfterPath: request.AfterPath,
@@ -1333,5 +1309,24 @@ func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq, conflic
 		response = append(response, conflictDownloadReq)
 	}
 
-	return response, conflictFilePaths, nil
+	return response, nil
+}
+
+func (ss *SyncService) DownloadHistory(request *types.DownloadHistoryReq) (*types.DownloadHistoryRes, string, error) {
+	history, err := ss.historyRepository.GetFileHistory(request.AfterPath, request.Version)
+	if err != nil {
+		return nil, "", err
+	}
+
+	file, err := ss.syncRepository.GetFileByPath(request.AfterPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	historyFileName := utils.ExtractFileNameFromHistoryFile(history.AfterPath)
+	filePath := utils.GetQuicsHistoryPathByRootDir(file.RootDirKey) + "/" + historyFileName + "_" + fmt.Sprint(request.Version)
+
+	return &types.DownloadHistoryRes{
+		UUID: request.UUID,
+	}, filePath, nil
 }

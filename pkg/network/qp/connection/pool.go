@@ -2,22 +2,26 @@ package connection
 
 import (
 	"fmt"
+	"sync"
 
 	qp "github.com/quic-s/quics-protocol"
 )
 
 type Pool struct {
-	Conns map[string]*qp.Connection
+	connsMut sync.RWMutex
+	Conns    map[string]*qp.Connection
 }
 
 func NewnPool() *Pool {
-	conns := make(map[string]*qp.Connection)
 	return &Pool{
-		Conns: conns,
+		connsMut: sync.RWMutex{},
+		Conns:    map[string]*qp.Connection{},
 	}
 }
 
 func (cp *Pool) UpdateConnection(uuid string, conn *qp.Connection) error {
+	cp.connsMut.Lock()
+	defer cp.connsMut.Unlock()
 	cp.Conns[uuid] = conn
 	return nil
 }
@@ -30,7 +34,7 @@ func (cp *Pool) GetConnection(uuid string) (*qp.Connection, error) {
 }
 
 func (cp *Pool) GetConnections(uuid []string) ([]*qp.Connection, error) {
-	conns := make([]*qp.Connection, 0)
+	conns := []*qp.Connection{}
 	for _, value := range uuid {
 		if conn, exists := cp.Conns[value]; exists {
 			conns = append(conns, conn)
@@ -40,6 +44,8 @@ func (cp *Pool) GetConnections(uuid []string) ([]*qp.Connection, error) {
 }
 
 func (cp *Pool) DeleteConnection(uuid string) error {
+	cp.connsMut.Lock()
+	defer cp.connsMut.Unlock()
 	delete(cp.Conns, uuid)
 	return nil
 }

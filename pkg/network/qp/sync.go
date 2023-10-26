@@ -7,6 +7,7 @@ import (
 	stdsync "sync"
 
 	"github.com/quic-s/quics/pkg/network/qp/connection"
+	"github.com/quic-s/quics/pkg/utils"
 
 	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/pkg/core/sync"
@@ -21,7 +22,7 @@ type SyncHandler struct {
 
 func NewSyncHandler(service sync.Service) *SyncHandler {
 	lockNum := uint8(32)
-	pathMut := make(map[byte]*stdsync.Mutex)
+	pathMut := map[byte]*stdsync.Mutex{}
 
 	for i := uint8(0); i < lockNum; i++ {
 		pathMut[i] = &stdsync.Mutex{}
@@ -637,7 +638,7 @@ func (sh *SyncHandler) ConflictDownload(conn *qp.Connection, stream *qp.Stream, 
 		return err
 	}
 
-	response, filePaths, err := sh.syncService.GetStagingNum(request)
+	response, err := sh.syncService.GetStagingNum(request)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
@@ -660,24 +661,61 @@ func (sh *SyncHandler) ConflictDownload(conn *qp.Connection, stream *qp.Stream, 
 		return nil
 	}
 
-	requests, filePaths, err := sh.syncService.GetConflictFiles(request, filePaths)
+	requests, err := sh.syncService.GetConflictFiles(request)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err
 	}
 
-	for i, request := range requests {
+	for _, request := range requests {
 		data, err = request.Encode()
 		if err != nil {
 			log.Println("quics: ", err)
 			return err
 		}
 
-		err = stream.SendFileBMessage(data, filePaths[i])
+		filePath := utils.GetConflictFileNameByAfterPath(request.AfterPath, request.UUID)
+		err = stream.SendFileBMessage(data, filePath)
 		if err != nil {
 			log.Println("quics: ", err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (sh *SyncHandler) DownloadHistory(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: message received: ", conn.Conn.RemoteAddr())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.DownloadHistoryReq{}
+	if err = request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, filePath, err := sh.syncService.DownloadHistory(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	data, err = response.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendFileBMessage(data, filePath)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
 	}
 
 	return nil

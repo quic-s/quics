@@ -65,11 +65,12 @@ func (hr *HistoryRepository) GetFileHistoriesForClient(afterPath string, cntFrom
 
 	err := hr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
-		opts.PrefetchSize = int(cntFromHead)
+		opts.PrefetchValues = true
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
 		prefix := []byte(PrefixHistory + afterPath + "_")
+
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			val, err := item.ValueCopy(nil)

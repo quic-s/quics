@@ -15,7 +15,6 @@ import (
 	"github.com/quic-s/quics/pkg/core/registration"
 	"github.com/quic-s/quics/pkg/core/sharing"
 	"github.com/quic-s/quics/pkg/core/sync"
-	"github.com/quic-s/quics/pkg/fs"
 	"github.com/quic-s/quics/pkg/network/qp"
 	"github.com/quic-s/quics/pkg/network/qp/connection"
 	"github.com/quic-s/quics/pkg/repository/badger"
@@ -34,7 +33,7 @@ type ServerService struct {
 	serverRepository Repository
 }
 
-func NewService(repo *badger.Badger, serverRepository Repository) (Service, error) {
+func NewService(repo *badger.Badger, serverRepository Repository, syncDirAdapter sync.SyncDirAdapter) (Service, error) {
 	password := ""
 
 	server, err := repo.NewServerRepository().GetPassword()
@@ -60,12 +59,11 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 
 	registrationNetworkAdapter := qp.NewRegistrationAdapter(pool)
 	syncNetworkAdapter := qp.NewSyncAdapter(pool)
-	syncDirAdapter := fs.NewSyncDir(utils.GetQuicsSyncDirPath())
 
 	registrationService := registration.NewService(password, registrationRepository, registrationNetworkAdapter)
 	historyService := history.NewService(historyRepository)
 	syncService := sync.NewService(registrationRepository, historyRepository, syncRepository, syncNetworkAdapter, syncDirAdapter)
-	sharingService := sharing.NewService(historyRepository, syncRepository, sharingRepository)
+	sharingService := sharing.NewService(historyRepository, syncRepository, sharingRepository, syncDirAdapter)
 
 	registrationHandler := qp.NewRegistrationHandler(registrationService)
 	syncHandler := qp.NewSyncHandler(syncService)
@@ -89,7 +87,7 @@ func NewService(repo *badger.Badger, serverRepository Repository) (Service, erro
 	proto.RecvTransactionHandleFunc(types.RESCAN, syncHandler.Rescan)
 	proto.RecvTransactionHandleFunc(types.HISTORYSHOW, historyHandler.ShowHistory)
 	proto.RecvTransactionHandleFunc(types.ROLLBACK, syncHandler.RollbackFileByHistory)
-	proto.RecvTransactionHandleFunc(types.HISTORYDOWNLOAD, historyHandler.DownloadHistory)
+	proto.RecvTransactionHandleFunc(types.HISTORYDOWNLOAD, syncHandler.DownloadHistory)
 	proto.RecvTransactionHandleFunc(types.STARTSHARING, sharingHandler.StartSharing)
 	proto.RecvTransactionHandleFunc(types.STOPSHARING, sharingHandler.StopSharing)
 

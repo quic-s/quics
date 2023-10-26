@@ -2,9 +2,7 @@ package sharing
 
 import (
 	"errors"
-	"io/fs"
-	"os"
-	"strings"
+	"io"
 
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/history"
@@ -16,15 +14,17 @@ type SharingService struct {
 	historyRepository history.Repository
 	syncRepository    sync.Repository
 	sharingRepository Repository
+	syncDir           SyncDirAdapter
 }
 
-var prefixLink = "http://" + config.GetRestServerAddress()
+var prefixLink = "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
 
-func NewService(historyRepository history.Repository, syncRepository sync.Repository, sharingRepository Repository) *SharingService {
+func NewService(historyRepository history.Repository, syncRepository sync.Repository, sharingRepository Repository, syncDir SyncDirAdapter) *SharingService {
 	return &SharingService{
 		historyRepository: historyRepository,
 		syncRepository:    syncRepository,
 		sharingRepository: sharingRepository,
+		syncDir:           syncDir,
 	}
 }
 
@@ -42,8 +42,8 @@ func (ss *SharingService) CreateLink(request *types.ShareReq) (*types.ShareRes, 
 	}
 
 	// make link
-	paramUUID := "?uuid=" + strings.ToLower(fileHistory.UUID)
-	paramFile := "&file=" + strings.ToLower(file.AfterPath)
+	paramUUID := "?uuid=" + fileHistory.UUID
+	paramFile := "&file=" + file.AfterPath
 	link := prefixLink + paramUUID + paramFile
 
 	// save link to database
@@ -88,9 +88,9 @@ func (ss *SharingService) DeleteLink(request *types.StopShareReq) (*types.StopSh
 	}, nil
 }
 
-func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*os.File, fs.FileInfo, error) {
-	paramUUID := "?uuid=" + strings.ToLower(uuid)
-	paramFile := "&file=" + strings.ToLower(afterPath)
+func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*types.FileMetadata, io.Reader, error) {
+	paramUUID := "?uuid=" + uuid
+	paramFile := "&file=" + afterPath
 	link := prefixLink + paramUUID + paramFile
 
 	// get sharing data using link
@@ -109,18 +109,7 @@ func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*os.File,
 		return nil, nil, errors.New("link has been expired")
 	}
 
-	// get file
-	fileName := sharing.File.BeforePath + sharing.File.AfterPath
-
-	// open original history file
-	file, err := os.Open(fileName)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer file.Close()
-
-	// get file information
-	fileInfo, err := file.Stat()
+	fileInfo, fileContent, err := ss.syncDir.GetFileFromHistoryDir(sharing.File.AfterPath, sharing.File.LatestSyncTimestamp)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -134,5 +123,5 @@ func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*os.File,
 		return nil, nil, err
 	}
 
-	return file, fileInfo, nil
+	return fileInfo, fileContent, nil
 }

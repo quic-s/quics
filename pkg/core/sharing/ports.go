@@ -1,8 +1,7 @@
 package sharing
 
 import (
-	"io/fs"
-	"os"
+	"io"
 
 	"github.com/quic-s/quics/pkg/types"
 )
@@ -17,5 +16,9 @@ type Repository interface {
 type Service interface {
 	CreateLink(request *types.ShareReq) (*types.ShareRes, error)
 	DeleteLink(request *types.StopShareReq) (*types.StopShareRes, error)
-	DownloadFile(uuid string, afterPath string) (*os.File, fs.FileInfo, error)
+	DownloadFile(uuid string, afterPath string) (*types.FileMetadata, io.Reader, error)
+}
+
+type SyncDirAdapter interface {
+	GetFileFromHistoryDir(afterPath string, timestamp uint64) (*types.FileMetadata, io.Reader, error)
 }

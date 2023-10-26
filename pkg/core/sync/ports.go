@@ -49,8 +49,10 @@ type Service interface {
 
 	RollbackFileByHistory(request *types.RollBackReq) (*types.RollBackRes, error)
 
-	GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, []string, error)
-	GetConflictFiles(request *types.AskStagingNumReq, conflictFilePaths []string) ([]*types.ConflictDownloadReq, []string, error)
+	DownloadHistory(request *types.DownloadHistoryReq) (*types.DownloadHistoryRes, string, error)
+
+	GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, error)
+	GetConflictFiles(request *types.AskStagingNumReq) ([]types.ConflictDownloadReq, error)
 }
 
 type SyncDirAdapter interface {

@@ -78,7 +78,7 @@ func ReadEnvFile() []map[string]string {
 	// separate string with new line (\n)
 	lines := strings.Split(dataStr, "\n")
 
-	var kvList []map[string]string
+	kvList := []map[string]string{}
 	for _, line := range lines {
 		if line == "" {
 			continue

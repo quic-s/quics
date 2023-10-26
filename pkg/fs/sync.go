@@ -22,7 +22,7 @@ type SyncDir struct {
 
 func NewSyncDir(syncDir string) *SyncDir {
 	lockNum := uint8(32)
-	pathMut := make(map[byte]*sync.Mutex)
+	pathMut := map[byte]*sync.Mutex{}
 
 	for i := uint8(0); i < lockNum; i++ {
 		pathMut[i] = &sync.Mutex{}

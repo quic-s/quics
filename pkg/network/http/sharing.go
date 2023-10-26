@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 
 	"github.com/quic-s/quics/pkg/core/sharing"
 )
@@ -25,23 +26,28 @@ func (sh *SharingHandler) SetupRoutes(mux *http.ServeMux) {
 func (sh *SharingHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		uuid := r.URL.Query().Get("id")
+		uuid := r.URL.Query().Get("uuid")
 		afterPath := r.URL.Query().Get("file")
 
-		file, fileInfo, err := sh.sharingService.DownloadFile(uuid, afterPath)
+		fileInfo, fileContent, err := sh.sharingService.DownloadFile(uuid, afterPath)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		w.Header().Set("Content-Disposition", "attachment; filename=")
+		_, fileName := filepath.Split(afterPath)
+		w.Header().Set("Alt-Svc", "h3=\":6121\"")
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size()))
+		w.Header().Set("Content-Disposition", "attachment; filename="+fileName)
+		w.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size))
 
-		_, err = io.Copy(w, file)
+		n, err := io.Copy(w, fileContent)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if n != fileInfo.Size {
+			http.Error(w, "file is modified", http.StatusInternalServerError)
 		}
 	}
 }
