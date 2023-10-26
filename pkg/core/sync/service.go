@@ -7,9 +7,8 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"reflect"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/quic-s/quics/pkg/core/history"
@@ -20,6 +19,7 @@ import (
 )
 
 type SyncService struct {
+	cancelMut              sync.RWMutex
 	cancel                 map[string]context.CancelFunc
 	FSTrigger              chan string
 	registrationRepository registration.Repository
@@ -31,7 +31,8 @@ type SyncService struct {
 
 func NewService(registrationRepository registration.Repository, historyRepository history.Repository, syncRepository Repository, networkAdapter NetworkAdapter, syncDirAdpater SyncDirAdapter) Service {
 	return &SyncService{
-		cancel:                 make(map[string]context.CancelFunc),
+		cancelMut:              sync.RWMutex{},
+		cancel:                 map[string]context.CancelFunc{},
 		FSTrigger:              make(chan string),
 		registrationRepository: registrationRepository,
 		historyRepository:      historyRepository,
@@ -338,11 +339,11 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 
 	// otherwise, file is conflicted
 	default:
-		// TODO: handle conflict
+		// handle conflict
 		if reflect.ValueOf(file.Conflict).IsZero() {
 			file.Conflict = types.Conflict{
 				AfterPath:    file.AfterPath,
-				StagingFiles: make(map[string]types.FileHistory),
+				StagingFiles: map[string]types.FileHistory{},
 			}
 			latestFileHistory, err := ss.historyRepository.GetFileHistory(file.AfterPath, file.LatestSyncTimestamp)
 			if err != nil {
@@ -351,14 +352,6 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 			}
 
 			file.Conflict.StagingFiles["server"] = *latestFileHistory
-			err = ss.syncRepository.UpdateFile(file)
-			if err != nil {
-				return nil, err
-			}
-			err = ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		file.Conflict.StagingFiles[pleaseSyncReq.UUID] = types.FileHistory{
@@ -506,35 +499,13 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 			return nil, err
 		}
 		downloadedHash := utils.MakeHashFromFileMetadata(file.AfterPath, fileInfo)
-		if downloadedHash != file.LatestHash {
+		if file.LatestHash != "" && downloadedHash != file.LatestHash {
 			// delete staging file info from conflict info when error occurred
 			delete(file.Conflict.StagingFiles, pleaseTakeReq.UUID)
 			ss.syncRepository.UpdateFile(file)
 			ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
 			return nil, errors.New("quics: file hash is not correct")
 		}
-
-		// moved to pleaseSyncReq
-		// file.Conflict.StagingFiles[pleaseTakeReq.UUID] = types.FileHistory{
-		// 	Date:       time.Now().String(),
-		// 	UUID:       pleaseTakeReq.UUID,
-		// 	BeforePath: file.BeforePath,
-		// 	AfterPath:  file.AfterPath,
-		// 	Timestamp:  file.LatestSyncTimestamp,
-		// 	Hash:       file.LatestHash,
-		// 	File:       *fileMetadata,
-		// }
-
-		// err = ss.syncRepository.UpdateFile(file)
-		// if err != nil {
-		// 	log.Println("quics: ", err)
-		// 	return nil, err
-		// }
-
-		// err = ss.syncRepository.UpdateConflict(file.AfterPath, &file.Conflict)
-		// if err != nil {
-		// 	return nil, err
-		// }
 
 		// update sync file
 		pleaseTakeRes := &types.PleaseTakeRes{
@@ -554,11 +525,18 @@ func (ss *SyncService) CallMustSync(filePath string, UUIDs []string) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// use cancelMut mutex for atomic to cancel map
+	ss.cancelMut.Lock()
 	ss.cancel[filePath] = cancel
+	ss.cancelMut.Unlock()
 
 	defer func() {
+		ss.cancelMut.Lock()
 		delete(ss.cancel, filePath)
+		ss.cancelMut.Unlock()
 	}()
+
 	for _, UUID := range UUIDs {
 		transaction, err := ss.networkAdapter.OpenTransaction(types.MUSTSYNC, UUID)
 		if err != nil {
@@ -1257,72 +1235,72 @@ func (ss *SyncService) RollbackFileByHistory(request *types.RollBackReq) (*types
 	}, nil
 }
 
-func (ss *SyncService) GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, []string, error) {
+func (ss *SyncService) GetStagingNum(request *types.AskStagingNumReq) (*types.AskStagingNumRes, error) {
 	// get file by afterPath
 	file, err := ss.syncRepository.GetFileByPath(request.AfterPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// get file name for detecting conflict files
-	// TODO: Check whether is it right to use fileNamePrefix below
-	_, fileNamePrefix := utils.GetNamesByAfterPath(file.AfterPath)
-	// fileNamePrefix := strings.Split(file.AfterPath, "/")[len(strings.Split(file.AfterPath, "/"))-1]
+	// // get file name for detecting conflict files
+	// // TODO: Check whether is it right to use fileNamePrefix below
+	// _, fileNamePrefix := utils.GetNamesByAfterPath(file.AfterPath)
+	// // fileNamePrefix := strings.Split(file.AfterPath, "/")[len(strings.Split(file.AfterPath, "/"))-1]
 
-	// get conflict directory of this file's root directory
-	directoryPath := utils.GetQuicsConflictPathByRootDir(file.RootDirKey)
+	// // get conflict directory of this file's root directory
+	// directoryPath := utils.GetQuicsConflictPathByRootDir(file.RootDirKey)
 
-	matchingFiles := []string{}
+	// matchingFiles := []string{}
 
-	// detect conflict files of this file
-	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+	// // detect conflict files of this file
+	// err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		fileName := filepath.Base(path)
+	// 	fileName := filepath.Base(path)
 
-		if strings.HasPrefix(fileName, fileNamePrefix) {
-			matchingFiles = append(matchingFiles, fileName)
-		}
+	// 	if strings.HasPrefix(fileName, fileNamePrefix) {
+	// 		matchingFiles = append(matchingFiles, fileName)
+	// 	}
 
-		return nil
-	})
-	if err != nil {
-		return nil, nil, err
-	}
+	// 	return nil
+	// })
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
 
 	// check if the count is correct
 	conflict, err := ss.syncRepository.GetConflict(file.AfterPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	if len(matchingFiles) != len(conflict.StagingFiles) {
-		return nil, nil, errors.New("quics: conflict file count is not correct")
-	}
+	// if len(matchingFiles) != len(conflict.StagingFiles) {
+	// 	return nil, nil, errors.New("quics: conflict file count is not correct")
+	// }
 
-	// return the count of conflict files
-	conflictNum := uint64(len(matchingFiles))
+	// // return the count of conflict files
+	// conflictNum := uint64(len(matchingFiles))
 
 	return &types.AskStagingNumRes{
 		UUID:        request.UUID,
-		ConflictNum: conflictNum,
-	}, matchingFiles, nil
+		ConflictNum: uint64(len(conflict.StagingFiles)),
+	}, nil
 }
 
-func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq, conflictFilePaths []string) ([]*types.ConflictDownloadReq, []string, error) {
+func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq) ([]types.ConflictDownloadReq, error) {
 	// get file by afterPath
 	conflict, err := ss.syncRepository.GetConflict(request.AfterPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	response := []*types.ConflictDownloadReq{}
+	response := []types.ConflictDownloadReq{}
 
 	for _, stagingFile := range conflict.StagingFiles {
 
-		conflictDownloadReq := &types.ConflictDownloadReq{
+		conflictDownloadReq := types.ConflictDownloadReq{
 			UUID:      request.UUID,
 			Candidate: stagingFile.UUID,
 			AfterPath: request.AfterPath,
@@ -1331,7 +1309,7 @@ func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq, conflic
 		response = append(response, conflictDownloadReq)
 	}
 
-	return response, conflictFilePaths, nil
+	return response, nil
 }
 
 func (ss *SyncService) DownloadHistory(request *types.DownloadHistoryReq) (*types.DownloadHistoryRes, string, error) {

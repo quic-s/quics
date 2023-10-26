@@ -15,8 +15,8 @@ import (
 	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/server"
 	"github.com/quic-s/quics/pkg/core/sharing"
+	"github.com/quic-s/quics/pkg/fs"
 	quicshttp "github.com/quic-s/quics/pkg/network/http"
-	quicshttp3 "github.com/quic-s/quics/pkg/network/http3"
 	"github.com/quic-s/quics/pkg/repository/badger"
 	"github.com/quic-s/quics/pkg/utils"
 )
@@ -41,14 +41,17 @@ func New(ip string, port string) (*App, error) {
 	syncRepository := repo.NewSyncRepository()
 	sharingRepository := repo.NewSharingRepository()
 
-	serverService, err := server.NewService(repo, serverRepository)
+	syncDirAdapter := fs.NewSyncDir(utils.GetQuicsSyncDirPath())
+
+	serverService, err := server.NewService(repo, serverRepository, syncDirAdapter)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
 	}
-	sharingService := sharing.NewService(historyRepository, syncRepository, sharingRepository)
 
-	serverHandler := quicshttp3.NewServerHandler(serverService)
+	sharingService := sharing.NewService(historyRepository, syncRepository, sharingRepository, syncDirAdapter)
+
+	serverHandler := quicshttp.NewServerHandler(serverService)
 	sharingHandler := quicshttp.NewSharingHandler(sharingService)
 
 	mux := http.NewServeMux()
