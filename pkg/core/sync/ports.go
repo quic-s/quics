@@ -75,6 +75,7 @@ type NetworkAdapter interface {
 type Transaction interface {
 	RequestMustSync(*types.MustSyncReq) (*types.MustSyncRes, error)
 	RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePath string) (*types.GiveYouRes, error)
+	RequestForceSync(mustSyncReq *types.MustSyncReq, historyFilePath string) (*types.MustSyncRes, error)
 	RequestAskAllMeta(askAllMetaReq *types.AskAllMetaReq) (*types.AskAllMetaRes, error)
 	RequestNeedSync(needSyncReq *types.NeedSyncReq) (*types.NeedSyncRes, error)
 	RequestNeedContent(needContentReq *types.NeedContentReq) (*types.NeedContentRes, *types.FileMetadata, io.Reader, error)

@@ -519,10 +519,12 @@ func (ss *SyncService) UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq
 
 // CallMustSync calls must sync transaction
 func (ss *SyncService) CallMustSync(filePath string, UUIDs []string) error {
+	ss.cancelMut.Lock()
 	if _, exists := ss.cancel[filePath]; exists {
 		log.Println("quics: Cancel MUSTSYNC to ", filePath)
 		ss.cancel[filePath]()
 	}
+	ss.cancelMut.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -844,7 +846,8 @@ func (ss *SyncService) CallForceSync(filePath string, UUIDs []string) error {
 				return
 			}
 
-			mustSyncRes, err := transaction.RequestMustSync(mustSyncReq)
+			historyFilePath := utils.GetHistoryFileNameByAfterPath(mustSyncReq.AfterPath, mustSyncReq.LatestSyncTimestamp)
+			mustSyncRes, err := transaction.RequestForceSync(mustSyncReq, historyFilePath)
 			if err != nil {
 				log.Println("quics: ", err)
 				return
@@ -854,50 +857,9 @@ func (ss *SyncService) CallForceSync(filePath string, UUIDs []string) error {
 				return
 			}
 
-			// <- must sync
-
-			// -> give file
-
-			giveYouReq := &types.GiveYouReq{
-				UUID:      mustSyncRes.UUID,
-				AfterPath: mustSyncRes.AfterPath,
+			if mustSyncReq.LatestHash != mustSyncRes.LatestSyncHash {
+				log.Println("quics: hash is not correct; fail to send file")
 			}
-			if ctx.Err() != nil {
-				log.Println("quics: ", err)
-				return
-			}
-			if mustSyncRes.AfterPath == "" {
-				log.Println("quics: ", errors.New("quics: mustSyncRes.AfterPath is empty"))
-				return
-			}
-
-			historyFilePath := utils.GetHistoryFileNameByAfterPath(mustSyncRes.AfterPath, mustSyncRes.LatestSyncTimestamp)
-			giveYouRes, err := transaction.RequestGiveYou(giveYouReq, historyFilePath)
-			if err != nil {
-				log.Println("quics: ", err)
-				return
-			}
-			if ctx.Err() != nil {
-				log.Println("quics: ", err)
-				return
-			}
-
-			file, err = ss.syncRepository.GetFileByPath(giveYouRes.AfterPath)
-			if err != nil {
-				log.Println("quics: ", err)
-				return
-			}
-			if ctx.Err() != nil {
-				log.Println("quics: ", err)
-				return
-			}
-
-			err = validateGiveYouTransaction(file, giveYouRes)
-			if err != nil {
-				log.Println("quics: ", err)
-				return
-			}
-			// <- give file
 		}()
 	}
 	return nil
@@ -1242,15 +1204,9 @@ func (ss *SyncService) GetStagingNum(request *types.AskStagingNumReq) (*types.As
 		return nil, err
 	}
 
-	// check if the count is correct
-	conflict, err := ss.syncRepository.GetConflict(file.AfterPath)
-	if err != nil {
-		return nil, err
-	}
-
 	return &types.AskStagingNumRes{
 		UUID:        request.UUID,
-		ConflictNum: uint64(len(conflict.StagingFiles)),
+		ConflictNum: uint64(len(file.Conflict.StagingFiles)),
 	}, nil
 }
 
@@ -1263,12 +1219,12 @@ func (ss *SyncService) GetConflictFiles(request *types.AskStagingNumReq) ([]type
 
 	response := []types.ConflictDownloadReq{}
 
-	for _, stagingFile := range conflict.StagingFiles {
+	for uuid, stagingFile := range conflict.StagingFiles {
 
 		conflictDownloadReq := types.ConflictDownloadReq{
 			UUID:      request.UUID,
-			Candidate: stagingFile.UUID,
-			AfterPath: request.AfterPath,
+			Candidate: uuid,
+			AfterPath: stagingFile.AfterPath,
 		}
 
 		response = append(response, conflictDownloadReq)
