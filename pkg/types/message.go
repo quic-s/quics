@@ -47,9 +47,13 @@ type ClientRegisterRes struct {
 }
 
 // ClientDisconnectorReq is used when disconnecting client with server from client to server
-type ClientDisconnectorReq struct {
+type DisconnectClientReq struct {
 	UUID           string // client
 	ServerPassword string // server
+}
+
+type DisconnectClientRes struct {
+	UUID string // client
 }
 
 type AskRootDirReq struct {
@@ -344,10 +348,10 @@ func (clientRegisterRes *ClientRegisterRes) Decode(data []byte) error {
 	return decoder.Decode(clientRegisterRes)
 }
 
-func (clientDisconnectorReq *ClientDisconnectorReq) Encode() ([]byte, error) {
+func (disconnectClientReq *DisconnectClientReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(clientDisconnectorReq); err != nil {
+	if err := encoder.Encode(disconnectClientReq); err != nil {
 		log.Println("quics: (ClientDisconnectorReq.Encode) ", err)
 		return nil, err
 	}
@@ -355,10 +359,27 @@ func (clientDisconnectorReq *ClientDisconnectorReq) Encode() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (clientDisconnectorReq *ClientDisconnectorReq) Decode(data []byte) error {
+func (disconnectClientReq *DisconnectClientReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
-	return decoder.Decode(clientDisconnectorReq)
+	return decoder.Decode(disconnectClientReq)
+}
+
+func (disconnectClientRes *DisconnectClientRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(disconnectClientRes); err != nil {
+		log.Println("quics: (ClientDisconnectorReq.Encode) ", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (disconnectClientRes *DisconnectClientRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(disconnectClientRes)
 }
 
 func (askRootDirReq *AskRootDirReq) Encode() ([]byte, error) {

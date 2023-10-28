@@ -9,6 +9,7 @@ type Repository interface {
 	SaveClient(uuid string, client *types.Client) error
 	GetClientByUUID(uuid string) (*types.Client, error)
 	GetAllClients() ([]types.Client, error)
+	DeleteClient(uuid string) error
 	GetSequence(key []byte, increment uint64) (uint64, error)
 }
 
@@ -18,4 +19,5 @@ type Service interface {
 
 type NetworkAdapter interface {
 	UpdateClientConnection(uuid string, conn *qp.Connection) error
+	DeleteConnection(uuid string) error
 }

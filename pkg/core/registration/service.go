@@ -59,3 +59,23 @@ func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, 
 		UUID: request.UUID,
 	}, nil
 }
+
+// CreateNewClient creates new client entity
+func (rs *RegistrationService) DisconnectClient(request *types.DisconnectClientReq, conn *qp.Connection) (*types.DisconnectClientRes, error) {
+	// Save client to badger database
+	err := rs.registrationRepository.DeleteClient(request.UUID)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	err = rs.networkAdapter.DeleteConnection(request.UUID)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+
+	return &types.DisconnectClientRes{
+		UUID: request.UUID,
+	}, nil
+}
