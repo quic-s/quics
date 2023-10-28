@@ -7,27 +7,28 @@ import (
 )
 
 const (
-	REGISTERCLIENT   = "REGISTERCLIENT"
-	REGISTERROOTDIR  = "REGISTERROOTDIR"
-	SYNCROOTDIR      = "SYNCROOTDIR"
-	GETROOTDIRS      = "GETROOTDIRS"
-	PLEASESYNC       = "PLEASESYNC"
-	MUSTSYNC         = "MUSTSYNC"
-	FORCESYNC        = "FORCESYNC"
-	CONFLICT         = "CONFLICT"
-	CONFLICTLIST     = "CONFLICTLIST"
-	CONFLICTDOWNLOAD = "CONFLICTDOWNLOAD"
-	CHOOSEONE        = "CHOOSEONE"
-	FULLSCAN         = "FULLSCAN"
-	RESCAN           = "RESCAN"
-	NEEDCONTENT      = "NEEDCONTENT"
-	PING             = "PING"
-	ROLLBACK         = "ROLLBACK"
-	HISTORYSHOW      = "HISTORYSHOW"
-	HISTORYDOWNLOAD  = "HISTORYDOWNLOAD"
-	DOWNLOAD         = "DOWNLOAD"
-	STARTSHARING     = "STARTSHARING"
-	STOPSHARING      = "STOPSHARING"
+	REGISTERCLIENT    = "REGISTERCLIENT"
+	REGISTERROOTDIR   = "REGISTERROOTDIR"
+	SYNCROOTDIR       = "SYNCROOTDIR"
+	GETROOTDIRS       = "GETROOTDIRS"
+	DISCONNECTROOTDIR = "DISCONNECTROOTDIR"
+	PLEASESYNC        = "PLEASESYNC"
+	MUSTSYNC          = "MUSTSYNC"
+	FORCESYNC         = "FORCESYNC"
+	CONFLICT          = "CONFLICT"
+	CONFLICTLIST      = "CONFLICTLIST"
+	CONFLICTDOWNLOAD  = "CONFLICTDOWNLOAD"
+	CHOOSEONE         = "CHOOSEONE"
+	FULLSCAN          = "FULLSCAN"
+	RESCAN            = "RESCAN"
+	NEEDCONTENT       = "NEEDCONTENT"
+	PING              = "PING"
+	ROLLBACK          = "ROLLBACK"
+	HISTORYSHOW       = "HISTORYSHOW"
+	HISTORYDOWNLOAD   = "HISTORYDOWNLOAD"
+	DOWNLOAD          = "DOWNLOAD"
+	STARTSHARING      = "STARTSHARING"
+	STOPSHARING       = "STOPSHARING"
 )
 
 type MessageData interface {
@@ -297,6 +298,16 @@ type ConflictDownloadReq struct {
 	UUID      string // client UUID who want to download
 	Candidate string // coflict file's UUID from FileHistory (stagingFile)
 	AfterPath string // conflict file's AfterPath
+}
+
+type DisconnectRootDirReq struct {
+	UUID      string
+	AfterPath string
+}
+
+type DisconnectRootDirRes struct {
+	UUID      string
+	AfterPath string
 }
 
 func (clientRegisterReq *ClientRegisterReq) Encode() ([]byte, error) {
@@ -1024,4 +1035,36 @@ func (conflictDownloadReq *ConflictDownloadReq) Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buffer)
 	return decoder.Decode(conflictDownloadReq)
+}
+
+func (disconnectRootDirReq *DisconnectRootDirReq) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(disconnectRootDirReq); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (disconnectRootDirReq *DisconnectRootDirReq) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(disconnectRootDirReq)
+}
+
+func (disconnectRootDirRes *DisconnectRootDirRes) Encode() ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(disconnectRootDirRes); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (disconnectRootDirRes *DisconnectRootDirRes) Decode(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buffer)
+	return decoder.Decode(disconnectRootDirRes)
 }
