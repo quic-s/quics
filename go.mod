@@ -7,7 +7,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gorilla/mux v1.8.0
 	github.com/quic-go/quic-go v0.39.3
-	github.com/quic-s/quics-protocol v0.0.0-20231028134208-8c801df2c660
+	github.com/quic-s/quics-protocol v0.0.0-20231028155938-6096c8bb8f7e
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.17.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
