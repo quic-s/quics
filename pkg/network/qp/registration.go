@@ -75,3 +75,11 @@ func (ra *RegistrationAdapter) UpdateClientConnection(uuid string, conn *qp.Conn
 	}
 	return nil
 }
+
+func (ra *RegistrationAdapter) DeleteConnection(uuid string) error {
+	err := ra.Pool.DeleteConnection(uuid)
+	if err != nil {
+		return err
+	}
+	return nil
+}

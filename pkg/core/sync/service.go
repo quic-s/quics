@@ -83,15 +83,6 @@ func (ss *SyncService) RegisterRootDir(request *types.RootDirRegisterReq) (*type
 		return nil, err
 	}
 
-	// // do fullscan in goroutine
-	// go func() {
-	// 	err := ss.FullScan(request.UUID)
-	// 	if err != nil {
-	// 		log.Println("quics: ", err)
-	// 		return
-	// 	}
-	// }()
-
 	return &types.RootDirRegisterRes{
 		UUID: request.UUID,
 	}, nil
@@ -173,61 +164,53 @@ func (ss *SyncService) GetRootDirByPath(path string) (*types.RootDirectory, erro
 		log.Println("quics: ", err)
 	}
 
-	return rootDir, err
+	return rootDir, nil
 }
 
-// GetFileMetadataForPleaseSync returns file metadata by path
-func (ss *SyncService) GetFileMetadataForPleaseSync(pleaseFileMetaReq *types.PleaseFileMetaReq) (*types.PleaseFileMetaRes, error) {
-	afterPath := pleaseFileMetaReq.AfterPath
-
-	isExistFile, err := ss.syncRepository.IsExistFileByPath(afterPath)
+func (ss *SyncService) DisconnectRootDir(request *types.DisconnectRootDirReq) (*types.DisconnectRootDirRes, error) {
+	client, err := ss.registrationRepository.GetClientByUUID(request.UUID)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
+	}
+	rootDir, err := ss.syncRepository.GetRootDirByPath(request.AfterPath)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
 	}
 
-	if !isExistFile {
-		// If file not exist, then create the file information to database
-		fileMetadata := types.FileMetadata{
-			Name:    "",
-			Size:    0,
-			Mode:    os.FileMode(0), // FIXME: initialize with proper value
-			ModTime: time.Now(),     // FIXME: initialize with proper value
-			IsDir:   false,
-		}
-
-		file := &types.File{
-			BeforePath:          "",
-			AfterPath:           afterPath,
-			RootDirKey:          "",
-			LatestHash:          "",
-			LatestSyncTimestamp: 0,
-			ContentsExisted:     false,
-			Metadata:            fileMetadata,
-		}
-
-		err := ss.syncRepository.SaveFileByPath(afterPath, file)
-		if err != nil {
-			log.Println("quics: ", err)
-			return nil, err
+	// find client's uuid and delete it
+	for i := 0; i < len(rootDir.UUIDs); i++ {
+		if client.UUID == rootDir.UUIDs[i] {
+			rootDir.UUIDs = append(rootDir.UUIDs[:i], rootDir.UUIDs[i+1:]...)
+			i--
 		}
 	}
-
-	file, err := ss.syncRepository.GetFileByPath(afterPath)
+	err = ss.syncRepository.SaveRootDir(rootDir.AfterPath, rootDir)
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
 	}
 
-	pleaseFileMetaRes := &types.PleaseFileMetaRes{
-		UUID:                pleaseFileMetaReq.UUID,
-		AfterPath:           pleaseFileMetaReq.AfterPath,
-		LatestHash:          file.LatestHash,
-		LatestSyncTimestamp: file.LatestSyncTimestamp,
-		ModifiedDate:        file.Metadata.ModTime.Local().Format("yyyy-MM-dd"),
+	// find rootDir from client's rootDir list and delete it
+	for i := 0; i < len(client.Root); i++ {
+		if reflect.DeepEqual(client.Root[i], rootDir) {
+			client.Root = append(client.Root[:i], client.Root[i+1:]...)
+			i--
+		}
+	}
+	// save updated client entity with new root directory
+	err = ss.registrationRepository.SaveClient(client.UUID, client)
+	if err != nil {
+		log.Println("quics: ", err)
+		return nil, err
 	}
 
-	return pleaseFileMetaRes, nil
+	response := &types.DisconnectRootDirRes{
+		UUID:      client.UUID,
+		AfterPath: rootDir.AfterPath,
+	}
+	return response, nil
 }
 
 // UpdateFileWithoutContents updates file (ContentExisted = false)
@@ -282,6 +265,15 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 
 	// check file has been updated
 	case file.LatestHash == pleaseSyncReq.LastUpdateHash:
+		if !file.ContentsExisted {
+			// update sync file
+			pleaseSyncRes := &types.PleaseSyncRes{
+				UUID:      pleaseSyncReq.UUID,
+				AfterPath: pleaseSyncReq.AfterPath,
+			}
+
+			return pleaseSyncRes, nil
+		}
 		log.Println("quics: file is already updated")
 		return nil, errors.New("quics: file is already updated")
 
@@ -894,9 +886,9 @@ func (ss *SyncService) FullScan(uuid string) error {
 		if err != nil {
 			return err
 		}
-		for _, file := range allFiles {
-			if !file.ContentsExisted {
-				err := ss.CallNeedContent(&file)
+		for i, file := range allFiles {
+			if !file.ContentsExisted && file.LatestEditClient == uuid {
+				err := ss.CallNeedContent(&allFiles[i])
 				if err != nil {
 					log.Println("quics: ", err)
 				}

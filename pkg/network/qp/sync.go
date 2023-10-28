@@ -145,7 +145,7 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 // 4. (server) Get root directory list from database
 // 5. (server) Send response data for getting root directory list
 func (sh *SyncHandler) GetRemoteDirs(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+	log.Println("quics: GetRemoteDirs received ", conn.Conn.RemoteAddr().String())
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
@@ -170,6 +170,42 @@ func (sh *SyncHandler) GetRemoteDirs(conn *qp.Connection, stream *qp.Stream, tra
 	}
 
 	err = stream.SendBMessage(res)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+	return nil
+}
+
+func (sh *SyncHandler) DisconnectRootDir(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: DisconnectRootDir received ", conn.Conn.RemoteAddr().String())
+
+	data, err := stream.RecvBMessage()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	request := &types.DisconnectRootDirReq{}
+	if err := request.Decode(data); err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	// get root directory path of requested data
+	disconnectRootDirRes, err := sh.syncService.DisconnectRootDir(request)
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	response, err := disconnectRootDirRes.Encode()
+	if err != nil {
+		log.Println("quics: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(response)
 	if err != nil {
 		log.Println("quics: ", err)
 		return err

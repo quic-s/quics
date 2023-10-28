@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
-	"net"
 
 	qp "github.com/quic-s/quics-protocol"
 	"github.com/quic-s/quics/pkg/network/qp/connection"
@@ -12,7 +11,7 @@ import (
 )
 
 type Protocol struct {
-	udpaddr            *net.UDPAddr
+	udpaddr            string
 	tlsConf            *tls.Config
 	initialTransaction func(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error
 	Proto              *qp.QP
@@ -25,12 +24,6 @@ func New(ip string, port int, pool *connection.Pool) (*Protocol, error) {
 	if err != nil {
 		log.Println("quics: ", err)
 		return nil, err
-	}
-
-	// initialize udp server address
-	UDPAddr := &net.UDPAddr{
-		IP:   net.ParseIP("0.0.0.0"),
-		Port: port,
 	}
 
 	// initialize certificate for connection
@@ -53,7 +46,7 @@ func New(ip string, port int, pool *connection.Pool) (*Protocol, error) {
 	}
 
 	return &Protocol{
-		udpaddr: UDPAddr,
+		udpaddr: ":6122",
 		tlsConf: tlsConfig,
 		Proto:   proto,
 		Pool:    pool,

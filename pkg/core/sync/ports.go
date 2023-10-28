@@ -30,6 +30,7 @@ type Service interface {
 	SyncRootDir(request *types.RootDirRegisterReq) (*types.RootDirRegisterRes, error)
 	GetRootDirList() (*types.AskRootDirRes, error)
 	GetRootDirByPath(afterPath string) (*types.RootDirectory, error)
+	DisconnectRootDir(request *types.DisconnectRootDirReq) (*types.DisconnectRootDirRes, error)
 
 	UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSyncReq) (*types.PleaseSyncRes, error)
 	UpdateFileWithContents(pleaseTakeReq *types.PleaseTakeReq, fileMetadata *types.FileMetadata, fileContent io.Reader) (*types.PleaseTakeRes, error)

@@ -61,6 +61,16 @@ func (rr *RegistrationRepository) GetClientByUUID(uuid string) (*types.Client, e
 	return client, nil
 }
 
+func (rr *RegistrationRepository) DeleteClient(uuid string) error {
+	key := []byte(PrefixClient + uuid)
+
+	err := rr.db.DropPrefix(key)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (rr *RegistrationRepository) SaveRootDir(afterPath string, rootDir *types.RootDirectory) error {
 	key := []byte(PrefixRootDir + afterPath)
 
