@@ -282,6 +282,15 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 
 	// check file has been updated
 	case file.LatestHash == pleaseSyncReq.LastUpdateHash:
+		if !file.ContentsExisted {
+			// update sync file
+			pleaseSyncRes := &types.PleaseSyncRes{
+				UUID:      pleaseSyncReq.UUID,
+				AfterPath: pleaseSyncReq.AfterPath,
+			}
+
+			return pleaseSyncRes, nil
+		}
 		log.Println("quics: file is already updated")
 		return nil, errors.New("quics: file is already updated")
 
@@ -894,9 +903,9 @@ func (ss *SyncService) FullScan(uuid string) error {
 		if err != nil {
 			return err
 		}
-		for _, file := range allFiles {
-			if !file.ContentsExisted {
-				err := ss.CallNeedContent(&file)
+		for i, file := range allFiles {
+			if !file.ContentsExisted && file.LatestEditClient == uuid {
+				err := ss.CallNeedContent(&allFiles[i])
 				if err != nil {
 					log.Println("quics: ", err)
 				}
