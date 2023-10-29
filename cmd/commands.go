@@ -182,7 +182,7 @@ func Run() int {
 	// qis start --addr <server-ip> --port <http-port> --port3 <http3-port>
 	startServerCmd.Flags().StringVarP(&addr, AddrOption, "", "", "Start server with custom address")
 	startServerCmd.Flags().StringVarP(&port, PortOption, "", "", "Start http rest server with custom port")
-	startServerCmd.Flags().StringVarP(&port3, PortOption, "", "", "Start http3 rest server with custom port")
+	startServerCmd.Flags().StringVarP(&port3, Port3Option, "", "", "Start http3 rest server with custom port")
 	// qis password set --pw <password>
 	passwordSetCmd.Flags().StringVarP(&password, PasswordOption, "", "", "Change password for quic-s server")
 	// qis show client --id, qis show client --all
