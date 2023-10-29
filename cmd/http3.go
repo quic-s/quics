@@ -41,7 +41,7 @@ func NewRestClient() *RestClient {
 	return restClient
 }
 
-func (r *RestClient) GetRequest(IP string, port string, path string) (*bytes.Buffer, error) {
+func (r *RestClient) GetRequest(path string) (*bytes.Buffer, error) {
 	url := "https://" + config.GetRestServerH3Address() + path
 
 	rsp, err := r.hclient.Get(url)
@@ -60,7 +60,7 @@ func (r *RestClient) GetRequest(IP string, port string, path string) (*bytes.Buf
 	return body, nil
 }
 
-func (r *RestClient) PostRequest(IP string, port string, path string, contentType string, content []byte) (*bytes.Buffer, error) {
+func (r *RestClient) PostRequest(path string, contentType string, content []byte) (*bytes.Buffer, error) {
 	url := "https://" + config.GetRestServerH3Address() + path
 
 	contentReader := bytes.NewReader(content)
