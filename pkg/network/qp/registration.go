@@ -20,38 +20,34 @@ func NewRegistrationHandler(service registration.Service) *RegistrationHandler {
 }
 
 // register client
-// 1. (client) Open transaction
-// 2. (client) Send request data for registering client
-// 3. (server) Receive request data
-// 4. (server) Create new client to database
-// TODO: 5. (server) Send response data for registering client
 func (rh *RegistrationHandler) RegisterClient(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
+	log.Println("quics: receive ", types.REGISTERCLIENT, " transaction")
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 	request := &types.ClientRegisterReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
 	// call registration service
 	response, err := rh.registrationService.RegisterClient(request, conn)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 	err = stream.SendBMessage(data)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 	return nil
@@ -70,7 +66,7 @@ func NewRegistrationAdapter(pool *connection.Pool) *RegistrationAdapter {
 func (ra *RegistrationAdapter) UpdateClientConnection(uuid string, conn *qp.Connection) error {
 	err := ra.Pool.UpdateConnection(uuid, conn)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 	return nil

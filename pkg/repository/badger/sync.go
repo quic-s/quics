@@ -285,7 +285,6 @@ func (sr *SyncRepository) GetConflictList(rootDirs []string) ([]types.Conflict, 
 	conflictMetadataList := []types.Conflict{}
 	for _, rootDir := range rootDirs {
 		key := []byte(PrefixConflict + rootDir)
-
 		sr.db.View(func(txn *badger.Txn) error {
 			opts := badger.DefaultIteratorOptions
 			opts.PrefetchSize = 10

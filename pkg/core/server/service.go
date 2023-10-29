@@ -46,7 +46,7 @@ func NewService(repo *badger.Badger, serverRepository Repository, syncDirAdapter
 	// get env variables (server password, port)
 	port, err := strconv.Atoi(config.GetViperEnvVariables("QUICS_PORT"))
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -72,12 +72,13 @@ func NewService(repo *badger.Badger, serverRepository Repository, syncDirAdapter
 
 	proto, err := qp.New("0.0.0.0", port, pool)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
 	proto.RecvTransactionHandleFunc(types.REGISTERCLIENT, registrationHandler.RegisterClient)
 	proto.RecvTransactionHandleFunc(types.REGISTERROOTDIR, syncHandler.RegisterRootDir)
+	proto.RecvTransactionHandleFunc(types.DISCONNECTROOTDIR, syncHandler.DisconnectRootDir)
 	proto.RecvTransactionHandleFunc(types.SYNCROOTDIR, syncHandler.SyncRootDir)
 	proto.RecvTransactionHandleFunc(types.GETROOTDIRS, syncHandler.GetRemoteDirs)
 	proto.RecvTransactionHandleFunc(types.PLEASESYNC, syncHandler.PleaseSync)
@@ -111,7 +112,7 @@ func (ss *ServerService) StopServer() error {
 	go func() {
 		err := ss.repo.Close()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return
 		}
 
@@ -138,7 +139,7 @@ func (ss *ServerService) ListenProtocol() error {
 		}()
 		err := ss.Proto.Start()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			errChan <- err
 		}
 	}()
@@ -157,7 +158,7 @@ func (ss *ServerService) SetPassword(request *types.Server) error {
 
 	err := ss.serverRepository.UpdatePassword(request)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -171,7 +172,7 @@ func (ss *ServerService) ResetPassword() error {
 
 	err := ss.serverRepository.DeletePassword()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -181,7 +182,7 @@ func (ss *ServerService) ResetPassword() error {
 func (ss *ServerService) Ping(request *types.Ping) (*types.Ping, error) {
 	client, err := ss.serverRepository.GetClientByUUID(request.UUID)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -202,7 +203,7 @@ func (ss *ServerService) ShowClientLogs(all string, id string) error {
 	if all != "" {
 		clients, err := ss.serverRepository.GetAllClients()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -218,7 +219,7 @@ func (ss *ServerService) ShowClientLogs(all string, id string) error {
 	if id != "" {
 		client, err := ss.serverRepository.GetClientByUUID(id)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -240,7 +241,7 @@ func (ss *ServerService) ShowDirLogs(all string, id string) error {
 	if all != "" {
 		dirs, err := ss.serverRepository.GetAllRootDirectories()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -256,7 +257,7 @@ func (ss *ServerService) ShowDirLogs(all string, id string) error {
 	if id != "" {
 		dir, err := ss.serverRepository.GetRootDirectoryByPath(id)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -278,7 +279,7 @@ func (ss *ServerService) ShowFileLogs(all string, id string) error {
 	if all != "" {
 		files, err := ss.serverRepository.GetAllFiles()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -292,7 +293,7 @@ func (ss *ServerService) ShowFileLogs(all string, id string) error {
 	if id != "" {
 		file, err := ss.serverRepository.GetFileByAfterPath(id)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -312,7 +313,7 @@ func (ss *ServerService) ShowHistoryLogs(all string, id string) error {
 	if all != "" {
 		histories, err := ss.serverRepository.GetAllHistories()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -326,7 +327,7 @@ func (ss *ServerService) ShowHistoryLogs(all string, id string) error {
 	if id != "" {
 		history, err := ss.serverRepository.GetHistoryByAfterPath(id)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -346,7 +347,7 @@ func (ss *ServerService) RemoveClient(all string, id string) error {
 	if all != "" {
 		err := ss.serverRepository.DeleteAllClients()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -356,7 +357,7 @@ func (ss *ServerService) RemoveClient(all string, id string) error {
 	if id != "" {
 		err := ss.serverRepository.DeleteClientByUUID(id)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -374,7 +375,7 @@ func (ss *ServerService) RemoveDir(all string, id string) error {
 	if all != "" {
 		err := ss.serverRepository.DeleteAllRootDirectories()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -384,7 +385,7 @@ func (ss *ServerService) RemoveDir(all string, id string) error {
 	if id != "" {
 		err := ss.serverRepository.DeleteRootDirectoryByAfterPath(id)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -402,7 +403,7 @@ func (ss *ServerService) RemoveFile(all string, id string) error {
 	if all != "" {
 		err := ss.serverRepository.DeleteAllFiles()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
@@ -412,7 +413,7 @@ func (ss *ServerService) RemoveFile(all string, id string) error {
 	if id != "" {
 		err := ss.serverRepository.DeleteFileByAfterPath(id)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 

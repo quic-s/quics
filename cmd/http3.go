@@ -46,14 +46,14 @@ func (r *RestClient) GetRequest(IP string, port string, path string) (*bytes.Buf
 
 	rsp, err := r.hclient.Get(url)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
 	body := &bytes.Buffer{}
 	_, err = io.Copy(body, rsp.Body)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -66,14 +66,14 @@ func (r *RestClient) PostRequest(IP string, port string, path string, contentTyp
 	contentReader := bytes.NewReader(content)
 	rsp, err := r.hclient.Post(url, contentType, contentReader)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
 	buf := make([]byte, rsp.ContentLength)
 	_, err = rsp.Body.Read(buf)
 	if err != nil && err != io.EOF {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -91,7 +91,7 @@ func (r *RestClient) Close() error {
 
 	err := r.roundTripper.Close()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 

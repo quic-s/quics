@@ -25,7 +25,7 @@ func GetViperEnvVariables(key string) string {
 	if os.IsNotExist(err) {
 		workDir, err := os.Getwd()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return ""
 		}
 
@@ -35,17 +35,17 @@ func GetViperEnvVariables(key string) string {
 		sourceViper.SetConfigType("env")
 
 		if err := sourceViper.ReadInConfig(); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return ""
 		}
 
 		_, err = os.Create(envPath)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return ""
 		}
 		if err := sourceViper.WriteConfigAs(envPath); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return ""
 		}
 	} else if err != nil {

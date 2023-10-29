@@ -50,7 +50,7 @@ func (s *SyncDir) SaveFileToLatestDir(afterPath string, fileMetadata *types.File
 
 	err := fileMetadata.WriteFileWithInfo(latestFilePath, fileContent)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -62,13 +62,13 @@ func (s *SyncDir) GetFileFromLatestDir(afterPath string) (*types.FileMetadata, i
 
 	file, err := os.Open(latestFilePath)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, nil, err
 	}
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, nil, err
 	}
 
@@ -89,7 +89,7 @@ func (s *SyncDir) DeleteFileFromLatestDir(afterPath string) error {
 
 	err := os.Remove(latestFilePath)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -97,7 +97,7 @@ func (s *SyncDir) DeleteFileFromLatestDir(afterPath string) error {
 	latestFileDir := filepath.Join(s.SyncDir, reootToFile)
 	dir, err := os.Open(latestFileDir)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -116,7 +116,7 @@ func (s *SyncDir) DeleteFileFromLatestDir(afterPath string) error {
 func (s *SyncDir) SaveFileToConflictDir(uuid string, afterPath string, fileMetadata *types.FileMetadata, fileContent io.Reader) error {
 	err := fileMetadata.WriteFileWithInfo(utils.GetConflictFileNameByAfterPath(afterPath, uuid), fileContent)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -126,13 +126,13 @@ func (s *SyncDir) SaveFileToConflictDir(uuid string, afterPath string, fileMetad
 func (s *SyncDir) GetFileFromConflictDir(afterPath string, uuid string) (*types.FileMetadata, io.Reader, error) {
 	file, err := os.Open(utils.GetConflictFileNameByAfterPath(afterPath, uuid))
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, nil, err
 	}
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, nil, err
 	}
 
@@ -142,7 +142,7 @@ func (s *SyncDir) GetFileFromConflictDir(afterPath string, uuid string) (*types.
 func (s *SyncDir) GetFileInfoFromConflictDir(afterPath string, uuid string) (*types.FileMetadata, error) {
 	fileInfo, err := os.Stat(utils.GetConflictFileNameByAfterPath(afterPath, uuid))
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -221,7 +221,7 @@ func (s *SyncDir) SaveFileToHistoryDir(afterPath string, timestamp uint64, fileM
 
 	err := fileMetadata.WriteFileWithInfo(historyFilePath, fileContent)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -231,13 +231,13 @@ func (s *SyncDir) SaveFileToHistoryDir(afterPath string, timestamp uint64, fileM
 func (s *SyncDir) GetFileFromHistoryDir(afterPath string, timestamp uint64) (*types.FileMetadata, io.Reader, error) {
 	file, err := os.Open(utils.GetHistoryFileNameByAfterPath(afterPath, timestamp))
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, nil, err
 	}
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, nil, err
 	}
 
@@ -247,7 +247,7 @@ func (s *SyncDir) GetFileFromHistoryDir(afterPath string, timestamp uint64) (*ty
 func (s *SyncDir) GetFileInfoFromHistoryDir(afterPath string, timestamp uint64) (*types.FileMetadata, error) {
 	fileInfo, err := os.Stat(utils.GetHistoryFileNameByAfterPath(afterPath, timestamp))
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 

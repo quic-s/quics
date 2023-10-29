@@ -29,7 +29,7 @@ func NewBadgerRepository() (*Badger, error) {
 func (b *Badger) Close() error {
 	err := b.db.Close()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 

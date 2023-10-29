@@ -32,7 +32,7 @@ type App struct {
 func New(ip string, port string) (*App, error) {
 	repo, err := badger.NewBadgerRepository()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -45,7 +45,7 @@ func New(ip string, port string) (*App, error) {
 
 	serverService, err := server.NewService(repo, serverRepository, syncDirAdapter)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func New(ip string, port string) (*App, error) {
 	if err != nil {
 		err = config.CreateSecurityFiles()
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return nil, err
 		}
 	}
@@ -103,7 +103,7 @@ func (a *App) Start() error {
 	}()
 	err := a.restServer.ListenAndServeTLS(a.certFileDir, a.keyFileDir)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 	return nil

@@ -20,14 +20,14 @@ func (sr *ServerRepository) UpdatePassword(server *types.Server) error {
 
 	err := sr.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(key, server.Encode()); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -39,14 +39,14 @@ func (sr *ServerRepository) DeletePassword() error {
 
 	err := sr.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Delete(key); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -94,13 +94,13 @@ func (sr *ServerRepository) GetAllClients() ([]*types.Client, error) {
 			item := it.Item()
 			val, err := item.ValueCopy(nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			client := &types.Client{}
 			if err := client.Decode(val); err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -110,7 +110,7 @@ func (sr *ServerRepository) GetAllClients() ([]*types.Client, error) {
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -130,13 +130,13 @@ func (sr *ServerRepository) GetAllRootDirectories() ([]*types.RootDirectory, err
 			item := it.Item()
 			val, err := item.ValueCopy(nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			rootDir := &types.RootDirectory{}
 			if err := rootDir.Decode(val); err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -146,7 +146,7 @@ func (sr *ServerRepository) GetAllRootDirectories() ([]*types.RootDirectory, err
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -166,13 +166,13 @@ func (sr *ServerRepository) GetAllFiles() ([]*types.File, error) {
 			item := it.Item()
 			val, err := item.ValueCopy(nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			file := &types.File{}
 			if err := file.Decode(val); err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -182,7 +182,7 @@ func (sr *ServerRepository) GetAllFiles() ([]*types.File, error) {
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -196,25 +196,25 @@ func (sr *ServerRepository) GetClientByUUID(uuid string) (*types.Client, error) 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		val, err := item.ValueCopy(nil)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		if err := client.Decode(val); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -228,25 +228,25 @@ func (sr *ServerRepository) GetRootDirectoryByPath(afterPath string) (*types.Roo
 	err := sr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		val, err := item.ValueCopy(nil)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		if err := rootDir.Decode(val); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -260,25 +260,25 @@ func (sr *ServerRepository) GetFileByAfterPath(afterPath string) (*types.File, e
 	err := sr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		val, err := item.ValueCopy(nil)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		if err := file.Decode(val); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -297,7 +297,7 @@ func (sr *ServerRepository) DeleteAllClients() error {
 		for it.Seek(key); it.ValidForPrefix(key); it.Next() {
 			item := it.Item()
 			if err := txn.Delete(item.Key()); err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 		}
@@ -305,7 +305,7 @@ func (sr *ServerRepository) DeleteAllClients() error {
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -324,7 +324,7 @@ func (sr *ServerRepository) DeleteAllRootDirectories() error {
 		for it.Seek(key); it.ValidForPrefix(key); it.Next() {
 			item := it.Item()
 			if err := txn.Delete(item.Key()); err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 		}
@@ -332,7 +332,7 @@ func (sr *ServerRepository) DeleteAllRootDirectories() error {
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -351,7 +351,7 @@ func (sr *ServerRepository) DeleteAllFiles() error {
 		for it.Seek(key); it.ValidForPrefix(key); it.Next() {
 			item := it.Item()
 			if err := txn.Delete(item.Key()); err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 		}
@@ -359,7 +359,7 @@ func (sr *ServerRepository) DeleteAllFiles() error {
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -371,14 +371,14 @@ func (sr *ServerRepository) DeleteClientByUUID(uuid string) error {
 
 	err := sr.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Delete(key); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -390,14 +390,14 @@ func (sr *ServerRepository) DeleteRootDirectoryByAfterPath(afterPath string) err
 
 	err := sr.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Delete(key); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -409,14 +409,14 @@ func (sr *ServerRepository) DeleteFileByAfterPath(afterPath string) error {
 
 	err := sr.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Delete(key); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
@@ -436,13 +436,13 @@ func (sr *ServerRepository) GetAllHistories() ([]*types.FileHistory, error) {
 			item := it.Item()
 			val, err := item.ValueCopy(nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			history := &types.FileHistory{}
 			if err := history.Decode(val); err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -452,7 +452,7 @@ func (sr *ServerRepository) GetAllHistories() ([]*types.FileHistory, error) {
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -466,25 +466,25 @@ func (sr *ServerRepository) GetHistoryByAfterPath(afterPath string) (*types.File
 	err := sr.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		val, err := item.ValueCopy(nil)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		if err := history.Decode(val); err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 

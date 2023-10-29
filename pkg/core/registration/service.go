@@ -25,8 +25,26 @@ func NewService(password string, registrationRepository Repository, networkAdapt
 
 // CreateNewClient creates new client entity
 func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, conn *qp.Connection) (*types.ClientRegisterRes, error) {
+	log.Println("quics: RegisterClient: ", request)
 	if request.ClientPassword != rs.password {
 		return nil, errors.New("quics: (CreateNewClient) password is not correct")
+	}
+	client, err := rs.registrationRepository.GetClientByUUID(request.UUID)
+	if err != nil && err != rs.registrationRepository.ErrKeyNotFound() {
+		log.Println("quics err: ", err)
+		return nil, err
+	}
+
+	// if client is already existed, just update connection
+	if client != nil && request.UUID == client.UUID {
+		err = rs.networkAdapter.UpdateClientConnection(request.UUID, conn)
+		if err != nil {
+			log.Println("quics err: ", err)
+			return nil, err
+		}
+		return &types.ClientRegisterRes{
+			UUID: request.UUID,
+		}, nil
 	}
 
 	// create new id using badger sequence
@@ -37,7 +55,7 @@ func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, 
 	}
 
 	// initialize client information
-	client := &types.Client{
+	client = &types.Client{
 		Id:   newId,
 		UUID: request.UUID,
 	}
@@ -45,13 +63,13 @@ func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, 
 	// Save client to badger database
 	err = rs.registrationRepository.SaveClient(request.UUID, client)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
 	err = rs.networkAdapter.UpdateClientConnection(request.UUID, conn)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -62,16 +80,17 @@ func (rs *RegistrationService) RegisterClient(request *types.ClientRegisterReq, 
 
 // CreateNewClient creates new client entity
 func (rs *RegistrationService) DisconnectClient(request *types.DisconnectClientReq, conn *qp.Connection) (*types.DisconnectClientRes, error) {
+	log.Println("quics: DisconnectClient: ", request)
 	// Save client to badger database
 	err := rs.registrationRepository.DeleteClient(request.UUID)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
 	err = rs.networkAdapter.DeleteConnection(request.UUID)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
