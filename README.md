@@ -45,6 +45,22 @@ docker run -it --rm -v /path/to/your/dir:/data chromato99/quics
      go build ./cmd
      ```
 
+## How to use
+| Tag | Command | Options | Description |
+| - | - | - | - |
+| controller | `qis` | | root command meaning quic-s |
+| controller | `qis` | `-h`, `--help` | show help |
+| controller | `qis start` | | start server with default IP and port |
+| controller | `qis start` | `--ip` string | start server with user-defined IP (can use with `--port`) |
+| controller | `qis start` | `--port` string | start server with user-defined port (can use with `--ip` |
+| controller | `qis stop` | | stop server |
+| controller | `qis listen` | | listen protocol |
+| config | `qis password set` | `--pw` string | change server password |
+| config | `qis password reset` | | Reset server password |
+| config | `qis show` | | show various information |
+| config | `qis show client` | `-i`, `--id` | show client information by client UUID
+| config | `qis show client` | `-a`, `--all` | show all client information |
+
 ## Contribute
 - To report bugs or request features, please use the issue tracker. Before you do so, make sure you are running the latest version, and please do a quick search to see if the issue has already been reported.
 - For more discussion, please join the [quics discord](https://discord.gg/HRtY7pNZz2)
