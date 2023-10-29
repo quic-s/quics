@@ -26,7 +26,7 @@ Server manages all histories of all files. The history file is saved to director
 ## Getting Started
 ### 1. Docker
 ```Bash
-docker run -it --rm -v /path/to/your/dir:/data chromato99/quics
+docker run -it --rm -v /path/to/your/dir:/data quics/quics
 ```
 
 ### 2. Local install
@@ -57,9 +57,15 @@ docker run -it --rm -v /path/to/your/dir:/data chromato99/quics
 | controller | `qis listen` | | listen protocol |
 | config | `qis password set` | `--pw` string | change server password |
 | config | `qis password reset` | | Reset server password |
-| config | `qis show` | | show various information |
-| config | `qis show client` | `-i`, `--id` | show client information by client UUID
-| config | `qis show client` | `-a`, `--all` | show all client information |
+| log | `qis show` | | show various information |
+| log | `qis show client` | `-i`, `--id` | show client information by key
+| log | `qis show client` | `-a`, `--all` | show all client information |
+| log | `qis show dir` | `-i`, `--id` | show root directory information by key
+| log | `qis show dir` | `-a`, `--all` | show all root directory information |
+| log | `qis show file` | `-i`, `--id` | show file information by key
+| log | `qis show file` | `-a`, `--all` | show all files information |
+| log | `qis show history` | `-i`, `--id` | show history information by key
+| log | `qis show history` | `-a`, `--all` | show all histories information |
 
 ## Contribute
 - To report bugs or request features, please use the issue tracker. Before you do so, make sure you are running the latest version, and please do a quick search to see if the issue has already been reported.
