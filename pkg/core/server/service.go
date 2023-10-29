@@ -207,9 +207,15 @@ func (ss *ServerService) ShowClientLogs(all string, id string) error {
 		}
 
 		for _, client := range clients {
+			fmt.Sprintf("\n")
+			fmt.Sprintf("\tUUID           : %s\n", client.UUID)
+			fmt.Sprintf("\tID             : %d\n", client.Id)
+			fmt.Sprintf("\tIP             : %s\n", client.Ip)
+
 			for _, root := range client.Root {
-				fmt.Printf("*   UUID: %s   |   ID: %d   |   IP: %s   |   Root Directoreis: %s   *\n", client.UUID, client.Id, client.Ip, root)
+				fmt.Sprintf("\tRoot Directory : %s\n", root.AfterPath)
 			}
+			fmt.Sprintf("\n")
 		}
 
 		return nil
@@ -222,9 +228,16 @@ func (ss *ServerService) ShowClientLogs(all string, id string) error {
 			return err
 		}
 
+		fmt.Sprintf("\n")
+		fmt.Sprintf("\tUUID           : %s\n", client.UUID)
+		fmt.Sprintf("\tID             : %d\n", client.Id)
+		fmt.Sprintf("\tIP             : %s\n", client.Ip)
+
 		for _, root := range client.Root {
-			fmt.Printf("*   UUID: %s   |   ID: %d   |   IP: %s   |   Root Directory: %s   *\n", client.UUID, client.Id, client.Ip, root.AfterPath)
+			fmt.Sprintf("\tRoot Directory : %s\n", root.AfterPath)
 		}
+
+		fmt.Sprintf("\n")
 
 		return nil
 	}
@@ -245,9 +258,16 @@ func (ss *ServerService) ShowDirLogs(all string, id string) error {
 		}
 
 		for _, dir := range dirs {
+			fmt.Sprintf("\n")
+			fmt.Sprintf("\tRoot Directory : %s\n", dir.AfterPath)
+			fmt.Sprintf("\tOwner          : %s\n", dir.Owner)
+			fmt.Sprintf("\tPassword       : %s\n", dir.Password)
+
 			for _, UUID := range dir.UUIDs {
-				fmt.Printf("*   Root Directory: %s   |   Owner: %s   |   Password: %s   |   UUID: %s   *\n", dir.AfterPath, dir.Owner, dir.Password, UUID)
+				fmt.Sprintf("\tClient         : %s\n", UUID)
 			}
+
+			fmt.Sprintf("\n")
 		}
 
 		return nil
@@ -260,9 +280,16 @@ func (ss *ServerService) ShowDirLogs(all string, id string) error {
 			return err
 		}
 
+		fmt.Sprintf("\n")
+		fmt.Sprintf("\tRoot Directory : %s\n", dir.AfterPath)
+		fmt.Sprintf("\tOwner          : %s\n", dir.Owner)
+		fmt.Sprintf("\tPassword       : %s\n", dir.Password)
+
 		for _, UUID := range dir.UUIDs {
-			fmt.Printf("*   Root Directory: %s   |   Owner: %s   |   Password: %s   |   UUID: %s   *\n", dir.AfterPath, dir.Owner, dir.Password, UUID)
+			fmt.Sprintf("\tClient         : %s\n", UUID)
 		}
+
+		fmt.Sprintf("\n")
 
 		return nil
 	}
@@ -283,7 +310,15 @@ func (ss *ServerService) ShowFileLogs(all string, id string) error {
 		}
 
 		for _, file := range files {
-			fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDirKey, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
+			fmt.Sprintf("\n")
+			fmt.Sprintf("\tFile                  : %s\n", file.AfterPath)
+			fmt.Sprintf("\tRoot Directory        : %d\n", file.RootDirKey)
+			fmt.Sprintf("\tLatest Hash           : %s\n", file.LatestHash)
+			fmt.Sprintf("\tLatest Sync Timestamp : %s\n", file.LatestSyncTimestamp)
+			fmt.Sprintf("\tLatest Edit Client    : %s\n", file.LatestEditClient)
+			fmt.Sprintf("\tContents Existed      : %s\n", file.ContentsExisted)
+			fmt.Sprintf("\tMetadata              : %s\n", file.Metadata.ModTime)
+			fmt.Sprintf("\n")
 		}
 
 		return nil
@@ -296,7 +331,15 @@ func (ss *ServerService) ShowFileLogs(all string, id string) error {
 			return err
 		}
 
-		fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDirKey, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
+		fmt.Sprintf("\n")
+		fmt.Sprintf("\tFile                  : %s\n", file.AfterPath)
+		fmt.Sprintf("\tRoot Directory        : %d\n", file.RootDirKey)
+		fmt.Sprintf("\tLatest Hash           : %s\n", file.LatestHash)
+		fmt.Sprintf("\tLatest Sync Timestamp : %s\n", file.LatestSyncTimestamp)
+		fmt.Sprintf("\tLatest Edit Client    : %s\n", file.LatestEditClient)
+		fmt.Sprintf("\tContents Existed      : %s\n", file.ContentsExisted)
+		fmt.Sprintf("\tMetadata              : %s\n", file.Metadata.ModTime)
+		fmt.Sprintf("\n")
 
 		return nil
 	}
@@ -317,7 +360,13 @@ func (ss *ServerService) ShowHistoryLogs(all string, id string) error {
 		}
 
 		for _, history := range histories {
-			fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
+			fmt.Sprintf("\n")
+			fmt.Sprintf("\tPath      : %s\n", history.BeforePath+history.AfterPath)
+			fmt.Sprintf("\tDate      : %d\n", history.Date)
+			fmt.Sprintf("\tClient    : %s\n", history.UUID)
+			fmt.Sprintf("\tTimestamp : %s\n", history.Timestamp)
+			fmt.Sprintf("\tHash      : %s\n", history.Hash)
+			fmt.Sprintf("\n")
 		}
 
 		return nil
@@ -330,7 +379,13 @@ func (ss *ServerService) ShowHistoryLogs(all string, id string) error {
 			return err
 		}
 
-		fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
+		fmt.Sprintf("\n")
+		fmt.Sprintf("\tPath      : %s\n", history.BeforePath+history.AfterPath)
+		fmt.Sprintf("\tDate      : %d\n", history.Date)
+		fmt.Sprintf("\tClient    : %s\n", history.UUID)
+		fmt.Sprintf("\tTimestamp : %s\n", history.Timestamp)
+		fmt.Sprintf("\tHash      : %s\n", history.Hash)
+		fmt.Sprintf("\n")
 
 		return nil
 	}

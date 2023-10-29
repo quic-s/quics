@@ -32,8 +32,6 @@ import (
 * `qis show history --id <file-history-key>`: Show history information
 * `qis show history --all`: Show all history information
 *
-* `qis remove`: Initialize quic-s server (needed options)
-* `qis remove client --id <client-UUID>`: Initialize client
 * `qis remove client --all`: Initialize all clients
 * `qis remove dir --id <directory-path>`: Initialize directory
 * `qis remove dir --all`: Initialize all directories
