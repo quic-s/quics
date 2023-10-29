@@ -272,13 +272,13 @@ func initStopServerCmd() *cobra.Command {
 
 			_, err := restClient.PostRequest(ip, port, url, "application/json", nil) // /server/stop
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -299,13 +299,13 @@ func initListenCmd() *cobra.Command {
 
 			_, err := restClient.PostRequest(ip, port, url, "application/json", nil) // /server/listen
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -340,7 +340,7 @@ func initPasswordSetCmd() *cobra.Command {
 
 			body, err := json.Marshal(server)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -348,13 +348,13 @@ func initPasswordSetCmd() *cobra.Command {
 
 			_, err = restClient.PostRequest(ip, port, url, "application/json", body)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -374,13 +374,13 @@ func initPasswordResetCmd() *cobra.Command {
 
 			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 			return nil
@@ -409,13 +409,13 @@ func initShowClientCmd() *cobra.Command {
 
 			_, err := restClient.GetRequest(ip, port, url) // /clients
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -438,13 +438,13 @@ func initShowDirCmd() *cobra.Command {
 
 			_, err := restClient.GetRequest(ip, port, url) // /directories
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -467,13 +467,13 @@ func initShowFileCmd() *cobra.Command {
 
 			_, err := restClient.GetRequest(ip, port, url) // /files
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -496,13 +496,13 @@ func initShowHistoryCmd() *cobra.Command {
 
 			_, err := restClient.GetRequest(ip, port, url) // /history
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -532,13 +532,13 @@ func initRemoveClientCmd() *cobra.Command {
 
 			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -561,13 +561,13 @@ func initRemoveDirCmd() *cobra.Command {
 
 			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -590,13 +590,13 @@ func initRemoveFileCmd() *cobra.Command {
 
 			_, err := restClient.PostRequest(ip, port, url, "application/json", nil)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
@@ -630,13 +630,13 @@ func initDownloadFileCmd() *cobra.Command {
 
 			_, err := restClient.GetRequest(ip, port, url)
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 
 			err = restClient.Close()
 			if err != nil {
-				log.Println("quics: ", err)
+				log.Println("quics err: ", err)
 				return err
 			}
 

@@ -1,13 +1,15 @@
 module github.com/quic-s/quics
 
-go 1.20
+go 1.21
+
+toolchain go1.21.1
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gorilla/mux v1.8.0
 	github.com/quic-go/quic-go v0.39.3
-	github.com/quic-s/quics-protocol v0.0.0-20231028155938-6096c8bb8f7e
+	github.com/quic-s/quics-protocol v0.0.0-20231029100930-fb2d205d34cb
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.17.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d

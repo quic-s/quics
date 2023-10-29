@@ -22,14 +22,14 @@ func New(ip string, port int, pool *connection.Pool) (*Protocol, error) {
 	// initialize protocol server
 	proto, err := qp.New(qp.LOG_LEVEL_ERROR)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
 	// initialize certificate for connection
 	cert, err := qp.GetCertificate("", "")
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -41,7 +41,7 @@ func New(ip string, port int, pool *connection.Pool) (*Protocol, error) {
 
 	err = proto.RecvTransactionHandleFunc(types.PING, ping)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 
@@ -60,14 +60,14 @@ func (p *Protocol) Start() error {
 		// listen quics protocol with client
 		err := p.Proto.ListenWithTransaction(p.udpaddr, p.tlsConf, p.initialTransaction)
 		if err != nil {
-			log.Println("quics: ", err)
+			log.Println("quics err: ", err)
 			errChan <- err
 		}
 	}()
 
 	err := <-errChan
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 	fmt.Println("QUIC-S protocol listening successfully.")
@@ -81,7 +81,7 @@ func (p *Protocol) RecvTransactionHandleFunc(transactionName string, handleFunc 
 	}
 	err := p.Proto.RecvTransactionHandleFunc(transactionName, handleFunc)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 	return nil
@@ -92,13 +92,25 @@ func ping(conn *qp.Connection, stream *qp.Stream, transactionName string, transa
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
-	err = stream.SendBMessage(data)
+	request := &types.Ping{}
+	if err = request.Decode(data); err != nil {
+		log.Println("quics err: ", err)
+		return err
+	}
+
+	response, err := request.Encode()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
+		return err
+	}
+
+	err = stream.SendBMessage(response)
+	if err != nil {
+		log.Println("quics err: ", err)
 		return err
 	}
 	return nil

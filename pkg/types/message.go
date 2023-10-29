@@ -8,6 +8,7 @@ import (
 
 const (
 	REGISTERCLIENT    = "REGISTERCLIENT"
+	DISCONNECTCLIENT  = "DISCONNECTCLIENT"
 	REGISTERROOTDIR   = "REGISTERROOTDIR"
 	SYNCROOTDIR       = "SYNCROOTDIR"
 	GETROOTDIRS       = "GETROOTDIRS"
@@ -123,6 +124,7 @@ type PleaseSyncReq struct {
 type PleaseSyncRes struct {
 	UUID      string
 	AfterPath string
+	Status    string
 }
 
 // PleaseTakeReq is used when client synchronize file to server
@@ -709,7 +711,7 @@ func (askAllMetaReq *AskAllMetaReq) Encode() ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
 	if err := encoder.Encode(askAllMetaReq); err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return nil, err
 	}
 

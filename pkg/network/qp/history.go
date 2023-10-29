@@ -26,31 +26,31 @@ func (hh *HistoryHandler) ShowHistory(conn *qp.Connection, stream *qp.Stream, tr
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
 	request := &types.ShowHistoryReq{}
 	if err = request.Decode(data); err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
 	response, err := hh.historyService.ShowHistory(request)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(data)
 	if err != nil {
-		log.Println("quics: ", err)
+		log.Println("quics err: ", err)
 		return err
 	}
 

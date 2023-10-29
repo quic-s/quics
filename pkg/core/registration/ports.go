@@ -11,6 +11,7 @@ type Repository interface {
 	GetAllClients() ([]types.Client, error)
 	DeleteClient(uuid string) error
 	GetSequence(key []byte, increment uint64) (uint64, error)
+	ErrKeyNotFound() error
 }
 
 type Service interface {

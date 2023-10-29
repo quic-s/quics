@@ -159,3 +159,7 @@ func (rr *RegistrationRepository) GetSequence(key []byte, increment uint64) (uin
 
 	return seq.Next()
 }
+
+func (rr *RegistrationRepository) ErrKeyNotFound() error {
+	return badger.ErrKeyNotFound
+}
