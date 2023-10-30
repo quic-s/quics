@@ -40,7 +40,7 @@ func (ss *SharingService) CreateLink(request *types.ShareReq) (*types.ShareRes, 
 	if err != nil {
 		return nil, err
 	}
-
+	prefixLink = "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
 	// make link
 	paramUUID := "?uuid=" + fileHistory.UUID
 	paramFile := "&file=" + file.AfterPath
@@ -89,6 +89,7 @@ func (ss *SharingService) DeleteLink(request *types.StopShareReq) (*types.StopSh
 }
 
 func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*types.FileMetadata, io.Reader, error) {
+	prefixLink = "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
 	paramUUID := "?uuid=" + uuid
 	paramFile := "&file=" + afterPath
 	link := prefixLink + paramUUID + paramFile
