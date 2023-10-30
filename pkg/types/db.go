@@ -218,6 +218,7 @@ func (fileMetadata *FileMetadata) WriteToFile(path string) error {
 		if err != nil {
 			return err
 		}
+		defer file.Close()
 
 		// Set file metadata.
 		err = file.Chmod(fileMetadata.Mode)
@@ -238,6 +239,7 @@ func (fileMetadata *FileMetadata) WriteToFile(path string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	// Set file metadata.
 	err = file.Chmod(fileMetadata.Mode)
 	if err != nil {

@@ -26,7 +26,7 @@ Server manages all histories of all files. The history file is saved to director
 ## Getting Started
 ### 1. Docker
 ```Bash
-docker run -it --rm -v /path/to/your/dir:/data quics/quics
+docker run -it -d -v /path/to/your/dir:/data --name quics -p 6120:6120 -p 6121:6121/udp -p 6122:6122/udp quics/quics
 ```
 
 ### 2. Local install
@@ -51,8 +51,9 @@ docker run -it --rm -v /path/to/your/dir:/data quics/quics
 | controller | `qis` | | root command meaning quic-s |
 | controller | `qis` | `-h`, `--help` | show help |
 | controller | `qis start` | | start server with default IP and port |
-| controller | `qis start` | `--ip` string | start server with user-defined IP (can use with `--port`) |
-| controller | `qis start` | `--port` string | start server with user-defined port (can use with `--ip` |
+| controller | `qis start` | `--addr` string | start server with user-defined address |
+| controller | `qis start` | `--port` string | start server with user-defined port for legacy http |
+| controller | `qis start` | `--port3` string | start server with user-defined port for http/3 |
 | controller | `qis stop` | | stop server |
 | controller | `qis listen` | | listen protocol |
 | config | `qis password set` | `--pw` string | change server password |

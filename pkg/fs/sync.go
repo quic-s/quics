@@ -88,28 +88,31 @@ func (s *SyncDir) DeleteFileFromLatestDir(afterPath string) error {
 	latestFilePath := filepath.Join(s.SyncDir, afterPath)
 
 	err := os.Remove(latestFilePath)
-	if err != nil {
-		log.Println("quics err: ", err)
-		return err
-	}
-
-	reootToFile, _ := filepath.Split(afterPath)
-	latestFileDir := filepath.Join(s.SyncDir, reootToFile)
-	dir, err := os.Open(latestFileDir)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		log.Println("quics err: ", err)
 		return err
 	}
 
 	// Delete directory when it is empty
-	files, err := dir.Readdir(-1)
-	if err != nil {
-		return err
-	}
-	if len(files) == 0 {
-		os.Remove(filepath.Join(latestFileDir))
-	}
+	rootDir, _ := utils.GetNamesByAfterPath(afterPath)
+	for dirPath, _ := filepath.Split(latestFilePath); dirPath[:len(dirPath)-1] != filepath.Join(s.SyncDir, rootDir); dirPath, _ = filepath.Split(dirPath[:len(dirPath)-1]) {
+		dir, err := os.Open(dirPath)
+		if err != nil && !os.IsNotExist(err) {
+			log.Println("quics err: ", err)
+			return err
+		} else if os.IsNotExist(err) {
+			continue
+		}
 
+		files, err := dir.Readdir(-1)
+		if err != nil {
+			return err
+		}
+		if len(files) == 0 {
+			os.Remove(dirPath)
+		}
+		dir.Close()
+	}
 	return nil
 }
 
@@ -187,7 +190,7 @@ func (s *SyncDir) DeleteFilesFromConflictDir(afterPath string) error {
 	for _, file := range files {
 		if re.MatchString(file.Name()) {
 			err = os.Remove(filepath.Join(s.SyncDir, rootDir+".conflict", fileDir, file.Name()))
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
 		}

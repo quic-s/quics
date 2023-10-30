@@ -215,6 +215,23 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 
 	file, err := ss.syncRepository.GetFileByPath(pleaseSyncReq.AfterPath)
 	if err == ss.syncRepository.ErrKeyNotFound() {
+		// check request type is remove and file is not exist
+		if pleaseSyncReq.LastUpdateHash == "" {
+			// if file is deleted then remove file from {rootDir}
+			err = ss.syncDirAdapter.DeleteFileFromLatestDir(file.AfterPath)
+			if err != nil && !os.IsNotExist(err) {
+				return nil, err
+			}
+			// update sync file
+			pleaseSyncRes := &types.PleaseSyncRes{
+				UUID:      pleaseSyncReq.UUID,
+				AfterPath: pleaseSyncReq.AfterPath,
+				Status:    "ALREADYNOTEXISTED",
+			}
+
+			return pleaseSyncRes, nil
+		}
+
 		// If file not exist, then create the file information to database
 		fileMetadata := types.FileMetadata{
 			Name:    "",
@@ -253,22 +270,6 @@ func (ss *SyncService) UpdateFileWithoutContents(pleaseSyncReq *types.PleaseSync
 	}
 
 	switch {
-	// check request type is remove and file is not exist
-	case pleaseSyncReq.LastUpdateHash == "" && file.LatestSyncTimestamp == 0:
-		// if file is deleted then remove file from {rootDir}
-		err = ss.syncDirAdapter.DeleteFileFromLatestDir(file.AfterPath)
-		if err != nil && !os.IsNotExist(err) {
-			return nil, err
-		}
-		// update sync file
-		pleaseSyncRes := &types.PleaseSyncRes{
-			UUID:      pleaseSyncReq.UUID,
-			AfterPath: pleaseSyncReq.AfterPath,
-			Status:    "GIVEME",
-		}
-
-		return pleaseSyncRes, nil
-
 	// check file has been updated
 	case file.LatestHash == pleaseSyncReq.LastUpdateHash:
 		log.Println("quics: file is already updated")
@@ -915,7 +916,7 @@ func (ss *SyncService) FullScan(uuid string) error {
 					break
 				}
 			}
-			if !exist {
+			if !exist && file.LatestHash != "" {
 				// need must sync
 				if file.NeedForceSync {
 					err = ss.CallForceSync(file.AfterPath, []string{uuid})
