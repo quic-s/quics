@@ -109,16 +109,16 @@ func (ss *ServerService) StopServer() error {
 	fmt.Println("                           Stop                             ")
 	fmt.Println("************************************************************")
 
-	go func() {
-		err := ss.repo.Close()
-		if err != nil {
-			log.Println("quics err: ", err)
-			return
-		}
+	err := ss.repo.Close()
+	if err != nil {
+		return err
+	}
 
-		log.Println("quics: Closed")
-		os.Exit(0)
-	}()
+	err = ss.Proto.Close()
+	if err != nil {
+		return err
+	}
+	log.Println("quics: Closed")
 
 	return nil
 }

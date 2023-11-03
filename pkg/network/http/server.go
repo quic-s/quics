@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 
+	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/server"
 	"github.com/quic-s/quics/pkg/types"
 	"github.com/quic-s/quics/pkg/utils"
@@ -34,7 +35,7 @@ func (sh *ServerHandler) SetupRoutes(mux *http.ServeMux) {
 }
 
 func (sh *ServerHandler) StopRestServer(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Alt-Svc", "h3=\":6121\"")
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "POST":
 		err := sh.ServerService.StopServer()
@@ -46,7 +47,7 @@ func (sh *ServerHandler) StopRestServer(w http.ResponseWriter, r *http.Request) 
 }
 
 func (sh *ServerHandler) ListenProtocol(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Alt-Svc", "h3=\":6121\"")
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "POST":
 		err := sh.ServerService.ListenProtocol()
@@ -58,7 +59,7 @@ func (sh *ServerHandler) ListenProtocol(w http.ResponseWriter, r *http.Request) 
 }
 
 func (sh *ServerHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Alt-Svc", "h3=\":6121\"")
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "POST":
 		body := &types.Server{}
@@ -78,7 +79,7 @@ func (sh *ServerHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Alt-Svc", "h3=\":6121\"")
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "POST":
 		err := sh.ServerService.ResetPassword()
@@ -90,7 +91,7 @@ func (sh *ServerHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) ShowClientLogs(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Alt-Svc", "h3=\":6121\"")
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "GET":
 		all := r.URL.Query().Get("all")
@@ -105,6 +106,7 @@ func (sh *ServerHandler) ShowClientLogs(w http.ResponseWriter, r *http.Request) 
 }
 
 func (sh *ServerHandler) ShowDirLogs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "GET":
 		all := r.URL.Query().Get("all")
@@ -119,6 +121,7 @@ func (sh *ServerHandler) ShowDirLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) ShowFileLogs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "GET":
 		all := r.URL.Query().Get("all")
@@ -133,6 +136,7 @@ func (sh *ServerHandler) ShowFileLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) ShowHistoryLogs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "GET":
 		all := r.URL.Query().Get("all")
@@ -147,6 +151,7 @@ func (sh *ServerHandler) ShowHistoryLogs(w http.ResponseWriter, r *http.Request)
 }
 
 func (sh *ServerHandler) RemoveClient(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "POST":
 		all := r.URL.Query().Get("all")
@@ -161,6 +166,7 @@ func (sh *ServerHandler) RemoveClient(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) RemoveDir(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "POST":
 		all := r.URL.Query().Get("all")
@@ -175,6 +181,7 @@ func (sh *ServerHandler) RemoveDir(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) RemoveFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "POST":
 		all := r.URL.Query().Get("all")
@@ -189,6 +196,7 @@ func (sh *ServerHandler) RemoveFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *ServerHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "GET":
 		path := r.URL.Query().Get("path")

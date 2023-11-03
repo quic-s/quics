@@ -17,8 +17,6 @@ type SharingService struct {
 	syncDir           SyncDirAdapter
 }
 
-var prefixLink = "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
-
 func NewService(historyRepository history.Repository, syncRepository sync.Repository, sharingRepository Repository, syncDir SyncDirAdapter) *SharingService {
 	return &SharingService{
 		historyRepository: historyRepository,
@@ -32,15 +30,17 @@ func (ss *SharingService) CreateLink(request *types.ShareReq) (*types.ShareRes, 
 	// get file for creating link
 	file, err := ss.syncRepository.GetFileByPath(request.AfterPath)
 	if err != nil {
+		err = errors.New("[SharingService.CreateLink] get file by path: " + err.Error())
 		return nil, err
 	}
 
 	// get file history for UUID to find last edited person
 	fileHistory, err := ss.historyRepository.GetFileHistory(request.AfterPath, file.LatestSyncTimestamp)
 	if err != nil {
+		err = errors.New("[SharingService.CreateLink] get file history: " + err.Error())
 		return nil, err
 	}
-	prefixLink = "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
+	prefixLink := "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
 	// make link
 	paramUUID := "?uuid=" + fileHistory.UUID
 	paramFile := "&file=" + file.AfterPath
@@ -57,6 +57,7 @@ func (ss *SharingService) CreateLink(request *types.ShareReq) (*types.ShareRes, 
 
 	err = ss.sharingRepository.SaveLink(sharing)
 	if err != nil {
+		err = errors.New("[SharingService.CreateLink] save link to repository: " + err.Error())
 		return nil, err
 	}
 
@@ -69,17 +70,19 @@ func (ss *SharingService) DeleteLink(request *types.StopShareReq) (*types.StopSh
 	// get sharing data using link
 	sharing, err := ss.sharingRepository.GetLink(request.Link)
 	if err != nil {
+		err = errors.New("[SharingService.DeleteLink] get link from repository: " + err.Error())
 		return nil, err
 	}
 
 	// check if the user is the owner of the link
 	if sharing.Owner != request.UUID {
-		return nil, errors.New("not authorized")
+		return nil, errors.New("[SharingService.DeleteLink] user is not the owner of the link (UUID: " + request.UUID + ")")
 	}
 
 	// delete link
 	err = ss.sharingRepository.DeleteLink(request.Link)
 	if err != nil {
+		err = errors.New("[SharingService.DeleteLink] delete link from repository: " + err.Error())
 		return nil, err
 	}
 
@@ -89,7 +92,7 @@ func (ss *SharingService) DeleteLink(request *types.StopShareReq) (*types.StopSh
 }
 
 func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*types.FileMetadata, io.Reader, error) {
-	prefixLink = "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
+	prefixLink := "https://" + config.GetRestServerAddress() + "/api/v1/download/files"
 	paramUUID := "?uuid=" + uuid
 	paramFile := "&file=" + afterPath
 	link := prefixLink + paramUUID + paramFile
@@ -97,6 +100,7 @@ func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*types.Fi
 	// get sharing data using link
 	sharing, err := ss.sharingRepository.GetLink(link)
 	if err != nil {
+		err = errors.New("[SharingService.DownloadFile] get link from repository: " + err.Error())
 		return nil, nil, err
 	}
 
@@ -104,14 +108,16 @@ func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*types.Fi
 	if sharing.Count >= sharing.MaxCount {
 		err := ss.sharingRepository.DeleteLink(link)
 		if err != nil {
+			err = errors.New("[SharingService.DownloadFile] delete link from repository: " + err.Error())
 			return nil, nil, err
 		}
 
-		return nil, nil, errors.New("link has been expired")
+		return nil, nil, errors.New("[SharingService.DownloadFile] link has been used up")
 	}
 
 	fileInfo, fileContent, err := ss.syncDir.GetFileFromHistoryDir(sharing.File.AfterPath, sharing.File.LatestSyncTimestamp)
 	if err != nil {
+		err = errors.New("[SharingService.DownloadFile] get file from history dir: " + err.Error())
 		return nil, nil, err
 	}
 
@@ -121,6 +127,7 @@ func (ss *SharingService) DownloadFile(uuid string, afterPath string) (*types.Fi
 	// update link
 	err = ss.sharingRepository.UpdateLink(sharing)
 	if err != nil {
+		err = errors.New("[SharingService.DownloadFile] update link from repository: " + err.Error())
 		return nil, nil, err
 	}
 
