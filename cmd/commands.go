@@ -72,6 +72,7 @@ const (
 	StartCommand    = "start"
 	StopCommand     = "stop"
 	ListenCommand   = "listen"
+	RunCommand      = "run"
 	PasswordCommand = "password"
 	ShowCommand     = "show"
 	RemoveCommand   = "remove"
@@ -141,6 +142,7 @@ var (
 	startServerCmd   *cobra.Command
 	stopServerCmd    *cobra.Command
 	listenCmd        *cobra.Command
+	runCmd           *cobra.Command
 	passwordCmd      *cobra.Command
 	passwordSetCmd   *cobra.Command
 	passwordResetCmd *cobra.Command
@@ -163,6 +165,7 @@ func Run() int {
 	startServerCmd = initStartServerCmd()
 	stopServerCmd = initStopServerCmd()
 	listenCmd = initListenCmd()
+	runCmd = initRunCmd()
 	passwordCmd = initPasswordCmd()
 	passwordSetCmd = initPasswordSetCmd()
 	passwordResetCmd = initPasswordResetCmd()
@@ -183,6 +186,10 @@ func Run() int {
 	startServerCmd.Flags().StringVarP(&addr, AddrOption, "", "", "Start server with custom address")
 	startServerCmd.Flags().StringVarP(&port, PortOption, "", "", "Start http rest server with custom port")
 	startServerCmd.Flags().StringVarP(&port3, Port3Option, "", "", "Start http3 rest server with custom port")
+	// qis run
+	runCmd.Flags().StringVarP(&addr, AddrOption, "", "", "Start server with custom address")
+	runCmd.Flags().StringVarP(&port, PortOption, "", "", "Start http rest server with custom port")
+	runCmd.Flags().StringVarP(&port3, Port3Option, "", "", "Start http3 rest server with custom port")
 	// qis password set --pw <password>
 	passwordSetCmd.Flags().StringVarP(&password, PasswordOption, "", "", "Change password for quic-s server")
 	// qis show client --id, qis show client --all
@@ -215,6 +222,7 @@ func Run() int {
 	rootCmd.AddCommand(startServerCmd)
 	rootCmd.AddCommand(stopServerCmd)
 	rootCmd.AddCommand(listenCmd)
+	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(passwordCmd)
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(removeCmd)
@@ -256,7 +264,7 @@ func initStartServerCmd() *cobra.Command {
 				return err
 			}
 
-			err = quicsApp.Start()
+			err = quicsApp.StartRestServer()
 			if err != nil {
 				return err
 			}
@@ -314,6 +322,25 @@ func initListenCmd() *cobra.Command {
 				return err
 			}
 
+			return nil
+		},
+	}
+}
+
+func initRunCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   RunCommand,
+		Short: "run quic-s server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			quicsApp, err := app.New(addr, port, port3)
+			if err != nil {
+				return err
+			}
+
+			err = quicsApp.Run()
+			if err != nil {
+				return err
+			}
 			return nil
 		},
 	}
