@@ -34,7 +34,7 @@ The tool should be able to manage the history of files. This means that the tool
 
 ## V1.5
 
-### Objective time: 2024 First Half
+### Objective time: 2024
 
 This version aims to improve the user experience of the file synchronization program completed in 1.0. 
 
@@ -44,6 +44,8 @@ This version aims to improve the user experience of the file synchronization pro
 
 Measure the speed of synchronization by measuring the performance of previous versions, etc. and see if there are any areas for optimization. This will be an ongoing consideration for each version.
 
+Additionally, although the current method is to simply transfer each version of the file, we could also consider transferring only changes, such as incremental backup.
+
 - Add a GUI
 
 Add a GUI to the file synchronization program to make it easier to use. Client CLI is already use REST API, so it is ready to add GUI.
@@ -52,9 +54,9 @@ Add a GUI to the file synchronization program to make it easier to use. Client C
 
 Add support of file transfer protocols (FTP, SFTP, WebDAV, etc.) to the file synchronization program to access files remotely. 
 
-- Sharing files with other users
+- Additional platform support (Windows)
 
-Add support of sharing files with other users that not use QUIC-S. This need to add a feature that can share files with other users by sending a link to the file. Also, it need to add access control to the file.
+Currently, the hadling of file can only run on Unix-like systems. Using docker can run on Windows, but it is not a good solution. So, we need to add support of Windows.
 
 ## QUIC-S Next
 
