@@ -3,9 +3,11 @@ package http
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"path/filepath"
 
+	"github.com/quic-s/quics/pkg/config"
 	"github.com/quic-s/quics/pkg/core/sharing"
 )
 
@@ -24,6 +26,7 @@ func (sh *SharingHandler) SetupRoutes(mux *http.ServeMux) {
 }
 
 func (sh *SharingHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Alt-Svc", "h3=\":"+config.GetViperEnvVariables("REST_SERVER_H3_PORT")+"\"")
 	switch r.Method {
 	case "GET":
 		uuid := r.URL.Query().Get("uuid")
@@ -31,12 +34,12 @@ func (sh *SharingHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 
 		fileInfo, fileContent, err := sh.sharingService.DownloadFile(uuid, afterPath)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("quics err: [SharingHandler.DownloadFile] download file: ", err)
+			http.Error(w, "can not download file (no such file or link may already be expired)", http.StatusInternalServerError)
 			return
 		}
 
 		_, fileName := filepath.Split(afterPath)
-		w.Header().Set("Alt-Svc", "h3=\":6121\"")
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", "attachment; filename="+fileName)
 		w.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size))

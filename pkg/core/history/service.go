@@ -19,13 +19,14 @@ func NewService(historyRepository Repository) *HistoryService {
 func (hs *HistoryService) ShowHistory(request *types.ShowHistoryReq) (*types.ShowHistoryRes, error) {
 	histories, err := hs.historyRepository.GetFileHistoriesForClient(request.AfterPath, request.CntFromHead)
 	if err != nil {
+		err = errors.New("[HistoryService.ShowHistory] get file histories for client: " + err.Error())
 		return nil, err
 	}
 
 	// request.CntFromHead만큼 뒤에서 세서 개수를 보낸다.
 	length := len(histories)
 	if request.CntFromHead > uint64(length) {
-		return nil, errors.New("index out of bound")
+		return nil, errors.New("[HistoryService.ShowHistory] request.CntFromHead is bigger than length of histories")
 	}
 
 	histories = histories[length-1-int(request.CntFromHead):]

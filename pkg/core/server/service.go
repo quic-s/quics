@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/quic-s/quics/pkg/config"
@@ -19,7 +17,6 @@ import (
 	"github.com/quic-s/quics/pkg/network/qp/connection"
 	"github.com/quic-s/quics/pkg/repository/badger"
 	"github.com/quic-s/quics/pkg/types"
-	"github.com/quic-s/quics/pkg/utils"
 )
 
 type ServerService struct {
@@ -30,6 +27,7 @@ type ServerService struct {
 
 	syncService sync.Service
 
+	syncDirAdapter   SyncDirAdapter
 	serverRepository Repository
 }
 
@@ -99,6 +97,7 @@ func NewService(repo *badger.Badger, serverRepository Repository, syncDirAdapter
 		Proto:    proto,
 
 		syncService:      syncService,
+		syncDirAdapter:   syncDirAdapter,
 		serverRepository: serverRepository,
 	}, nil
 }
@@ -109,16 +108,16 @@ func (ss *ServerService) StopServer() error {
 	fmt.Println("                           Stop                             ")
 	fmt.Println("************************************************************")
 
-	go func() {
-		err := ss.repo.Close()
-		if err != nil {
-			log.Println("quics err: ", err)
-			return
-		}
+	err := ss.repo.Close()
+	if err != nil {
+		return err
+	}
 
-		log.Println("quics: Closed")
-		os.Exit(0)
-	}()
+	err = ss.Proto.Close()
+	if err != nil {
+		return err
+	}
+	log.Println("quics: Closed")
 
 	return nil
 }
@@ -152,11 +151,9 @@ func (ss *ServerService) ListenProtocol() error {
 }
 
 func (ss *ServerService) SetPassword(request *types.Server) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                       Set Password                         ")
-	fmt.Println("************************************************************")
+	log.Println("quics: set password")
 
-	err := ss.serverRepository.UpdatePassword(request)
+	err := config.WriteViperEnvVariables("PASSWORD", request.Password)
 	if err != nil {
 		log.Println("quics err: ", err)
 		return err
@@ -166,11 +163,9 @@ func (ss *ServerService) SetPassword(request *types.Server) error {
 }
 
 func (ss *ServerService) ResetPassword() error {
-	fmt.Println("************************************************************")
-	fmt.Println("                      Reset Password                        ")
-	fmt.Println("************************************************************")
+	log.Println("quics: reset password")
 
-	err := ss.serverRepository.DeletePassword()
+	err := config.WriteViperEnvVariables("PASSWORD", config.DefaultPassword)
 	if err != nil {
 		log.Println("quics err: ", err)
 		return err
@@ -195,156 +190,96 @@ func (ss *ServerService) Ping(request *types.Ping) (*types.Ping, error) {
 	}, nil
 }
 
-func (ss *ServerService) ShowClientLogs(all string, id string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                        Client Log                          ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) ShowClient(uuid string) ([]types.Client, error) {
+	log.Println("quics: show client logs (uudi: ", uuid, ")")
 
-	if all != "" {
+	if uuid == "" {
 		clients, err := ss.serverRepository.GetAllClients()
 		if err != nil {
 			log.Println("quics err: ", err)
-			return err
+			return nil, err
 		}
-
-		for _, client := range clients {
-			for _, root := range client.Root {
-				fmt.Printf("*   UUID: %s   |   ID: %d   |   IP: %s   |   Root Directoreis: %s   *\n", client.UUID, client.Id, client.Ip, root)
-			}
-		}
-
-		return nil
+		return clients, nil
+	}
+	client, err := ss.serverRepository.GetClientByUUID(uuid)
+	if err != nil {
+		log.Println("quics err: ", err)
+		return nil, err
 	}
 
-	if id != "" {
-		client, err := ss.serverRepository.GetClientByUUID(id)
-		if err != nil {
-			log.Println("quics err: ", err)
-			return err
-		}
-
-		for _, root := range client.Root {
-			fmt.Printf("*   UUID: %s   |   ID: %d   |   IP: %s   |   Root Directory: %s   *\n", client.UUID, client.Id, client.Ip, root.AfterPath)
-		}
-
-		return nil
-	}
-
-	return nil
+	return []types.Client{*client}, nil
 }
 
-func (ss *ServerService) ShowDirLogs(all string, id string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                       Directory Log                        ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) ShowDir(afterPath string) ([]types.RootDirectory, error) {
+	log.Println("quics: show dir logs (afterPath: ", afterPath, ")")
 
-	if all != "" {
+	if afterPath == "" {
 		dirs, err := ss.serverRepository.GetAllRootDirectories()
 		if err != nil {
 			log.Println("quics err: ", err)
-			return err
+			return nil, err
 		}
 
-		for _, dir := range dirs {
-			for _, UUID := range dir.UUIDs {
-				fmt.Printf("*   Root Directory: %s   |   Owner: %s   |   Password: %s   |   UUID: %s   *\n", dir.AfterPath, dir.Owner, dir.Password, UUID)
-			}
-		}
-
-		return nil
+		return dirs, nil
 	}
 
-	if id != "" {
-		dir, err := ss.serverRepository.GetRootDirectoryByPath(id)
-		if err != nil {
-			log.Println("quics err: ", err)
-			return err
-		}
-
-		for _, UUID := range dir.UUIDs {
-			fmt.Printf("*   Root Directory: %s   |   Owner: %s   |   Password: %s   |   UUID: %s   *\n", dir.AfterPath, dir.Owner, dir.Password, UUID)
-		}
-
-		return nil
+	dir, err := ss.serverRepository.GetRootDirectoryByPath(afterPath)
+	if err != nil {
+		log.Println("quics err: ", err)
+		return nil, err
 	}
-
-	return nil
+	return []types.RootDirectory{*dir}, nil
 }
 
-func (ss *ServerService) ShowFileLogs(all string, id string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                         File Log                           ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) ShowFile(afterPath string) ([]types.File, error) {
+	log.Println("quics: show file logs (afterPath: ", afterPath, ")")
 
-	if all != "" {
+	if afterPath == "" {
 		files, err := ss.serverRepository.GetAllFiles()
 		if err != nil {
 			log.Println("quics err: ", err)
-			return err
+			return nil, err
 		}
 
-		for _, file := range files {
-			fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDirKey, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
-		}
-
-		return nil
+		return files, nil
 	}
 
-	if id != "" {
-		file, err := ss.serverRepository.GetFileByAfterPath(id)
-		if err != nil {
-			log.Println("quics err: ", err)
-			return err
-		}
-
-		fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDirKey, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
-
-		return nil
+	file, err := ss.serverRepository.GetFileByAfterPath(afterPath)
+	if err != nil {
+		log.Println("quics err: ", err)
+		return nil, err
 	}
-
-	return nil
+	return []types.File{*file}, nil
 }
 
-func (ss *ServerService) ShowHistoryLogs(all string, id string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                       History Log                          ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) ShowHistory(afterPath string) ([]types.FileHistory, error) {
+	log.Println("quics: show history logs (afterPath: ", afterPath, ")")
 
-	if all != "" {
+	if afterPath == "" {
 		histories, err := ss.serverRepository.GetAllHistories()
 		if err != nil {
 			log.Println("quics err: ", err)
-			return err
+			return nil, err
 		}
 
-		for _, history := range histories {
-			fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
-		}
-
-		return nil
+		return histories, nil
 	}
 
-	if id != "" {
-		history, err := ss.serverRepository.GetHistoryByAfterPath(id)
-		if err != nil {
-			log.Println("quics err: ", err)
-			return err
-		}
-
-		fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
-
-		return nil
+	history, err := ss.serverRepository.GetHistoryByAfterPath(afterPath)
+	if err != nil {
+		log.Println("quics err: ", err)
+		return nil, err
 	}
 
-	return nil
+	fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
+
+	return []types.FileHistory{*history}, nil
 }
 
-func (ss *ServerService) RemoveClient(all string, id string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                       Remove Client                        ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) RemoveClient(uuid string) error {
+	log.Println("quics: remove client (uuid: ", uuid, ")")
 
-	if all != "" {
+	if uuid == "" {
 		err := ss.serverRepository.DeleteAllClients()
 		if err != nil {
 			log.Println("quics err: ", err)
@@ -353,26 +288,19 @@ func (ss *ServerService) RemoveClient(all string, id string) error {
 
 		return nil
 	}
-
-	if id != "" {
-		err := ss.serverRepository.DeleteClientByUUID(id)
-		if err != nil {
-			log.Println("quics err: ", err)
-			return err
-		}
-
-		return nil
+	err := ss.serverRepository.DeleteClientByUUID(uuid)
+	if err != nil {
+		log.Println("quics err: ", err)
+		return err
 	}
 
 	return nil
 }
 
-func (ss *ServerService) RemoveDir(all string, id string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                      Remove Directory                      ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) RemoveDir(afterPath string) error {
+	log.Println("quics: remove dir (afterPath: ", afterPath, ")")
 
-	if all != "" {
+	if afterPath == "" {
 		err := ss.serverRepository.DeleteAllRootDirectories()
 		if err != nil {
 			log.Println("quics err: ", err)
@@ -382,25 +310,19 @@ func (ss *ServerService) RemoveDir(all string, id string) error {
 		return nil
 	}
 
-	if id != "" {
-		err := ss.serverRepository.DeleteRootDirectoryByAfterPath(id)
-		if err != nil {
-			log.Println("quics err: ", err)
-			return err
-		}
-
-		return nil
+	err := ss.serverRepository.DeleteRootDirectoryByAfterPath(afterPath)
+	if err != nil {
+		log.Println("quics err: ", err)
+		return err
 	}
 
 	return nil
 }
 
-func (ss *ServerService) RemoveFile(all string, id string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                        Remove File                         ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) RemoveFile(afterPath string) error {
+	log.Println("quics: remove file (afterPath: ", afterPath, ")")
 
-	if all != "" {
+	if afterPath == "" {
 		err := ss.serverRepository.DeleteAllFiles()
 		if err != nil {
 			log.Println("quics err: ", err)
@@ -409,46 +331,17 @@ func (ss *ServerService) RemoveFile(all string, id string) error {
 
 		return nil
 	}
-
-	if id != "" {
-		err := ss.serverRepository.DeleteFileByAfterPath(id)
-		if err != nil {
-			log.Println("quics err: ", err)
-			return err
-		}
-
-		return nil
+	err := ss.serverRepository.DeleteFileByAfterPath(afterPath)
+	if err != nil {
+		log.Println("quics err: ", err)
+		return err
 	}
 
 	return nil
 }
 
-func (ss *ServerService) DownloadFile(path string, version string, target string) error {
-	fmt.Println("************************************************************")
-	fmt.Println("                      Download File                         ")
-	fmt.Println("************************************************************")
+func (ss *ServerService) DownloadFile(afterPath string, timestamp uint64) (*types.FileMetadata, io.Reader, error) {
+	log.Println("quics: download file (afterPath: ", afterPath, ")")
 
-	if strings.Contains(target, utils.GetQuicsDirPath()) {
-		return errors.New("quics: target path should not be in .quics directory")
-	}
-
-	sourceFile, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destinationFile, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	defer destinationFile.Close()
-
-	// copy contents
-	_, err = io.Copy(destinationFile, sourceFile)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ss.syncDirAdapter.GetFileFromHistoryDir(afterPath, timestamp)
 }

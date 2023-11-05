@@ -2,6 +2,7 @@ package app
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,19 +23,24 @@ import (
 )
 
 type App struct {
-	certFileDir string
-	keyFileDir  string
-	entryServer *http.Server
-	restServer  *http3.Server
+	certFileDir   string
+	keyFileDir    string
+	serverService server.Service
+	entryServer   *http.Server
+	restServer    *http3.Server
 }
 
 // New initialize program
 func New(ip string, port string, port3 string) (*App, error) {
-	config.SetServerAddress(ip, port, port3)
+	err := config.SetServerAddress(ip, port, port3)
+	if err != nil {
+		err = errors.New("[App.New] setting server address: " + err.Error())
+		return nil, err
+	}
 
 	repo, err := badger.NewBadgerRepository()
 	if err != nil {
-		log.Println("quics err: ", err)
+		err = errors.New("[App.New] initializing badger repository: " + err.Error())
 		return nil, err
 	}
 
@@ -47,7 +53,7 @@ func New(ip string, port string, port3 string) (*App, error) {
 
 	serverService, err := server.NewService(repo, serverRepository, syncDirAdapter)
 	if err != nil {
-		log.Println("quics err: ", err)
+		err = errors.New("[App.New] initializing server service: " + err.Error())
 		return nil, err
 	}
 
@@ -76,7 +82,7 @@ func New(ip string, port string, port3 string) (*App, error) {
 	if err != nil {
 		err = config.CreateSecurityFiles()
 		if err != nil {
-			log.Println("quics err: ", err)
+			err = errors.New("[App.New] creating security files: " + err.Error())
 			return nil, err
 		}
 	}
@@ -87,25 +93,48 @@ func New(ip string, port string, port3 string) (*App, error) {
 		Handler: mux,
 	}
 
-	fmt.Println("************************************************************")
-	fmt.Println("                           Start                            ")
-	fmt.Println("************************************************************")
-
 	return &App{
-		certFileDir: certFileDir,
-		keyFileDir:  keyFileDir,
-		entryServer: entryServer,
-		restServer:  restServer,
+		certFileDir:   certFileDir,
+		keyFileDir:    keyFileDir,
+		serverService: serverService,
+		entryServer:   entryServer,
+		restServer:    restServer,
 	}, nil
 }
 
-func (a *App) Start() error {
+func (a *App) StartRestServer() error {
+	fmt.Println("************************************************************")
+	fmt.Println("                   Start Rest Server                        ")
+	fmt.Println("************************************************************")
 	go func() {
-		a.entryServer.ListenAndServeTLS(a.certFileDir, a.keyFileDir)
+		err := a.entryServer.ListenAndServeTLS(a.certFileDir, a.keyFileDir)
+		if err != nil {
+			err = errors.New("[App.Start] starting rest server: " + err.Error())
+			log.Fatalln("quics err: ", err)
+		}
 	}()
 	err := a.restServer.ListenAndServeTLS(a.certFileDir, a.keyFileDir)
 	if err != nil {
-		log.Println("quics err: ", err)
+		err = errors.New("[App.Start] starting rest server: " + err.Error())
+		log.Fatalln("quics err: ", err)
+
+		return err
+	}
+	return nil
+}
+
+func (a *App) Run() error {
+	go a.StartRestServer()
+	err := a.serverService.ListenProtocol()
+	if err != nil {
+		err = errors.New("[App.Run] listening protocol: " + err.Error())
+		log.Fatalln("quics err: ", err)
+		return err
+	}
+	err = a.Close()
+	if err != nil {
+		err = errors.New("[App.Run] closing: " + err.Error())
+		log.Fatalln("quics err: ", err)
 		return err
 	}
 	return nil
@@ -117,11 +146,13 @@ func (a *App) Close() error {
 	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
 
 	// if pressed ctrl + c, then stop server with closing database
-	go func() {
-		<-interruptCh
+	<-interruptCh
+	a.serverService.StopServer()
 
-		os.Exit(0)
-	}()
+	fmt.Println("************************************************************")
+	fmt.Println("                           Close                            ")
+	fmt.Println("************************************************************")
+	os.Exit(0)
 
 	return nil
 }

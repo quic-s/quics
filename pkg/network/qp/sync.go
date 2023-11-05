@@ -36,34 +36,34 @@ func NewSyncHandler(service sync.Service) *SyncHandler {
 
 // register root directory
 func (sh *SyncHandler) RegisterRootDir(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.REGISTERROOTDIR, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 	request := &types.RootDirRegisterReq{}
 	if err = request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	// Register root directory of client to database
 	response, err := sh.syncService.RegisterRootDir(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 	err = stream.SendBMessage(data)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
@@ -73,45 +73,46 @@ func (sh *SyncHandler) RegisterRootDir(conn *qp.Connection, stream *qp.Stream, t
 			UUID: request.UUID,
 		})
 		if err != nil {
-			log.Println("quics err: ", err)
+			log.Println("quics err: [RESCAN after ", transactionName, "] ", err)
 			return
 		}
 	}()
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // sync root directory
 func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.SYNCROOTDIR, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.RootDirRegisterReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	// get root directory path of requested data
 	rootDirRegisterRes, err := sh.syncService.SyncRootDir(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := rootDirRegisterRes.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
@@ -121,100 +122,103 @@ func (sh *SyncHandler) SyncRootDir(conn *qp.Connection, stream *qp.Stream, trans
 			UUID: request.UUID,
 		})
 		if err != nil {
-			log.Println("quics err: ", err)
+			log.Println("quics err: [RESCAN after ", transactionName, "] ", err)
 			return
 		}
 	}()
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // get root directory list
 func (sh *SyncHandler) GetRemoteDirs(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.GETROOTDIRS, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 	request := &types.AskConflictListReq{}
 	if err = request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	rootDirs, err := sh.syncService.GetRootDirList()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	res, err := rootDirs.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(res)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 func (sh *SyncHandler) DisconnectRootDir(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.DISCONNECTROOTDIR, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.DisconnectRootDirReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	// get root directory path of requested data
 	disconnectRootDirRes, err := sh.syncService.DisconnectRootDir(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := disconnectRootDirRes.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // please sync transaction
 // it is used when client wants to sync file
 func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.PLEASESYNC, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	// -> return file metadata to client
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	pleaseSyncReq := &types.PleaseSyncReq{}
 	if err := pleaseSyncReq.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
@@ -229,19 +233,19 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 
 	pleaseSyncRes, err := sh.syncService.UpdateFileWithoutContents(pleaseSyncReq)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := pleaseSyncRes.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
@@ -251,13 +255,13 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 
 	data, fileInfo, fileContent, err := stream.RecvFileBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	pleaseTakeReq := &types.PleaseTakeReq{}
 	if err := pleaseTakeReq.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 	fileMetedata := &types.FileMetadata{
@@ -270,77 +274,79 @@ func (sh *SyncHandler) PleaseSync(conn *qp.Connection, stream *qp.Stream, transa
 
 	pleaseTakeRes, err := sh.syncService.UpdateFileWithContents(pleaseTakeReq, fileMetedata, fileContent)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err = pleaseTakeRes.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	// <- update file contents
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // get conflict list transaction
 // it is used when client wants to get conflict status list
 func (sh *SyncHandler) AskConflictList(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.CONFLICTLIST, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.AskConflictListReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	// get root directory path of requested data
 	askConflictListRes, err := sh.syncService.GetConflictList(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := askConflictListRes.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // choose one transaction
 // it is used when client wants to choose one of conflict files
 func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.CHOOSEONE, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.PleaseFileReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
@@ -356,130 +362,133 @@ func (sh *SyncHandler) ChooseOne(conn *qp.Connection, stream *qp.Stream, transac
 	// get root directory path of requested data
 	pleaseFileRes, err := sh.syncService.ChooseOne(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := pleaseFileRes.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // rescan transaction
 // it is used when client wants to rescan (fullscan)
 func (sh *SyncHandler) Rescan(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.RESCAN, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.RescanReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	rescanRes, err := sh.syncService.Rescan(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := rescanRes.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(response)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // rollback transaction
 // it is used when client wants to rollback file to specific version
 func (sh *SyncHandler) RollbackFileByHistory(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.ROLLBACK, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.RollBackReq{}
 	if err = request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := sh.syncService.RollbackFileByHistory(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(data)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // conflict download transaction
 // it is used when client wants to download conflict files
 func (sh *SyncHandler) ConflictDownload(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.CONFLICTDOWNLOAD, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.AskStagingNumReq{}
 	if err = request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := sh.syncService.GetStagingNum(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(data)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
@@ -490,14 +499,14 @@ func (sh *SyncHandler) ConflictDownload(conn *qp.Connection, stream *qp.Stream, 
 
 	requests, err := sh.syncService.GetConflictFiles(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	for _, request := range requests {
 		data, err = request.Encode()
 		if err != nil {
-			log.Println("quics err: ", err)
+			log.Println("quics err: [", transactionName, "] ", err)
 			return err
 		}
 
@@ -505,56 +514,58 @@ func (sh *SyncHandler) ConflictDownload(conn *qp.Connection, stream *qp.Stream, 
 			filePath := utils.GetQuicsSyncDirPath() + request.AfterPath
 			err = stream.SendFileBMessage(data, filePath)
 			if err != nil {
-				log.Println("quics err: ", err)
+				log.Println("quics err: [", transactionName, "] ", err)
 				return err
 			}
 		} else {
 			filePath := utils.GetConflictFileNameByAfterPath(request.AfterPath, request.Candidate)
 			err = stream.SendFileBMessage(data, filePath)
 			if err != nil {
-				log.Println("quics err: ", err)
+				log.Println("quics err: [", transactionName, "] ", err)
 				return err
 			}
 		}
 	}
 
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 // download history transaction
 // it is used when client wants to download specific history(version) file
 func (sh *SyncHandler) DownloadHistory(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: receive ", types.DOWNLOAD, " transaction")
+	log.Println("quics: receive ", transactionName, " transaction")
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.DownloadHistoryReq{}
 	if err = request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, filePath, err := sh.syncService.DownloadHistory(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendFileBMessage(data, filePath)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
@@ -569,8 +580,9 @@ func NewSyncAdapter(pool *connection.Pool) *SyncAdapter {
 }
 
 type Transaction struct {
-	wg     *stdsync.WaitGroup
-	stream *qp.Stream
+	transactionName string
+	wg              *stdsync.WaitGroup
+	stream          *qp.Stream
 }
 
 // OpenTransaction opens transaction
@@ -580,13 +592,14 @@ func (sa *SyncAdapter) OpenTransaction(transactionName string, uuid string) (syn
 	// get connection from pool by uuid
 	conn, err := sa.Pool.GetConnection(uuid)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return nil, err
 	}
 
 	transaction := &Transaction{
-		wg:     &stdsync.WaitGroup{},
-		stream: nil,
+		transactionName: transactionName,
+		wg:              &stdsync.WaitGroup{},
+		stream:          nil,
 	}
 
 	// make error channel to receive error from goroutine
@@ -614,7 +627,7 @@ func (sa *SyncAdapter) OpenTransaction(transactionName string, uuid string) (syn
 	// wait for setting stream
 	err = <-errChan
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return nil, err
 	}
 
@@ -623,6 +636,7 @@ func (sa *SyncAdapter) OpenTransaction(transactionName string, uuid string) (syn
 
 func (t *Transaction) Close() error {
 	t.wg.Done()
+	log.Println("quics: close ", t.transactionName, " transaction")
 	return nil
 }
 
@@ -631,13 +645,13 @@ func (t *Transaction) Close() error {
 func (t *Transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.MustSyncRes, error) {
 	request, err := mustSyncReq.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	err = t.stream.SendBMessage(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
@@ -649,7 +663,7 @@ func (t *Transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.Mu
 
 	mustSyncRes := &types.MustSyncRes{}
 	if err := mustSyncRes.Decode(res); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 	return mustSyncRes, nil
@@ -660,27 +674,27 @@ func (t *Transaction) RequestMustSync(mustSyncReq *types.MustSyncReq) (*types.Mu
 func (t *Transaction) RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePath string) (*types.GiveYouRes, error) {
 	request, err := giveYouReq.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	// send (history file)
 	err = t.stream.SendFileBMessage(request, historyFilePath)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	// receive
 	res, err := t.stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	giveYouRes := &types.GiveYouRes{}
 	if err := giveYouRes.Decode(res); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 	return giveYouRes, nil
@@ -691,27 +705,27 @@ func (t *Transaction) RequestGiveYou(giveYouReq *types.GiveYouReq, historyFilePa
 func (t *Transaction) RequestForceSync(mustSyncReq *types.MustSyncReq, historyFilePath string) (*types.MustSyncRes, error) {
 	request, err := mustSyncReq.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	// send (history file)
 	err = t.stream.SendFileBMessage(request, historyFilePath)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	// receive
 	res, err := t.stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	mustSyncRes := &types.MustSyncRes{}
 	if err := mustSyncRes.Decode(res); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 	return mustSyncRes, nil
@@ -722,26 +736,26 @@ func (t *Transaction) RequestForceSync(mustSyncReq *types.MustSyncReq, historyFi
 func (t *Transaction) RequestAskAllMeta(askAllMetaReq *types.AskAllMetaReq) (*types.AskAllMetaRes, error) {
 	request, err := askAllMetaReq.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	err = t.stream.SendBMessage(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	// receive
 	res, err := t.stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	askAllMetaRes := &types.AskAllMetaRes{}
 	if err := askAllMetaRes.Decode(res); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 	return askAllMetaRes, nil
@@ -752,26 +766,26 @@ func (t *Transaction) RequestAskAllMeta(askAllMetaReq *types.AskAllMetaReq) (*ty
 func (t *Transaction) RequestNeedSync(needSyncReq *types.NeedSyncReq) (*types.NeedSyncRes, error) {
 	request, err := needSyncReq.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	err = t.stream.SendBMessage(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	// receive
 	res, err := t.stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 
 	needSyncRes := &types.NeedSyncRes{}
 	if err := needSyncRes.Decode(res); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, err
 	}
 	return needSyncRes, nil
@@ -782,26 +796,26 @@ func (t *Transaction) RequestNeedSync(needSyncReq *types.NeedSyncReq) (*types.Ne
 func (t *Transaction) RequestNeedContent(needContentReq *types.NeedContentReq) (*types.NeedContentRes, *types.FileMetadata, io.Reader, error) {
 	request, err := needContentReq.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, nil, nil, err
 	}
 
 	err = t.stream.SendBMessage(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, nil, nil, err
 	}
 
 	// receive
 	res, fileInfo, content, err := t.stream.RecvFileBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, nil, nil, err
 	}
 
 	needContentRes := &types.NeedContentRes{}
 	if err := needContentRes.Decode(res); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", t.transactionName, "] ", err)
 		return nil, nil, nil, err
 	}
 

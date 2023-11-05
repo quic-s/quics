@@ -13,4 +13,4 @@ ENV PATH="/quics:${PATH}"
 EXPOSE 6121/udp
 EXPOSE 6122/udp
 
-CMD [ "qis", "start"]
+CMD [ "qis", "run"]

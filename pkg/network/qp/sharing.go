@@ -19,73 +19,75 @@ func NewSharingHandler(sharingService sharing.Service) *SharingHandler {
 }
 
 func (sh *SharingHandler) StartSharing(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.ShareReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := sh.sharingService.CreateLink(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(data)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }
 
 func (sh *SharingHandler) StopSharing(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: message received ", conn.Conn.RemoteAddr().String())
+	log.Println("quics: receive ", transactionName, " transaction")
 
 	data, err := stream.RecvBMessage()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	request := &types.StopShareReq{}
 	if err := request.Decode(data); err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	response, err := sh.sharingService.DeleteLink(request)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	data, err = response.Encode()
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
 	err = stream.SendBMessage(data)
 	if err != nil {
-		log.Println("quics err: ", err)
+		log.Println("quics err: [", transactionName, "] ", err)
 		return err
 	}
 
+	log.Println("quics: [", transactionName, "] transaction finished")
 	return nil
 }

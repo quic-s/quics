@@ -2,10 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
+	"os"
 
 	"github.com/quic-s/quics/pkg/app"
 	"github.com/quic-s/quics/pkg/types"
+	"github.com/quic-s/quics/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +22,7 @@ import (
 * `qis start --ip <server-ip> --port <server-port>`: Start quic-s server (run with custom IP)
 * `qis stop`: Stop quic-s server
 * `qis listen`: Listen quic-s protocol
+* `qis run`: Run quic-s server (combine of start and listen)
 *
 * `qis password set --pw <password>`: Change password for quic-s server
 * `qis password reset`: Reset password for quic-s server
@@ -72,6 +77,7 @@ const (
 	StartCommand    = "start"
 	StopCommand     = "stop"
 	ListenCommand   = "listen"
+	RunCommand      = "run"
 	PasswordCommand = "password"
 	ShowCommand     = "show"
 	RemoveCommand   = "remove"
@@ -141,6 +147,7 @@ var (
 	startServerCmd   *cobra.Command
 	stopServerCmd    *cobra.Command
 	listenCmd        *cobra.Command
+	runCmd           *cobra.Command
 	passwordCmd      *cobra.Command
 	passwordSetCmd   *cobra.Command
 	passwordResetCmd *cobra.Command
@@ -163,6 +170,7 @@ func Run() int {
 	startServerCmd = initStartServerCmd()
 	stopServerCmd = initStopServerCmd()
 	listenCmd = initListenCmd()
+	runCmd = initRunCmd()
 	passwordCmd = initPasswordCmd()
 	passwordSetCmd = initPasswordSetCmd()
 	passwordResetCmd = initPasswordResetCmd()
@@ -183,6 +191,10 @@ func Run() int {
 	startServerCmd.Flags().StringVarP(&addr, AddrOption, "", "", "Start server with custom address")
 	startServerCmd.Flags().StringVarP(&port, PortOption, "", "", "Start http rest server with custom port")
 	startServerCmd.Flags().StringVarP(&port3, Port3Option, "", "", "Start http3 rest server with custom port")
+	// qis run --addr <server-ip> --port <http-port> --port3 <http3-port>
+	runCmd.Flags().StringVarP(&addr, AddrOption, "", "", "Start server with custom address")
+	runCmd.Flags().StringVarP(&port, PortOption, "", "", "Start http rest server with custom port")
+	runCmd.Flags().StringVarP(&port3, Port3Option, "", "", "Start http3 rest server with custom port")
 	// qis password set --pw <password>
 	passwordSetCmd.Flags().StringVarP(&password, PasswordOption, "", "", "Change password for quic-s server")
 	// qis show client --id, qis show client --all
@@ -215,6 +227,7 @@ func Run() int {
 	rootCmd.AddCommand(startServerCmd)
 	rootCmd.AddCommand(stopServerCmd)
 	rootCmd.AddCommand(listenCmd)
+	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(passwordCmd)
 	rootCmd.AddCommand(showCmd)
 	rootCmd.AddCommand(removeCmd)
@@ -256,7 +269,7 @@ func initStartServerCmd() *cobra.Command {
 				return err
 			}
 
-			err = quicsApp.Start()
+			err = quicsApp.StartRestServer()
 			if err != nil {
 				return err
 			}
@@ -314,6 +327,25 @@ func initListenCmd() *cobra.Command {
 				return err
 			}
 
+			return nil
+		},
+	}
+}
+
+func initRunCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   RunCommand,
+		Short: "run quic-s server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			quicsApp, err := app.New(addr, port, port3)
+			if err != nil {
+				return err
+			}
+
+			err = quicsApp.Run()
+			if err != nil {
+				return err
+			}
 			return nil
 		},
 	}
@@ -407,12 +439,11 @@ func initShowClientCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(showClientCmd)
 
-			url := "/api/v1/server/logs/clients"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/logs/clients?uuid=" + id
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /clients
+			response, err := restClient.GetRequest(url) // /clients
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -422,6 +453,15 @@ func initShowClientCmd() *cobra.Command {
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
+			}
+
+			clients := []types.Client{}
+			utils.UnmarshalRequestBody(response.Bytes(), clients)
+
+			for _, client := range clients {
+				for _, root := range client.Root {
+					fmt.Printf("*   UUID: %s   |   ID: %d   |   IP: %s   |   Root Directoreis: %s   *\n", client.UUID, client.Id, client.Ip, root)
+				}
 			}
 
 			return nil
@@ -436,12 +476,11 @@ func initShowDirCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(showDirCmd)
 
-			url := "/api/v1/server/logs/directories"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/logs/directories?afterPath=" + path
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /directories
+			response, err := restClient.GetRequest(url) // /directories
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -451,6 +490,14 @@ func initShowDirCmd() *cobra.Command {
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
+			}
+
+			dirs := []types.RootDirectory{}
+			utils.UnmarshalRequestBody(response.Bytes(), dirs)
+			for _, dir := range dirs {
+				for _, UUID := range dir.UUIDs {
+					fmt.Printf("*   Root Directory: %s   |   Owner: %s   |   Password: %s   |   UUID: %s   *\n", dir.AfterPath, dir.Owner, dir.Password, UUID)
+				}
 			}
 
 			return nil
@@ -465,12 +512,11 @@ func initShowFileCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(showFileCmd)
 
-			url := "/api/v1/server/logs/files"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/logs/files?afterPath=" + path
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /files
+			response, err := restClient.GetRequest(url) // /files
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -480,6 +526,13 @@ func initShowFileCmd() *cobra.Command {
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
+			}
+
+			files := []types.File{}
+			utils.UnmarshalRequestBody(response.Bytes(), files)
+
+			for _, file := range files {
+				fmt.Printf("*   File: %s   |   Root Directory: %s   |   LatestHash: %s   |   LatestSyncTimestamp: %d   |   ContentsExisted: %t   |   Metadata: %s   *\n", file.AfterPath, file.RootDirKey, file.LatestHash, file.LatestSyncTimestamp, file.ContentsExisted, file.Metadata.ModTime)
 			}
 
 			return nil
@@ -494,12 +547,11 @@ func initShowHistoryCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(showHistoryCmd)
 
-			url := "/api/v1/server/logs/histories"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/logs/histories?afterPath=" + path
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url) // /history
+			response, err := restClient.GetRequest(url) // /history
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -509,6 +561,13 @@ func initShowHistoryCmd() *cobra.Command {
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
+			}
+
+			histories := []types.FileHistory{}
+			utils.UnmarshalRequestBody(response.Bytes(), histories)
+
+			for _, history := range histories {
+				fmt.Printf("*   Path: %s   |   Date: %s   |   UUID: %s   |   Timestamp: %d   |   Hash: %s   |*\n", history.BeforePath+history.AfterPath, history.Date, history.UUID, history.Timestamp, history.Hash)
 			}
 
 			return nil
@@ -530,8 +589,7 @@ func initRemoveClientCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(removeClientCmd)
 
-			url := "/api/v1/server/remove/clients"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/remove/clients?uuid=" + id
 
 			restClient := NewRestClient()
 
@@ -559,8 +617,7 @@ func initRemoveDirCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(removeDirCmd)
 
-			url := "/api/v1/server/remove/directories"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/remove/directories?afterPath=" + path
 
 			restClient := NewRestClient()
 
@@ -588,8 +645,7 @@ func initRemoveFileCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validateOptionByCommand(removeFileCmd)
 
-			url := "/api/v1/server/remove/files"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/remove/files?afterPath=" + path
 
 			restClient := NewRestClient()
 
@@ -628,12 +684,11 @@ func initDownloadFileCmd() *cobra.Command {
 				return nil
 			}
 
-			url := "/api/v1/server/download/files"
-			url = getUrlWithQueryString(url)
+			url := "/api/v1/server/download/files?afterPath=" + path + "&timestamp=" + fmt.Sprint(version)
 
 			restClient := NewRestClient()
 
-			_, err := restClient.GetRequest(url)
+			response, err := restClient.GetRequest(url)
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -643,6 +698,20 @@ func initDownloadFileCmd() *cobra.Command {
 			if err != nil {
 				log.Println("quics err: ", err)
 				return err
+			}
+
+			destinationFile, err := os.Create(target)
+			if err != nil {
+				return err
+			}
+			defer destinationFile.Close()
+
+			n, err := destinationFile.Write(response.Bytes())
+			if err != nil {
+				return err
+			}
+			if n != len(response.Bytes()) {
+				return io.ErrShortWrite
 			}
 
 			return nil
@@ -660,17 +729,4 @@ func validateOptionByCommand(command *cobra.Command) {
 		command.Help()
 		return
 	}
-}
-
-func getUrlWithQueryString(url string) string {
-	if all {
-		url += "?all=true"
-		return url
-	}
-	if id != "" {
-		url += "?id=" + id
-		return url
-	}
-
-	return url
 }

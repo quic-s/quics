@@ -74,6 +74,15 @@ func (p *Protocol) Start() error {
 	return nil
 }
 
+func (p *Protocol) Close() error {
+	err := p.Proto.Close()
+	if err != nil {
+		log.Println("quics err: ", err)
+		return err
+	}
+	return nil
+}
+
 func (p *Protocol) RecvTransactionHandleFunc(transactionName string, handleFunc func(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error) error {
 	if transactionName == types.REGISTERCLIENT {
 		p.initialTransaction = handleFunc
@@ -88,8 +97,6 @@ func (p *Protocol) RecvTransactionHandleFunc(transactionName string, handleFunc 
 }
 
 func ping(conn *qp.Connection, stream *qp.Stream, transactionName string, transactionID []byte) error {
-	log.Println("quics: Ping received ", conn.Conn.RemoteAddr().String())
-
 	data, err := stream.RecvBMessage()
 	if err != nil {
 		log.Println("quics err: ", err)
@@ -102,6 +109,7 @@ func ping(conn *qp.Connection, stream *qp.Stream, transactionName string, transa
 		return err
 	}
 
+	log.Println("quics: Ping received from ", request.UUID)
 	response, err := request.Encode()
 	if err != nil {
 		log.Println("quics err: ", err)

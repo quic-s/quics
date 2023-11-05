@@ -3,23 +3,14 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 )
 
-func UnmarshalRequestBody(r *http.Request, dstStruct any) error {
-	buf := make([]byte, r.ContentLength)
-
-	n, err := r.Body.Read(buf)
-	if err != nil && err != io.EOF {
-		return err
-	}
-
-	if n == 0 {
+func UnmarshalRequestBody(body []byte, dstStruct any) error {
+	if len(body) == 0 {
 		return fmt.Errorf("empty body")
 	}
 
-	err = json.Unmarshal(buf, dstStruct)
+	err := json.Unmarshal(body, dstStruct)
 	if err != nil {
 		return err
 	}

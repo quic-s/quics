@@ -81,8 +81,8 @@ func (sr *ServerRepository) GetPassword() (*types.Server, error) {
 	return server, nil
 }
 
-func (sr *ServerRepository) GetAllClients() ([]*types.Client, error) {
-	clients := []*types.Client{}
+func (sr *ServerRepository) GetAllClients() ([]types.Client, error) {
+	clients := []types.Client{}
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -98,7 +98,7 @@ func (sr *ServerRepository) GetAllClients() ([]*types.Client, error) {
 				return err
 			}
 
-			client := &types.Client{}
+			client := types.Client{}
 			if err := client.Decode(val); err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -117,8 +117,8 @@ func (sr *ServerRepository) GetAllClients() ([]*types.Client, error) {
 	return clients, nil
 }
 
-func (sr *ServerRepository) GetAllRootDirectories() ([]*types.RootDirectory, error) {
-	rootDirs := []*types.RootDirectory{}
+func (sr *ServerRepository) GetAllRootDirectories() ([]types.RootDirectory, error) {
+	rootDirs := []types.RootDirectory{}
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -134,7 +134,7 @@ func (sr *ServerRepository) GetAllRootDirectories() ([]*types.RootDirectory, err
 				return err
 			}
 
-			rootDir := &types.RootDirectory{}
+			rootDir := types.RootDirectory{}
 			if err := rootDir.Decode(val); err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -153,8 +153,8 @@ func (sr *ServerRepository) GetAllRootDirectories() ([]*types.RootDirectory, err
 	return rootDirs, nil
 }
 
-func (sr *ServerRepository) GetAllFiles() ([]*types.File, error) {
-	files := []*types.File{}
+func (sr *ServerRepository) GetAllFiles() ([]types.File, error) {
+	files := []types.File{}
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -170,7 +170,7 @@ func (sr *ServerRepository) GetAllFiles() ([]*types.File, error) {
 				return err
 			}
 
-			file := &types.File{}
+			file := types.File{}
 			if err := file.Decode(val); err != nil {
 				log.Println("quics err: ", err)
 				return err
@@ -423,8 +423,8 @@ func (sr *ServerRepository) DeleteFileByAfterPath(afterPath string) error {
 	return nil
 }
 
-func (sr *ServerRepository) GetAllHistories() ([]*types.FileHistory, error) {
-	histories := []*types.FileHistory{}
+func (sr *ServerRepository) GetAllHistories() ([]types.FileHistory, error) {
+	histories := []types.FileHistory{}
 
 	err := sr.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -440,7 +440,7 @@ func (sr *ServerRepository) GetAllHistories() ([]*types.FileHistory, error) {
 				return err
 			}
 
-			history := &types.FileHistory{}
+			history := types.FileHistory{}
 			if err := history.Decode(val); err != nil {
 				log.Println("quics err: ", err)
 				return err
