@@ -34,6 +34,8 @@ Server sends client with two options (client side, server side). Client chooses 
 ### 4. Save the history of file
 Server manages all histories of all files. The history file is saved to directory (e.g., .quics/sync/${root-directory-name}/history/*). If the user wants, a file can be replaced with a previous file history.
 
+> For more detail logic and implementation, please check [QUIC-S Docs](./docs/README.md)
+
 ## Getting Started
 
 ### 1. Docker
@@ -43,7 +45,7 @@ docker run -it -d -e PASSWORD=passwordwhatyouwant -v /path/to/your/dir:/data --n
 ```
 
 ### 2. Local install
-- 1. Download the latest version from release page
+- 1. Download the latest version from [release page](https://github.com/quic-s/quics/releases)
 - 2. Unpack the archive
 - 3. Run `mv ./qis /usr/local/bin/qis`
 

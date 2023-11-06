@@ -8,7 +8,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 ## V1.0
 
-### Objective time: In 2023
+### Goal: In 2023
 
 V1.0 focuses on the core features of QUIC-S. The goal is to have a stable and performant implementation of the QUIC-S that can be used in production environments.
 
@@ -34,7 +34,7 @@ The tool should be able to manage the history of files. This means that the tool
 
 ## V1.5
 
-### Objective time: 2024
+### Goal: 2024
 
 This version aims to improve the user experience of the file synchronization program completed in 1.0. 
 
@@ -60,7 +60,7 @@ Currently, the hadling of file can only run on Unix-like systems. Using docker c
 
 ## QUIC-S Next
 
-### Objective time: After V1.5
+### Goal: After V1.5
 
 After V1.5, QUIC-S aims to go beyond basic file synchronization and sharing and add more professional and advanced features.
 
