@@ -63,6 +63,11 @@ docker run -it -d -e PASSWORD=passwordwhatyouwant -v /path/to/your/dir:/data --n
 
 ## How to use
 
+**Check the video for how to use**
+
+[![quics-video](https://img.youtube.com/vi/0HYb-H82qXo/0.jpg)](https://youtu.be/0HYb-H82qXo)
+
+
 ### Environment variables
 
 Environment variables are used to set initial server configuration. If you use docker, you can set environment variables with `-e` option.
