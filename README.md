@@ -13,7 +13,7 @@ To see protocol: [quics-protocol](https://github.com/quic-s/quics-protocol)
 
 > **NOTICE**: If you want to use this tool, you should use the client of QUIC-S. You can find the client in [here](https://github.com/quic-s/quics-client.git) 
 
-[Features](#features) | [Getting Started](#getting-started) | [How to use](#how-to-use) | [Contribute](#contribute)
+[Features](#features) | [Getting Started](#getting-started) | [How to use](#how-to-use)| [Documentation](#documentation) | [Contribute](#contribute)
 
 ## Features
 
@@ -34,6 +34,8 @@ Server sends client with two options (client side, server side). Client chooses 
 ### 4. Save the history of file
 Server manages all histories of all files. The history file is saved to directory (e.g., .quics/sync/${root-directory-name}/history/*). If the user wants, a file can be replaced with a previous file history.
 
+> For more detail logic and implementation, please check [QUIC-S Docs](./docs/README.md)
+
 ## Getting Started
 
 ### 1. Docker
@@ -43,7 +45,7 @@ docker run -it -d -e PASSWORD=passwordwhatyouwant -v /path/to/your/dir:/data --n
 ```
 
 ### 2. Local install
-- 1. Download the latest version from release page
+- 1. Download the latest version from [release page](https://github.com/quic-s/quics/releases)
 - 2. Unpack the archive
 - 3. Run `mv ./qis /usr/local/bin/qis`
 
@@ -55,10 +57,16 @@ docker run -it -d -e PASSWORD=passwordwhatyouwant -v /path/to/your/dir:/data --n
      ```
 - 3. Run the command below in the root of the repository.
      ```Bash
+     go mod download
      go build -o qis ./cmd
      ```
 
 ## How to use
+
+**Check the video for how to use**
+
+[![quics-video](https://img.youtube.com/vi/0HYb-H82qXo/0.jpg)](https://youtu.be/0HYb-H82qXo)
+
 
 ### Environment variables
 
@@ -107,6 +115,12 @@ Below table is the list of commands and rest api path.
 | log | `qis show file` | `-a`, `--all` | show all files information | /api/v1/server/logs/files |
 | log | `qis show history` | `-i`, `--id` | show history information by key  | /api/v1/server/logs/histories |
 | log | `qis show history` | `-a`, `--all` | show all histories information | /api/v1/server/logs/histories |
+
+## Documentation
+
+For more detail logic and implementation, please check [QUIC-S Docs](./docs/README.md)
+
+Also you can check [quics-client](https://github.com/quic-s/quics-client) for client side and [quics-protocol](https://github.com/quic-s/quics-protocol) for protocol.
 
 ## Contribute
 
