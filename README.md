@@ -13,7 +13,7 @@ To see protocol: [quics-protocol](https://github.com/quic-s/quics-protocol)
 
 > **NOTICE**: If you want to use this tool, you should use the client of QUIC-S. You can find the client in [here](https://github.com/quic-s/quics-client.git) 
 
-[Features](#features) | [Getting Started](#getting-started) | [How to use](#how-to-use) | [Contribute](#contribute)
+[Features](#features) | [Getting Started](#getting-started) | [How to use](#how-to-use)| [Documentation](#documentation) | [Contribute](#contribute)
 
 ## Features
 
@@ -109,6 +109,12 @@ Below table is the list of commands and rest api path.
 | log | `qis show file` | `-a`, `--all` | show all files information | /api/v1/server/logs/files |
 | log | `qis show history` | `-i`, `--id` | show history information by key  | /api/v1/server/logs/histories |
 | log | `qis show history` | `-a`, `--all` | show all histories information | /api/v1/server/logs/histories |
+
+## Documentation
+
+For more detail logic and implementation, please check [QUIC-S Docs](./docs/README.md)
+
+Also you can check [quics-client](https://github.com/quic-s/quics-client) for client side and [quics-protocol](https://github.com/quic-s/quics-protocol) for protocol.
 
 ## Contribute
 
