@@ -5,6 +5,22 @@ This system is designed to synchronize files between multiple devices, to manage
 
 This document is written for describe the system architecture and its components.
 
+## Table of Contents
+
+* [Overall Architecture](#overall-architecture)
+* [quics-protocol](#quics-protocol)
+    * [Why develop a new protocol?](#why-develop-a-new-protocol)
+    * [Features of quics-protocol](#features-of-quics-protocol)
+* [Restful API](#restful-api)
+    * [API Structure](#api-structure)
+    * [Implementation](#implementation)
+* [quics and quics-client](#quics-and-quics-client)
+    * [Code Structure](#code-structure)
+    * [Network](#network)
+    * [File System](#file-system)
+    * [Database](#database)
+    * [Command Line Interface](#command-line-interface)
+
 ## Overall Architecture
 
 ![architecture](https://github.com/quic-s/quics/assets/20539422/c41053e8-3786-4df9-b426-3e8f4041eebb)
@@ -90,17 +106,70 @@ quics is a server that manages file synchronization, and quics-client is a clien
 
 Hexagonal architecture is a model of designing software applications around domain logic to isolate it from external factors. The domain logic is specified in a business core, which we’ll call the inside part, with the rest being outside parts.
 
-The advantage of hexagonal architecture is that it allows us to isolate our core business logic from the external factors that may affect it, such as user interface, database, web services, etc. By using ports and adapters, we can decouple our domain model from the outside world and make it easier to test, debug, maintain, and change
+The advantage of hexagonal architecture is that it allows us to isolate our core business logic from the external factors that may affect it, such as file IO, database, network, etc. By using ports and adapters, we can decouple our domain model from the outside world and make it easier to test, debug, maintain, and change
 
-**So we decided to use this architecture to build the quics and quics-client.**
+### Network
 
-In go-lang, one could create a package for the domain layer, which contains the core business logic and the interfaces for the ports. Then, one could create separate packages for the application layer and the infrastructure layer, which implement the adapters for the different external components, such as user interface, database, or web services.
- 
-* `cmd` : This directory contains the main function of the application. It is responsible for initializing the application and starting the server. And, we use cobra to implement CLI commands.
-* `pkg` : This directory contains the domain and responsible for the business logic of the application. It is independent of the outside world and can be tested without any external dependencies.
-* `net` : This directory contains the application layer and responsible for the communication between the domain and the outside world. It implements the interfaces defined in the domain layer and uses the infrastructure layer to communicate with the outside world. Normally our projects, this for quics-protocol and http server.
-* `database` : It is also adpaters that be reponsible for communicating with the database. We use badger for the database, viper for the configuration.
+In quics and quics-client, the network package implements the adapters needed for networking. Current quics systems use the quics-protocol and http for RESTful APIs, so these adapters are implemented. 
 
+#### quics-protocol
 
+The quics-protocol implements the communication between client and server within the quics system. It allows transactions such as client registration, syncRootDir registration, PleaseSync, MustSync, and FullScan to work. 
 
+The client and server must receive or make requests depending on the transaction, so there is a primary adapter for receiving requests and a secondary adapter for making requests.
 
+For details of transactions, please refer to the [Transaction](transaction.md) document.
+
+#### http
+
+HTTP is used for communication to externally control the QUICS system. This includes the command line interface used by users. 
+
+The interface is implemented as a RESTful API, and is available through the http and http/3 protocols. The CLIs for controlling the server and client, `qis` and `qic`, use http/3.
+
+The client and server have a primary adapter implemented to accept these requests. 
+
+For details of the API, please refer to each repository's README.md.
+
+* [quics](https://github.com/quic-s/quics)
+* [quics-client](https://github.com/quic-s/quics-client)
+
+### File System
+
+The file system package implements the adapters needed for file system operations. The quics system uses the file system to manage files, so these adapters are implemented.
+
+#### Server
+
+The server accesses the file system by default to store files received from clients for synchronization and to transfer them to other clients, so an adapter for this is implemented using Go's OS package.
+
+These include read/write of files, read/write of history, and read/write of concurrent files. Accessing the same file at the same time can cause errors, so mutex locks are applied based on the file's path.
+
+#### Client
+
+The client needs to be able to listen for CREATE, WRITE, RENAME, and DELETE events from the file system so that synchronization of files can be triggered. 
+
+For this purpose, a library called fsnotify is implemented to receive events from the operating system's file system.
+And an adapter is implemented to perform read and write operations to synchronize files when there is an event or transaction.
+
+### Database
+
+The QUICS system uses the [badger](https://github.com/dgraph-io/badger) library as a database to store and manage data.
+
+BadgerDB is a fast key-value store written in pure Go that uses the [LSM tree](https://en.wikipedia.org/wiki/Log-structured_merge-tree) data structure. 
+
+It is suitable for the quics system because it can perform fast and parallel transactions, is optimized for SSDs, and is embeddable.
+This is used to store information from clients and files, and to handle history and conflicts.
+
+The struct of the data stored in the database is defined in the types package, and the adapter for accessing the database is implemented in the repository package.
+
+### Command Line Interface
+
+quics and quics-client have a command line interface for controlling the program named `qis` and `qic` respectively.
+
+This CLI is implemented using the [cobra](https://github.com/spf13/cobra) library, and the command is implemented in the cmd package.
+
+The CLI uses the http client to communicate with the server and client, and the http client is implemented internally.
+
+For details of the CLI commands, please refer to each repository's README.md.
+
+* [quics](https://github.com/quic-s/quics)
+* [quics-client](https://github.com/quic-s/quics-client)
