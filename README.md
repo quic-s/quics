@@ -57,6 +57,7 @@ docker run -it -d -e PASSWORD=passwordwhatyouwant -v /path/to/your/dir:/data --n
      ```
 - 3. Run the command below in the root of the repository.
      ```Bash
+     go mod download
      go build -o qis ./cmd
      ```
 
