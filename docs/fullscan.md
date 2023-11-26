@@ -16,4 +16,4 @@ If user wants to perform full scan, user can use `qic rescan` command in client.
 
 ## Full Scan Process
 
-To see full scan process, please check [transaction#FULLSCAN](fullscan.md#full-scan)
+To see full scan process, please check [transaction#FULLSCAN](transaction.md#full-scan)
