@@ -65,7 +65,7 @@ docker run -it -d -e PASSWORD=passwordwhatyouwant -v /path/to/your/dir:/data --n
 
 **Check the video for how to use**
 
-[![quics-video](https://img.youtube.com/vi/0HYb-H82qXo/0.jpg)](https://youtu.be/0HYb-H82qXo)
+[![quics-video](https://img.youtube.com/vi/B5u2qiNFiV8/0.jpg)](https://youtu.be/B5u2qiNFiV8)
 
 
 ### Environment variables
